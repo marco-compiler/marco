@@ -467,7 +467,7 @@ def KINSOL_ReturnOp : KINSOL_Op<"return",
 
     let builders = [
         OpBuilder<(ins), [{
-            build($_builder, $_state, std::nullopt);
+            build($_builder, $_state, {});
         }]>];
 
     let assemblyFormat = "attr-dict ($operands^ `:` type($operands))?";

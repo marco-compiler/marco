@@ -125,7 +125,7 @@ mlir::LogicalResult EulerForwardPass::createUpdateNonStateVariablesFunction(
 
   auto functionOp = rewriter.create<mlir::runtime::FunctionOp>(
       modelOp.getLoc(), "updateNonStateVariables",
-      rewriter.getFunctionType(std::nullopt, std::nullopt));
+      rewriter.getFunctionType({}, {}));
 
   mlir::Block *entryBlock = functionOp.addEntryBlock();
   rewriter.setInsertionPointToStart(entryBlock);
@@ -152,7 +152,7 @@ mlir::LogicalResult EulerForwardPass::createUpdateNonStateVariablesFunction(
   }
 
   rewriter.setInsertionPointToEnd(entryBlock);
-  rewriter.create<mlir::runtime::ReturnOp>(modelOp.getLoc(), std::nullopt);
+  rewriter.create<mlir::runtime::ReturnOp>(modelOp.getLoc());
   return mlir::success();
 }
 
@@ -165,15 +165,14 @@ mlir::LogicalResult EulerForwardPass::createUpdateStateVariablesFunction(
 
   // Create a global variable storing the value of the requested time step.
   auto timeStepVariable = builder.create<GlobalVariableOp>(
-      modelOp.getLoc(), "timeStep",
-      ArrayType::get(std::nullopt, builder.getF64Type()));
+      modelOp.getLoc(), "timeStep", ArrayType::get({}, builder.getF64Type()));
 
   symbolTableCollection.getSymbolTable(moduleOp).insert(timeStepVariable);
 
   // Create the function called by the runtime library.
   auto functionOp = builder.create<mlir::runtime::FunctionOp>(
       modelOp.getLoc(), "updateStateVariables",
-      builder.getFunctionType(builder.getF64Type(), std::nullopt));
+      builder.getFunctionType(builder.getF64Type(), {}));
 
   mlir::Block *functionBody = functionOp.addEntryBlock();
   builder.setInsertionPointToStart(functionBody);
@@ -185,7 +184,7 @@ mlir::LogicalResult EulerForwardPass::createUpdateStateVariablesFunction(
                                                            timeStepVariable);
 
   builder.create<StoreOp>(timeStepArg.getLoc(), timeStepArg, timeStepArray,
-                          std::nullopt);
+                          mlir::ValueRange());
 
   // Compute the list of state and derivative variables.
   const DerivativesMap &derivativesMap = modelOp.getProperties().derivativesMap;
@@ -247,7 +246,7 @@ mlir::LogicalResult EulerForwardPass::createUpdateStateVariablesFunction(
   }
 
   // Terminate the function.
-  builder.create<mlir::runtime::ReturnOp>(modelOp.getLoc(), std::nullopt);
+  builder.create<mlir::runtime::ReturnOp>(modelOp.getLoc(), mlir::ValueRange());
 
   return mlir::success();
 }
@@ -309,7 +308,7 @@ mlir::LogicalResult EulerForwardPass::createRangedStateVariableUpdateBlocks(
   mlir::Value timeStep = builder.create<GlobalVariableGetOp>(
       stateVariable.getLoc(), timeStepVariable);
 
-  timeStep = builder.create<LoadOp>(timeStep.getLoc(), timeStep, std::nullopt);
+  timeStep = builder.create<LoadOp>(timeStep.getLoc(), timeStep);
 
   auto getNewScalarStateFn = [&](mlir::OpBuilder &nestedBuilder,
                                  mlir::Location nestedLoc,
@@ -402,7 +401,7 @@ mlir::LogicalResult EulerForwardPass::createMonolithicStateVariableUpdateBlock(
   auto funcOp = builder.create<RawFunctionOp>(
       stateVariable.getLoc(),
       "euler_state_update_" + stateVariable.getSymName().str(),
-      builder.getFunctionType(std::nullopt, std::nullopt));
+      builder.getFunctionType({}, {}));
 
   symbolTableCollection.getSymbolTable(moduleOp).insert(funcOp);
 
@@ -412,7 +411,7 @@ mlir::LogicalResult EulerForwardPass::createMonolithicStateVariableUpdateBlock(
   mlir::Value timeStep = builder.create<GlobalVariableGetOp>(
       stateVariable.getLoc(), timeStepVariable);
 
-  timeStep = builder.create<LoadOp>(timeStep.getLoc(), timeStep, std::nullopt);
+  timeStep = builder.create<LoadOp>(timeStep.getLoc(), timeStep);
 
   mlir::Value state =
       builder.create<QualifiedVariableGetOp>(funcOp.getLoc(), stateVariable);

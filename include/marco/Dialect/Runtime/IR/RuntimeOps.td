@@ -347,9 +347,7 @@ def Runtime_InitFunctionOp : Runtime_Op<"init_function",
 
     let builders = [
         OpBuilder<(ins), [{
-            auto functionType = $_builder.getFunctionType(
-                std::nullopt, std::nullopt);
-
+            auto functionType = $_builder.getFunctionType({}, {});
             build($_builder, $_state, functionType);
         }]>
     ];
@@ -385,9 +383,7 @@ def Runtime_DeinitFunctionOp : Runtime_Op<"deinit_function",
 
     let builders = [
         OpBuilder<(ins), [{
-            auto functionType = $_builder.getFunctionType(
-                std::nullopt, std::nullopt);
-
+            auto functionType = $_builder.getFunctionType({}, {});
             build($_builder, $_state, functionType);
         }]>
     ];
@@ -527,6 +523,10 @@ def Runtime_YieldOp : Runtime_Op<"yield",
     let results = (outs);
 
     let assemblyFormat = "attr-dict ($values^ `:` type($values))?";
+
+    let builders = [
+        OpBuilder<(ins)>,
+    ];
 }
 
 def Runtime_ICModelBeginOp : Runtime_Op<"ic_model_begin",
@@ -762,6 +762,10 @@ def Runtime_ReturnOp : Runtime_Op<"return",
     let results = (outs);
 
     let assemblyFormat = "attr-dict ($values^ `:` type($values))?";
+
+    let builders = [
+        OpBuilder<(ins)>,
+    ];
 }
 
 def Runtime_StringOp : Runtime_Op<"string", [NoMemoryEffect]>

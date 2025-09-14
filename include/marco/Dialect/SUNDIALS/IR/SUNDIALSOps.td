@@ -156,7 +156,7 @@ def sundials_VariableSetterOp : SUNDIALS_Op<"variable_setter",
             args.push_back($_builder.getF64Type());
             args.append(variableRank, $_builder.getIndexType());
 
-            auto functionType = $_builder.getFunctionType(args, std::nullopt);
+            auto functionType = $_builder.getFunctionType(args, {});
             auto typeAttr = TypeAttr::get(functionType);
             build($_builder, $_state, nameAttr, typeAttr, nullptr, nullptr);
         }]>
@@ -339,7 +339,7 @@ def SUNDIALS_ReturnOp : SUNDIALS_Op<"return",
 
     let builders = [
         OpBuilder<(ins), [{
-            build($_builder, $_state, std::nullopt);
+            build($_builder, $_state, {});
         }]>];
 
     let assemblyFormat = "attr-dict ($operands^ `:` type($operands))?";

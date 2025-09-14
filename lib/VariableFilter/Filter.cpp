@@ -7,7 +7,7 @@ namespace marco::vf {
 Filter::Filter(bool visibility, llvm::ArrayRef<Range> ranges)
     : visibility(visibility), ranges(ranges.begin(), ranges.end()) {}
 
-Filter Filter::visibleScalar() { return Filter(true, std::nullopt); }
+Filter Filter::visibleScalar() { return Filter(true, {}); }
 
 Filter Filter::visibleArray(llvm::ArrayRef<long> shape) {
   llvm::SmallVector<Range, 3> ranges;

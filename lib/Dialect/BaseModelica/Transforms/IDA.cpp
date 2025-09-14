@@ -1516,7 +1516,7 @@ FunctionOp IDAInstance::createPartialDerTemplateFromEquation(
 
   auto timeVariable = rewriter.create<VariableOp>(
       loc, "time",
-      VariableType::get(std::nullopt, RealType::get(rewriter.getContext()),
+      VariableType::get({}, RealType::get(rewriter.getContext()),
                         VariabilityProperty::none, IOProperty::input));
 
   symbolTableCollection->getSymbolTable(*derTemplate)
@@ -1630,7 +1630,7 @@ mlir::LogicalResult IDAInstance::createJacobianFunction(
       seed = builder.create<ArrayToTensorOp>(loc, tensorType, seed);
 
       if (tensorType.getRank() == 0) {
-        seed = builder.create<TensorExtractOp>(loc, seed, std::nullopt);
+        seed = builder.create<TensorExtractOp>(loc, seed, mlir::ValueRange());
       }
 
       args.push_back(seed);
@@ -2321,7 +2321,7 @@ IDAPass::createCalcICFunction(mlir::OpBuilder &builder, mlir::ModuleOp moduleOp,
   builder.setInsertionPointToEnd(moduleOp.getBody());
 
   auto functionOp = builder.create<mlir::runtime::FunctionOp>(
-      loc, "calcIC", builder.getFunctionType(std::nullopt, std::nullopt));
+      loc, "calcIC", builder.getFunctionType({}, {}));
 
   mlir::Block *entryBlock = functionOp.addEntryBlock();
   builder.setInsertionPointToStart(entryBlock);
@@ -2330,7 +2330,7 @@ IDAPass::createCalcICFunction(mlir::OpBuilder &builder, mlir::ModuleOp moduleOp,
     return mlir::failure();
   }
 
-  builder.create<mlir::runtime::ReturnOp>(loc, std::nullopt);
+  builder.create<mlir::runtime::ReturnOp>(loc, mlir::ValueRange());
   return mlir::success();
 }
 
@@ -2341,8 +2341,7 @@ mlir::LogicalResult IDAPass::createUpdateIDAVariablesFunction(
   builder.setInsertionPointToEnd(moduleOp.getBody());
 
   auto functionOp = builder.create<mlir::runtime::FunctionOp>(
-      loc, "updateIDAVariables",
-      builder.getFunctionType(std::nullopt, std::nullopt));
+      loc, "updateIDAVariables", builder.getFunctionType({}, {}));
 
   mlir::Block *entryBlock = functionOp.addEntryBlock();
   builder.setInsertionPointToStart(entryBlock);
@@ -2351,7 +2350,7 @@ mlir::LogicalResult IDAPass::createUpdateIDAVariablesFunction(
     return mlir::failure();
   }
 
-  builder.create<mlir::runtime::ReturnOp>(loc, std::nullopt);
+  builder.create<mlir::runtime::ReturnOp>(loc, mlir::ValueRange());
   return mlir::success();
 }
 
@@ -2367,7 +2366,7 @@ mlir::LogicalResult IDAPass::createUpdateNonIDAVariablesFunction(
 
   auto functionOp = rewriter.create<mlir::runtime::FunctionOp>(
       modelOp.getLoc(), "updateNonIDAVariables",
-      rewriter.getFunctionType(std::nullopt, std::nullopt));
+      rewriter.getFunctionType({}, {}));
 
   mlir::Block *entryBlock = functionOp.addEntryBlock();
   rewriter.setInsertionPointToStart(entryBlock);
@@ -2392,7 +2391,8 @@ mlir::LogicalResult IDAPass::createUpdateNonIDAVariablesFunction(
     rewriter.create<RunScheduleOp>(modelOp.getLoc(), scheduleOp);
   }
 
-  rewriter.create<mlir::runtime::ReturnOp>(modelOp.getLoc(), std::nullopt);
+  rewriter.create<mlir::runtime::ReturnOp>(modelOp.getLoc(),
+                                           mlir::ValueRange());
   return mlir::success();
 }
 
@@ -2404,8 +2404,7 @@ IDAPass::createGetIDATimeFunction(mlir::OpBuilder &builder,
   builder.setInsertionPointToEnd(moduleOp.getBody());
 
   auto functionOp = builder.create<mlir::runtime::FunctionOp>(
-      loc, "getIDATime",
-      builder.getFunctionType(std::nullopt, builder.getF64Type()));
+      loc, "getIDATime", builder.getFunctionType({}, builder.getF64Type()));
 
   mlir::Block *entryBlock = functionOp.addEntryBlock();
   builder.setInsertionPointToStart(entryBlock);

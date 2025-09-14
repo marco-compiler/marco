@@ -473,7 +473,7 @@ mlir::LogicalResult BaseModelicaToCFConversionPass::createCFG(
 
   rewriter.create<mlir::cf::CondBranchOp>(conditionOp->getLoc(), conditionValue,
                                           bodyFirst, conditionOp.getValues(),
-                                          continuation, std::nullopt);
+                                          continuation, mlir::ValueRange());
 
   rewriter.eraseOp(conditionOp);
 
@@ -549,8 +549,8 @@ BaseModelicaToCFConversionPass::createCFG(mlir::RewriterBase &rewriter, IfOp op,
     // to the condition.
 
     rewriter.create<mlir::cf::CondBranchOp>(op->getLoc(), conditionValue,
-                                            thenFirst, std::nullopt,
-                                            continuation, std::nullopt);
+                                            thenFirst, mlir::ValueRange(),
+                                            continuation, mlir::ValueRange());
 
     rewriter.setInsertionPointToEnd(thenLast);
     rewriter.create<mlir::cf::BranchOp>(op->getLoc(), continuation);
@@ -572,8 +572,8 @@ BaseModelicaToCFConversionPass::createCFG(mlir::RewriterBase &rewriter, IfOp op,
     rewriter.inlineRegionBefore(op.getElseRegion(), continuation);
 
     rewriter.create<mlir::cf::CondBranchOp>(op->getLoc(), conditionValue,
-                                            thenFirst, std::nullopt, elseFirst,
-                                            std::nullopt);
+                                            thenFirst, mlir::ValueRange(),
+                                            elseFirst, mlir::ValueRange());
 
     // Branch to the continuation block.
     rewriter.setInsertionPointToEnd(thenLast);
@@ -635,8 +635,8 @@ BaseModelicaToCFConversionPass::createCFG(mlir::RewriterBase &rewriter,
   }
 
   rewriter.create<mlir::cf::CondBranchOp>(op->getLoc(), conditionValue,
-                                          bodyFirst, std::nullopt, continuation,
-                                          std::nullopt);
+                                          bodyFirst, mlir::ValueRange(),
+                                          continuation, mlir::ValueRange());
 
   rewriter.eraseOp(conditionOp);
 

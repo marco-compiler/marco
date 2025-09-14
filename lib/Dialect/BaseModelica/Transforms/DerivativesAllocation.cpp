@@ -512,8 +512,8 @@ public:
     if (auto tensorType =
             mlir::dyn_cast<mlir::TensorType>(replacement.getType());
         tensorType && tensorType.hasRank()) {
-      replacement =
-          rewriter.create<TensorExtractOp>(loc, replacement, std::nullopt);
+      replacement = rewriter.create<TensorExtractOp>(loc, replacement,
+                                                     mlir::ValueRange());
     }
 
     rewriter.replaceOp(op, replacement);

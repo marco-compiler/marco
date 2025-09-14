@@ -541,7 +541,7 @@ def Modelica_TensorExtractOp : BaseModelica_Op<"tensor_extract",
     let skipDefaultBuilders = 1;
 
     let builders = [
-        OpBuilder<(ins "mlir::Value":$tensor, CArg<"mlir::ValueRange", "std::nullopt">:$indices)>
+        OpBuilder<(ins "mlir::Value":$tensor, CArg<"mlir::ValueRange", "{}">:$indices)>
     ];
 }
 
@@ -908,7 +908,7 @@ def BaseModelica_LoadOp : BaseModelica_Op<"load",
     let skipDefaultBuilders = 1;
 
     let builders = [
-        OpBuilder<(ins "mlir::Value":$array, CArg<"mlir::ValueRange", "std::nullopt">:$indices)>
+        OpBuilder<(ins "mlir::Value":$array, CArg<"mlir::ValueRange", "{}">:$indices)>
     ];
 
     let extraClassDeclaration = [{
@@ -958,7 +958,7 @@ def BaseModelica_StoreOp : BaseModelica_Op<"store",
     let skipDefaultBuilders = 1;
 
     let builders = [
-        OpBuilder<(ins "mlir::Value":$value, "mlir::Value":$array, CArg<"mlir::ValueRange", "std::nullopt">:$indices)>
+        OpBuilder<(ins "mlir::Value":$value, "mlir::Value":$array, CArg<"mlir::ValueRange", "{}">:$indices)>
     ];
 
     let extraClassDeclaration = [{
@@ -4229,7 +4229,7 @@ def BaseModelica_EquationInstanceOp : BaseModelica_Op<"equation_instance",
         mlir::LogicalResult setIndices(
             IndexSet indices,
             mlir::SymbolTableCollection& symbolTableCollection,
-            llvm::ArrayRef<VariableAccess> writeAccesses = std::nullopt);
+            llvm::ArrayRef<VariableAccess> writeAccesses = {});
 
         /// }
         /// @name Forwarded methods.
@@ -4682,7 +4682,7 @@ def RawReturnOp : BaseModelica_Op<"raw_return",
     let hasVerifier = 1;
 
     let builders = [OpBuilder<(ins), [{
-        build($_builder, $_state, std::nullopt);
+        build($_builder, $_state, {});
     }]>];
 }
 
@@ -5259,7 +5259,7 @@ def BaseModelica_ConditionOp : BaseModelica_Op<"condition",
 
     let builders = [
         OpBuilder<(ins "::mlir::Value":$condition), [{
-            build($_builder, $_state, condition, std::nullopt);
+            build($_builder, $_state, condition, {});
         }]>
     ];
 }

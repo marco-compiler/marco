@@ -442,7 +442,7 @@ SchedulersInstantiationPass::createWrapperFunction(
   builder.create<CallOp>(callOp.getLoc(), equationFunctionOp,
                          wrapperFunction.getArguments());
 
-  builder.create<mlir::runtime::ReturnOp>(callOp.getLoc(), std::nullopt);
+  builder.create<mlir::runtime::ReturnOp>(callOp.getLoc());
   return wrapperFunction;
 }
 

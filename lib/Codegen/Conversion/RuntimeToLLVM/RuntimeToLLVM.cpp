@@ -52,8 +52,7 @@ public:
     mlir::Value address =
         builder.create<mlir::LLVM::AddressOfOp>(loc, ptrType, name);
 
-    return builder.create<mlir::LLVM::LoadOp>(loc, this->getVoidPtrType(),
-                                              address);
+    return builder.create<mlir::LLVM::LoadOp>(loc, this->getPtrType(), address);
   }
 
   mlir::LLVM::GlobalOp declareRangesArray(mlir::OpBuilder &builder,
@@ -197,8 +196,8 @@ public:
 
     // Create the global variable.
     auto newOp = rewriter.replaceOpWithNewOp<mlir::LLVM::GlobalOp>(
-        op, getVoidPtrType(), false, mlir::LLVM::Linkage::Private,
-        op.getSymName(), nullptr);
+        op, getPtrType(), false, mlir::LLVM::Linkage::Private, op.getSymName(),
+        nullptr);
 
     symbolTable.remove(op);
     symbolTable.insert(newOp);
@@ -220,7 +219,7 @@ struct SchedulerCreateOpLowering
     llvm::SmallVector<mlir::Value, 1> args;
     llvm::SmallVector<std::string, 1> mangledArgsTypes;
 
-    auto resultType = getVoidPtrType();
+    auto resultType = getPtrType();
     auto mangledResultType = mangling.getVoidPointerType();
 
     auto functionName = mangling.getMangledFunction(
@@ -456,7 +455,7 @@ public:
 
     // Save stack position before promoting the memref descriptors.
     auto stackSaveOp =
-        rewriter.create<mlir::LLVM::StackSaveOp>(loc, getVoidPtrType());
+        rewriter.create<mlir::LLVM::StackSaveOp>(loc, getPtrType());
 
     // Determine the arguments.
     llvm::SmallVector<mlir::Value> promotedArgs;

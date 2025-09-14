@@ -73,8 +73,7 @@ struct ModelNameOpLowering : public RuntimeOpRewritePattern<ModelNameOp> {
     mlir::Type opaquePtrType = mlir::LLVM::LLVMPointerType::get(getContext());
 
     auto funcOp = rewriter.create<mlir::func::FuncOp>(
-        loc, "getModelName",
-        rewriter.getFunctionType(std::nullopt, opaquePtrType));
+        loc, "getModelName", rewriter.getFunctionType({}, opaquePtrType));
 
     mlir::Block *entryBlock = funcOp.addEntryBlock();
     rewriter.setInsertionPointToStart(entryBlock);
@@ -101,7 +100,7 @@ struct NumberOfVariablesOpLowering
 
     auto funcOp = rewriter.create<mlir::func::FuncOp>(
         loc, "getNumOfVariables",
-        rewriter.getFunctionType(std::nullopt, rewriter.getI64Type()));
+        rewriter.getFunctionType({}, rewriter.getI64Type()));
 
     mlir::Block *entryBlock = funcOp.addEntryBlock();
     rewriter.setInsertionPointToStart(entryBlock);
@@ -156,7 +155,7 @@ struct VariableNamesOpLowering
     for (size_t i = 0; i < numCases; ++i) {
       caseValues[i] = i;
       caseBlocks[i] = rewriter.createBlock(returnBlock);
-      caseOperandsRefs[i] = std::nullopt;
+      caseOperandsRefs[i] = {};
     }
 
     rewriter.setInsertionPointToStart(entryBlock);
@@ -229,7 +228,7 @@ struct VariableRanksOpLowering
     for (size_t i = 0; i < numCases; ++i) {
       caseValues[i] = i;
       caseBlocks[i] = rewriter.createBlock(returnBlock);
-      caseOperandsRefs[i] = std::nullopt;
+      caseOperandsRefs[i] = {};
     }
 
     rewriter.setInsertionPointToStart(entryBlock);
@@ -370,7 +369,7 @@ private:
       for (int64_t variablePos : printableVariables) {
         caseValues.push_back(variablePos);
         caseBlocks.push_back(printableVariableBlock);
-        caseOperandsRefs.push_back(std::nullopt);
+        caseOperandsRefs.push_back({});
       }
     }
 
@@ -434,7 +433,7 @@ private:
       for (int64_t variable : entry.getSecond()) {
         caseValues.push_back(variable);
         caseBlocks.push_back(caseBlock);
-        caseOperandsRefs.push_back(std::nullopt);
+        caseOperandsRefs.push_back({});
       }
     }
 
@@ -559,7 +558,7 @@ private:
         const Range &range = multidimensionalRange[i];
         caseValues.push_back(i);
         caseBlocks.push_back(rangeBlocks[range]);
-        caseOperandsRefs.push_back(std::nullopt);
+        caseOperandsRefs.push_back({});
       }
 
       assert(firstRangeBlock != nullptr);
@@ -689,7 +688,7 @@ struct DerivativesMapOpLowering
     for (size_t i = 0; i < numCases; ++i) {
       caseValues[i] = i;
       caseBlocks[i] = rewriter.createBlock(returnBlock);
-      caseOperandsRefs[i] = std::nullopt;
+      caseOperandsRefs[i] = {};
     }
 
     rewriter.setInsertionPointToStart(entryBlock);
@@ -763,7 +762,7 @@ struct VariableGettersOpLowering
     for (size_t i = 0; i < numCases; ++i) {
       caseValues[i] = i;
       caseBlocks[i] = rewriter.createBlock(returnBlock);
-      caseOperandsRefs[i] = std::nullopt;
+      caseOperandsRefs[i] = {};
     }
 
     rewriter.setInsertionPointToStart(entryBlock);

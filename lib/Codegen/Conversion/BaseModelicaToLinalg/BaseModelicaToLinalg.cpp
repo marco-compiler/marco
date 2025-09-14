@@ -887,23 +887,20 @@ public:
           rhs.getLoc(), rhsTensorType.clone(genericElementType), rhs);
     }
 
-    mlir::Type resultType =
-        mlir::RankedTensorType::get(std::nullopt, genericElementType);
+    mlir::Type resultType = mlir::RankedTensorType::get({}, genericElementType);
 
     llvm::SmallVector<mlir::Value, 2> inputs;
     inputs.push_back(lhs);
     inputs.push_back(rhs);
 
-    mlir::Value destination =
-        rewriter.create<mlir::tensor::EmptyOp>(loc, resultType, std::nullopt);
+    mlir::Value destination = rewriter.create<mlir::tensor::EmptyOp>(
+        loc, resultType, mlir::ValueRange());
 
     auto dotOp = rewriter.create<mlir::linalg::DotOp>(
         op.getLoc(), destination.getType(), inputs, destination);
 
     mlir::Value result = dotOp.getResult(0);
-
-    result = rewriter.create<mlir::tensor::ExtractOp>(result.getLoc(), result,
-                                                      std::nullopt);
+    result = rewriter.create<mlir::tensor::ExtractOp>(result.getLoc(), result);
 
     if (result.getType() != requestedResultType) {
       result =

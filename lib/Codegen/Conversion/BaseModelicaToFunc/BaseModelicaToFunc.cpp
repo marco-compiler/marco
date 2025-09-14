@@ -153,8 +153,8 @@ struct EquationCallOpLowering
     const IndexSet &indices = op.getIndices();
 
     if (indices.empty()) {
-      rewriter.create<mlir::func::CallOp>(loc, op.getCallee(), std::nullopt,
-                                          std::nullopt);
+      rewriter.create<mlir::func::CallOp>(
+          loc, op.getCallee(), mlir::TypeRange(), mlir::ValueRange());
     } else {
       for (const MultidimensionalRange &range :
            llvm::make_range(indices.rangesBegin(), indices.rangesEnd())) {
@@ -168,8 +168,8 @@ struct EquationCallOpLowering
               op.getLoc(), rewriter.getIndexAttr(range[i].getEnd())));
         }
 
-        rewriter.create<mlir::func::CallOp>(loc, op.getCallee(), std::nullopt,
-                                            boundaries);
+        rewriter.create<mlir::func::CallOp>(loc, op.getCallee(),
+                                            mlir::TypeRange(), boundaries);
       }
     }
 
@@ -493,14 +493,12 @@ public:
   mlir::Value createReference(mlir::OpBuilder &builder, mlir::Location loc,
                               mlir::MemRefType memRefType, bool heap) const {
     if (heap) {
-      auto allocOp =
-          builder.create<mlir::memref::AllocOp>(loc, memRefType, std::nullopt);
+      auto allocOp = builder.create<mlir::memref::AllocOp>(loc, memRefType);
 
       return allocOp.getResult();
     }
 
-    auto allocaOp =
-        builder.create<mlir::memref::AllocaOp>(loc, memRefType, std::nullopt);
+    auto allocaOp = builder.create<mlir::memref::AllocaOp>(loc, memRefType);
 
     return allocaOp.getResult();
   }
@@ -511,8 +509,8 @@ public:
     mlir::OpBuilder::InsertionGuard guard(rewriter);
     rewriter.setInsertionPoint(op);
 
-    mlir::Value replacement = rewriter.create<mlir::memref::LoadOp>(
-        op.getLoc(), reference, std::nullopt);
+    mlir::Value replacement =
+        rewriter.create<mlir::memref::LoadOp>(op.getLoc(), reference);
 
     rewriter.replaceOp(op, replacement);
     return mlir::success();
@@ -525,7 +523,7 @@ public:
     rewriter.setInsertionPoint(op);
 
     rewriter.replaceOpWithNewOp<mlir::memref::StoreOp>(op, op.getValue(),
-                                                       reference, std::nullopt);
+                                                       reference);
 
     return mlir::success();
   }
@@ -567,14 +565,12 @@ public:
   mlir::Value createReference(mlir::OpBuilder &builder, mlir::Location loc,
                               mlir::MemRefType memRefType, bool heap) const {
     if (heap) {
-      auto allocOp =
-          builder.create<mlir::memref::AllocOp>(loc, memRefType, std::nullopt);
+      auto allocOp = builder.create<mlir::memref::AllocOp>(loc, memRefType);
 
       return allocOp.getResult();
     }
 
-    auto allocaOp =
-        builder.create<mlir::memref::AllocaOp>(loc, memRefType, std::nullopt);
+    auto allocaOp = builder.create<mlir::memref::AllocaOp>(loc, memRefType);
 
     return allocaOp.getResult();
   }
@@ -624,8 +620,7 @@ public:
     // create a pointer to the array currently in use.
 
     // Create the pointer to the array.
-    auto memRefOfMemRefType =
-        mlir::MemRefType::get(std::nullopt, variableMemRefType);
+    auto memRefOfMemRefType = mlir::MemRefType::get({}, variableMemRefType);
 
     mlir::Value reference =
         rewriter.create<mlir::memref::AllocaOp>(loc, memRefOfMemRefType);
@@ -641,8 +636,8 @@ public:
     auto zeroedDynDimsMemRefType = mlir::MemRefType::get(
         zeroedDynDimsMemRefShape, variableMemRefType.getElementType());
 
-    mlir::Value fakeArray = rewriter.create<mlir::memref::AllocOp>(
-        loc, zeroedDynDimsMemRefType, std::nullopt);
+    mlir::Value fakeArray =
+        rewriter.create<mlir::memref::AllocOp>(loc, zeroedDynDimsMemRefType);
 
     if (fakeArray.getType() != memRefOfMemRefType.getElementType()) {
       fakeArray = rewriter.create<mlir::memref::CastOp>(

@@ -98,7 +98,7 @@ private:
     auto it = callsMap->find(functionOp);
 
     if (it == callsMap->end()) {
-      return std::nullopt;
+      return {};
     }
 
     return it->getSecond();

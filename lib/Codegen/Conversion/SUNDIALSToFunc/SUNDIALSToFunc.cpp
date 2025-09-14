@@ -129,7 +129,7 @@ struct VariableSetterOpLowering
     argsTypes.push_back(
         mlir::LLVM::LLVMPointerType::get(rewriter.getContext()));
 
-    auto functionType = rewriter.getFunctionType(argsTypes, std::nullopt);
+    auto functionType = rewriter.getFunctionType(argsTypes, {});
 
     auto newOp =
         rewriter.create<mlir::func::FuncOp>(loc, op.getSymName(), functionType);
@@ -205,7 +205,7 @@ struct AccessFunctionOpLowering
     argsTypes.push_back(pointerType);
     argsTypes.push_back(pointerType);
 
-    auto functionType = rewriter.getFunctionType(argsTypes, std::nullopt);
+    auto functionType = rewriter.getFunctionType(argsTypes, {});
 
     auto newOp =
         rewriter.create<mlir::func::FuncOp>(loc, op.getSymName(), functionType);
@@ -274,7 +274,7 @@ struct AccessFunctionOpLowering
                                            variableIndex, variableIndexPtr);
     }
 
-    rewriter.create<mlir::func::ReturnOp>(loc, std::nullopt);
+    rewriter.create<mlir::func::ReturnOp>(loc);
 
     // Convert the return operation.
     auto returnOp = mlir::cast<ReturnOp>(op.getBody().back().getTerminator());

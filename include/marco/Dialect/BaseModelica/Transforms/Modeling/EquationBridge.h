@@ -27,6 +27,7 @@ public:
     std::variant<Reference, Container> accesses;
 
   public:
+    AccessesList();
     explicit AccessesList(Reference accesses);
     explicit AccessesList(Container accesses);
 

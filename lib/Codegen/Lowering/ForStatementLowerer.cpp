@@ -26,8 +26,8 @@ bool ForStatementLowerer::lower(const ast::ForStatement &statement) {
     assert(forIndexRange->getOperationKind() == ast::OperationKind::range);
 
     mlir::Value inductionVar = builder().create<AllocaOp>(
-        location, ArrayType::get(std::nullopt, builder().getIndexType()),
-        std::nullopt);
+        location, ArrayType::get({}, builder().getIndexType()),
+        mlir::ValueRange());
 
     const ast::Expression *lowerBoundExp = forIndexRange->getArgument(0);
     mlir::Location lowerBoundLoc = loc(lowerBoundExp->getLocation());
@@ -40,9 +40,9 @@ bool ForStatementLowerer::lower(const ast::ForStatement &statement) {
     lowerBound = builder().create<CastOp>(lowerBound.getLoc(),
                                           builder().getIndexType(), lowerBound);
 
-    builder().create<StoreOp>(location, lowerBound, inductionVar, std::nullopt);
+    builder().create<StoreOp>(location, lowerBound, inductionVar);
 
-    auto forOp = builder().create<ForOp>(location, std::nullopt);
+    auto forOp = builder().create<ForOp>(location, mlir::ValueRange());
     mlir::OpBuilder::InsertionGuard guard(builder());
 
     assert(forOp.getConditionRegion().getBlocks().empty());
@@ -78,7 +78,7 @@ bool ForStatementLowerer::lower(const ast::ForStatement &statement) {
           location, BooleanType::get(builder().getContext()), inductionValue,
           upperBound);
 
-      builder().create<ConditionOp>(location, condition, std::nullopt);
+      builder().create<ConditionOp>(location, condition);
     }
 
     {
@@ -104,7 +104,7 @@ bool ForStatementLowerer::lower(const ast::ForStatement &statement) {
       if (bodyBlock->empty() ||
           !bodyBlock->back().hasTrait<mlir::OpTrait::IsTerminator>()) {
         builder().setInsertionPointToEnd(bodyBlock);
-        builder().create<YieldOp>(location, std::nullopt);
+        builder().create<YieldOp>(location);
       }
     }
 
@@ -132,10 +132,8 @@ bool ForStatementLowerer::lower(const ast::ForStatement &statement) {
       mlir::Value incremented = builder().create<AddOp>(
           location, builder().getIndexType(), inductionValue, step);
 
-      builder().create<StoreOp>(location, incremented, inductionVar,
-                                std::nullopt);
-
-      builder().create<YieldOp>(location, std::nullopt);
+      builder().create<StoreOp>(location, incremented, inductionVar);
+      builder().create<YieldOp>(location);
     }
   }
 

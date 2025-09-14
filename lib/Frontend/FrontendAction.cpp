@@ -82,7 +82,7 @@ bool FrontendAction::beginSourceFiles(CompilerInstance &ci,
 
   auto failureCleanup = llvm::make_scope_exit([&]() {
     ci.clearOutputFiles(true);
-    setCurrentInputs(std::nullopt);
+    setCurrentInputs({});
     setInstance(nullptr);
   });
 
@@ -132,7 +132,7 @@ void FrontendAction::endSourceFiles() {
   ci.clearOutputFiles(shouldEraseOutputFiles());
 
   setInstance(nullptr);
-  setCurrentInputs(std::nullopt);
+  setCurrentInputs({});
 }
 
 bool FrontendAction::shouldEraseOutputFiles() const {

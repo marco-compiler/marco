@@ -317,8 +317,8 @@ struct InstanceOpLowering : public IDAOpConversion<InstanceOp> {
 
     // Create the global variable.
     rewriter.replaceOpWithNewOp<mlir::LLVM::GlobalOp>(
-        op, getVoidPtrType(), false, mlir::LLVM::Linkage::Private,
-        op.getSymName(), nullptr);
+        op, getPtrType(), false, mlir::LLVM::Linkage::Private, op.getSymName(),
+        nullptr);
 
     symbolTable.remove(op);
     return mlir::success();
@@ -338,7 +338,7 @@ struct InitOpLowering : public IDAOpConversion<InitOp> {
     llvm::SmallVector<mlir::Value, 1> args;
     llvm::SmallVector<std::string, 1> mangledArgsTypes;
 
-    auto resultType = getVoidPtrType();
+    auto resultType = getPtrType();
     auto mangledResultType = mangling.getVoidPointerType();
 
     auto functionName = mangling.getMangledFunction(
@@ -524,8 +524,7 @@ struct AddEquationOpLowering : public IDAOpConversion<AddEquationOp> {
       args.push_back(
           createGlobalString(rewriter, loc, moduleOp, "eqStr", *stringRepr));
     } else {
-      args.push_back(
-          rewriter.create<mlir::LLVM::ZeroOp>(loc, getVoidPtrType()));
+      args.push_back(rewriter.create<mlir::LLVM::ZeroOp>(loc, getPtrType()));
     }
 
     // Create the call to the runtime library.
@@ -606,8 +605,7 @@ struct AddAlgebraicVariableOpLowering
       args.push_back(
           createGlobalString(rewriter, loc, moduleOp, "varName", *name));
     } else {
-      args.push_back(
-          rewriter.create<mlir::LLVM::ZeroOp>(loc, getVoidPtrType()));
+      args.push_back(rewriter.create<mlir::LLVM::ZeroOp>(loc, getPtrType()));
     }
 
     // Create the call to the runtime library.
@@ -703,8 +701,7 @@ struct AddStateVariableOpLowering : public IDAOpConversion<AddStateVariableOp> {
       args.push_back(
           createGlobalString(rewriter, loc, moduleOp, "varName", *name));
     } else {
-      args.push_back(
-          rewriter.create<mlir::LLVM::ZeroOp>(loc, getVoidPtrType()));
+      args.push_back(rewriter.create<mlir::LLVM::ZeroOp>(loc, getPtrType()));
     }
 
     // Create the call to the runtime library.

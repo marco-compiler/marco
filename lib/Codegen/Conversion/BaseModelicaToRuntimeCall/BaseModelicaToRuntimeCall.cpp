@@ -832,8 +832,7 @@ struct DiagonalOpLowering : public RuntimeOpConversionPattern<DiagonalOp> {
     // Create the call to the runtime library.
     auto callee = getOrDeclareRuntimeFunction(
         rewriter, op->getParentOfType<mlir::ModuleOp>(),
-        getMangledFunctionName("diagonal", std::nullopt, arguments),
-        std::nullopt, arguments);
+        getMangledFunctionName("diagonal", {}, arguments), {}, arguments);
 
     rewriter.create<mlir::runtime::CallOp>(loc, callee, arguments);
 
@@ -1052,8 +1051,7 @@ struct IdentityOpLowering : public RuntimeOpConversionPattern<IdentityOp> {
     // Create the call to the runtime library.
     auto callee = getOrDeclareRuntimeFunction(
         rewriter, op->getParentOfType<mlir::ModuleOp>(),
-        getMangledFunctionName("identity", std::nullopt, arguments),
-        std::nullopt, arguments);
+        getMangledFunctionName("identity", {}, arguments), {}, arguments);
 
     rewriter.create<mlir::runtime::CallOp>(loc, callee, arguments);
 
@@ -1180,8 +1178,7 @@ struct LinspaceOpLowering : public RuntimeOpConversionPattern<LinspaceOp> {
     // Create the call to the runtime library.
     auto callee = getOrDeclareRuntimeFunction(
         rewriter, op->getParentOfType<mlir::ModuleOp>(),
-        getMangledFunctionName("linspace", std::nullopt, arguments),
-        std::nullopt, arguments);
+        getMangledFunctionName("linspace", {}, arguments), {}, arguments);
 
     rewriter.create<mlir::runtime::CallOp>(loc, callee, arguments);
 
@@ -1635,8 +1632,7 @@ struct OnesOpLowering : public RuntimeOpConversionPattern<OnesOp> {
     // Create the call to the runtime library.
     auto callee = getOrDeclareRuntimeFunction(
         rewriter, op->getParentOfType<mlir::ModuleOp>(),
-        getMangledFunctionName("ones", std::nullopt, arguments), std::nullopt,
-        arguments);
+        getMangledFunctionName("ones", {}, arguments), {}, arguments);
 
     rewriter.create<mlir::runtime::CallOp>(loc, callee, arguments);
 
@@ -2054,8 +2050,7 @@ struct SymmetricOpLowering : public RuntimeOpConversionPattern<SymmetricOp> {
     // Create the call to the runtime library.
     auto callee = getOrDeclareRuntimeFunction(
         rewriter, op->getParentOfType<mlir::ModuleOp>(),
-        getMangledFunctionName("symmetric", std::nullopt, arguments),
-        std::nullopt, arguments);
+        getMangledFunctionName("symmetric", {}, arguments), {}, arguments);
 
     rewriter.create<mlir::runtime::CallOp>(loc, callee, arguments);
 
@@ -2224,8 +2219,7 @@ struct TransposeOpLowering : public RuntimeOpConversionPattern<TransposeOp> {
     // Create the call to the runtime library.
     auto callee = getOrDeclareRuntimeFunction(
         rewriter, op->getParentOfType<mlir::ModuleOp>(),
-        getMangledFunctionName("transpose", std::nullopt, arguments),
-        std::nullopt, arguments);
+        getMangledFunctionName("transpose", {}, arguments), {}, arguments);
 
     rewriter.create<mlir::runtime::CallOp>(loc, callee, arguments);
 
@@ -2286,8 +2280,7 @@ struct ZerosOpLowering : public RuntimeOpConversionPattern<ZerosOp> {
     // Create the call to the runtime library.
     auto callee = getOrDeclareRuntimeFunction(
         rewriter, op->getParentOfType<mlir::ModuleOp>(),
-        getMangledFunctionName("zeros", std::nullopt, arguments), std::nullopt,
-        arguments);
+        getMangledFunctionName("zeros", {}, arguments), {}, arguments);
 
     rewriter.create<mlir::runtime::CallOp>(loc, callee, arguments);
 
@@ -2350,8 +2343,7 @@ struct AssertOpLowering : public RuntimeOpConversionPattern<AssertOp> {
     // Create the call to the runtime library.
     auto callee = getOrDeclareRuntimeFunction(
         rewriter, op->getParentOfType<mlir::ModuleOp>(),
-        getMangledFunctionName("assert", std::nullopt, arguments), std::nullopt,
-        arguments);
+        getMangledFunctionName("assert", {}, arguments), {}, arguments);
 
     auto callOp =
         rewriter.create<mlir::runtime::CallOp>(loc, callee, arguments);
@@ -2380,8 +2372,7 @@ struct PrintOpLowering : public RuntimeOpConversionPattern<PrintOp> {
     // Create the call to the runtime library.
     auto callee = getOrDeclareRuntimeFunction(
         rewriter, op->getParentOfType<mlir::ModuleOp>(),
-        getMangledFunctionName("print", std::nullopt, arguments), std::nullopt,
-        arguments);
+        getMangledFunctionName("print", {}, arguments), {}, arguments);
 
     rewriter.create<mlir::runtime::CallOp>(loc, callee, arguments);
 

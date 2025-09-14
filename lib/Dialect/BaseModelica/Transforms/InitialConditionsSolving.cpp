@@ -161,8 +161,7 @@ mlir::LogicalResult InitialConditionsSolvingPass::processModelOp(
   rewriter.setInsertionPointToEnd(moduleOp.getBody());
 
   auto functionOp = rewriter.create<mlir::runtime::FunctionOp>(
-      modelOp.getLoc(), "solveICModel",
-      rewriter.getFunctionType(std::nullopt, std::nullopt));
+      modelOp.getLoc(), "solveICModel", rewriter.getFunctionType({}, {}));
 
   mlir::Block *entryBlock = functionOp.addEntryBlock();
   rewriter.setInsertionPointToStart(entryBlock);
@@ -195,7 +194,8 @@ mlir::LogicalResult InitialConditionsSolvingPass::processModelOp(
   }
 
   rewriter.setInsertionPointToEnd(entryBlock);
-  rewriter.create<mlir::runtime::ReturnOp>(modelOp.getLoc(), std::nullopt);
+  rewriter.create<mlir::runtime::ReturnOp>(modelOp.getLoc(),
+                                           mlir::ValueRange());
 
   for (InitialOp initialOp : initialOps) {
     rewriter.eraseOp(initialOp);

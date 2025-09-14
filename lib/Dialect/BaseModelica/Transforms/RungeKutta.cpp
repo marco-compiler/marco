@@ -665,8 +665,7 @@ mlir::LogicalResult RungeKuttaPass::solveMainModel(
   rewriter.setInsertionPointToEnd(moduleOp.getBody());
 
   auto timeStepVariableOp = rewriter.create<GlobalVariableOp>(
-      modelOp.getLoc(), "timeStep",
-      ArrayType::get(std::nullopt, rewriter.getF64Type()));
+      modelOp.getLoc(), "timeStep", ArrayType::get({}, rewriter.getF64Type()));
 
   symbolTableCollection.getSymbolTable(moduleOp).insert(timeStepVariableOp);
 
@@ -934,7 +933,7 @@ RungeKuttaPass::createEquationFunction(
 
   auto mappedTimeVariableOp = rewriter.create<VariableOp>(
       functionOp.getLoc(), "time",
-      VariableType::get(std::nullopt, RealType::get(rewriter.getContext()),
+      VariableType::get({}, RealType::get(rewriter.getContext()),
                         VariabilityProperty::none, IOProperty::input));
 
   auto mappedStateVariableOp = rewriter.create<VariableOp>(
@@ -958,7 +957,7 @@ RungeKuttaPass::createEquationFunction(
 
   auto resultVariableOp = rewriter.create<VariableOp>(
       functionOp.getLoc(), "result",
-      VariableType::get(std::nullopt, RealType::get(rewriter.getContext()),
+      VariableType::get({}, RealType::get(rewriter.getContext()),
                         VariabilityProperty::none, IOProperty::output));
 
   // Create the algorithm.
@@ -1195,7 +1194,7 @@ createSlopeEquation(llvm::SmallVectorImpl<EquationInstanceOp> &newEquations,
   mlir::Value timeStep =
       rewriter.create<GlobalVariableGetOp>(loc, timeStepVariable);
 
-  timeStep = rewriter.create<LoadOp>(timeStep.getLoc(), timeStep, std::nullopt);
+  timeStep = rewriter.create<LoadOp>(timeStep.getLoc(), timeStep);
 
   // Compute the first argument of the function call.
   // t + c_i * h, with i = current order
@@ -1369,7 +1368,7 @@ mlir::LogicalResult createFutureStateValueEquation(
   mlir::Value timeStep =
       rewriter.create<GlobalVariableGetOp>(loc, timeStepVariable);
 
-  timeStep = rewriter.create<LoadOp>(timeStep.getLoc(), timeStep, std::nullopt);
+  timeStep = rewriter.create<LoadOp>(timeStep.getLoc(), timeStep);
 
   mlir::Value sum =
       createFutureValueSum(rewriter, loc, variableIndices, slopeVars, tableau);
@@ -1492,7 +1491,7 @@ mlir::LogicalResult createErrorEquation(
   mlir::Value timeStep =
       rewriter.create<GlobalVariableGetOp>(loc, timeStepVariableOp);
 
-  timeStep = rewriter.create<LoadOp>(timeStep.getLoc(), timeStep, std::nullopt);
+  timeStep = rewriter.create<LoadOp>(timeStep.getLoc(), timeStep);
 
   mlir::Value sum =
       createErrorSum(rewriter, loc, variableIndices, slopeVars, tableau);
@@ -1598,7 +1597,7 @@ mlir::LogicalResult RungeKuttaPass::createTryStepFunction(
 
   auto functionOp = rewriter.create<mlir::runtime::FunctionOp>(
       modelOp.getLoc(), "tryStep",
-      rewriter.getFunctionType(rewriter.getF64Type(), std::nullopt));
+      rewriter.getFunctionType(rewriter.getF64Type(), {}));
 
   mlir::Block *entryBlock = functionOp.addEntryBlock();
   rewriter.setInsertionPointToStart(entryBlock);
@@ -1609,8 +1608,7 @@ mlir::LogicalResult RungeKuttaPass::createTryStepFunction(
   auto timeStepArray = rewriter.create<GlobalVariableGetOp>(
       timeStepArg.getLoc(), timeStepVariableOp);
 
-  rewriter.create<StoreOp>(timeStepArg.getLoc(), timeStepArg, timeStepArray,
-                           std::nullopt);
+  rewriter.create<StoreOp>(timeStepArg.getLoc(), timeStepArg, timeStepArray);
 
   // Create the schedule operation.
   rewriter.setInsertionPointToEnd(modelOp.getBody());
@@ -1724,8 +1722,7 @@ mlir::LogicalResult RungeKuttaPass::createTryStepFunction(
           mlir::Value timeStep = rewriter.create<GlobalVariableGetOp>(
               timeOp.getLoc(), timeStepVariableOp);
 
-          timeStep = rewriter.create<LoadOp>(timeStep.getLoc(), timeStep,
-                                             std::nullopt);
+          timeStep = rewriter.create<LoadOp>(timeStep.getLoc(), timeStep);
 
           mlir::Value increasedTime = rewriter.create<AddOp>(
               timeOp.getLoc(), RealType::get(rewriter.getContext()), timeOp,
@@ -1771,7 +1768,7 @@ mlir::LogicalResult RungeKuttaPass::createTryStepFunction(
   // Call the schedule.
   rewriter.setInsertionPointToEnd(entryBlock);
   rewriter.create<RunScheduleOp>(modelOp.getLoc(), scheduleOp);
-  rewriter.create<mlir::runtime::ReturnOp>(modelOp.getLoc(), std::nullopt);
+  rewriter.create<mlir::runtime::ReturnOp>(modelOp.getLoc());
 
   eraseNewEquationsOnFailure.release();
   return mlir::success();
@@ -1791,7 +1788,7 @@ mlir::LogicalResult RungeKuttaPass::createEstimateErrorFunction(
 
   auto functionOp = rewriter.create<mlir::runtime::FunctionOp>(
       modelOp.getLoc(), "estimateError",
-      rewriter.getFunctionType(std::nullopt, rewriter.getF64Type()));
+      rewriter.getFunctionType({}, rewriter.getF64Type()));
 
   mlir::Block *entryBlock = functionOp.addEntryBlock();
   rewriter.setInsertionPointToStart(entryBlock);
@@ -1899,8 +1896,7 @@ mlir::LogicalResult RungeKuttaPass::createAcceptStepFunction(
   rewriter.setInsertionPointToEnd(moduleOp.getBody());
 
   auto functionOp = rewriter.create<mlir::runtime::FunctionOp>(
-      modelOp.getLoc(), "acceptStep",
-      rewriter.getFunctionType(std::nullopt, std::nullopt));
+      modelOp.getLoc(), "acceptStep", rewriter.getFunctionType({}, {}));
 
   mlir::Block *entryBlock = functionOp.addEntryBlock();
   rewriter.setInsertionPointToStart(entryBlock);
@@ -1952,7 +1948,7 @@ mlir::LogicalResult RungeKuttaPass::createAcceptStepFunction(
   // Call the schedule.
   rewriter.setInsertionPointToEnd(entryBlock);
   rewriter.create<RunScheduleOp>(modelOp.getLoc(), scheduleOp);
-  rewriter.create<mlir::runtime::ReturnOp>(modelOp.getLoc(), std::nullopt);
+  rewriter.create<mlir::runtime::ReturnOp>(modelOp.getLoc());
 
   eraseNewEquationsOnFailure.release();
   return mlir::success();
@@ -1968,7 +1964,7 @@ mlir::LogicalResult RungeKuttaPass::createUpdateNonStateVariablesFunction(
 
   auto functionOp = rewriter.create<mlir::runtime::FunctionOp>(
       modelOp.getLoc(), "updateNonStateVariables",
-      rewriter.getFunctionType(std::nullopt, std::nullopt));
+      rewriter.getFunctionType({}, {}));
 
   mlir::Block *entryBlock = functionOp.addEntryBlock();
   rewriter.setInsertionPointToStart(entryBlock);
@@ -2003,7 +1999,7 @@ mlir::LogicalResult RungeKuttaPass::createUpdateNonStateVariablesFunction(
   }
 
   rewriter.setInsertionPointToEnd(entryBlock);
-  rewriter.create<mlir::runtime::ReturnOp>(modelOp.getLoc(), std::nullopt);
+  rewriter.create<mlir::runtime::ReturnOp>(modelOp.getLoc());
   return mlir::success();
 }
 

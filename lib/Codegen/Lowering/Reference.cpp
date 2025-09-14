@@ -67,7 +67,7 @@ public:
     auto tensorType = mlir::cast<mlir::TensorType>(reference.getType());
 
     if (tensorType.getShape().empty()) {
-      return builder->create<TensorExtractOp>(loc, reference, std::nullopt);
+      return builder->create<TensorExtractOp>(loc, reference);
     }
 
     return reference;

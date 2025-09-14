@@ -23,10 +23,6 @@ public:
   using mlir::OpRewritePattern<Op>::OpRewritePattern;
 
 protected:
-  mlir::Type getVoidPtrType() const {
-    return mlir::LLVM::LLVMPointerType::get(this->getContext());
-  }
-
   mlir::Value createGlobalString(mlir::OpBuilder &builder, mlir::Location loc,
                                  mlir::ModuleOp moduleOp, mlir::StringRef name,
                                  mlir::StringRef value) const {
@@ -129,8 +125,7 @@ public:
     rewriter.setInsertionPointToEnd(moduleOp.getBody());
 
     auto funcOp = rewriter.create<mlir::func::FuncOp>(
-        op.getLoc(), "init",
-        rewriter.getFunctionType(std::nullopt, std::nullopt));
+        op.getLoc(), "init", rewriter.getFunctionType({}, {}));
 
     rewriter.inlineRegionBefore(op.getBodyRegion(), funcOp.getFunctionBody(),
                                 funcOp.getFunctionBody().end());
@@ -158,8 +153,7 @@ public:
     rewriter.setInsertionPointToEnd(moduleOp.getBody());
 
     auto funcOp = rewriter.create<mlir::func::FuncOp>(
-        op.getLoc(), "deinit",
-        rewriter.getFunctionType(std::nullopt, std::nullopt));
+        op.getLoc(), "deinit", rewriter.getFunctionType({}, {}));
 
     rewriter.inlineRegionBefore(op.getBodyRegion(), funcOp.getFunctionBody(),
                                 funcOp.getFunctionBody().end());
@@ -186,8 +180,7 @@ public:
     rewriter.setInsertionPointToEnd(moduleOp.getBody());
 
     auto funcOp = rewriter.create<mlir::func::FuncOp>(
-        op.getLoc(), "icModelBegin",
-        rewriter.getFunctionType(std::nullopt, std::nullopt));
+        op.getLoc(), "icModelBegin", rewriter.getFunctionType({}, {}));
 
     rewriter.inlineRegionBefore(op.getBodyRegion(), funcOp.getFunctionBody(),
                                 funcOp.getFunctionBody().end());
@@ -211,8 +204,7 @@ public:
     rewriter.setInsertionPointToEnd(moduleOp.getBody());
 
     auto funcOp = rewriter.create<mlir::func::FuncOp>(
-        op.getLoc(), "icModelEnd",
-        rewriter.getFunctionType(std::nullopt, std::nullopt));
+        op.getLoc(), "icModelEnd", rewriter.getFunctionType({}, {}));
 
     rewriter.inlineRegionBefore(op.getBodyRegion(), funcOp.getFunctionBody(),
                                 funcOp.getFunctionBody().end());
@@ -237,8 +229,7 @@ public:
     rewriter.setInsertionPointToEnd(moduleOp.getBody());
 
     auto funcOp = rewriter.create<mlir::func::FuncOp>(
-        op.getLoc(), "dynamicModelBegin",
-        rewriter.getFunctionType(std::nullopt, std::nullopt));
+        op.getLoc(), "dynamicModelBegin", rewriter.getFunctionType({}, {}));
 
     rewriter.inlineRegionBefore(op.getBodyRegion(), funcOp.getFunctionBody(),
                                 funcOp.getFunctionBody().end());
@@ -263,8 +254,7 @@ public:
     rewriter.setInsertionPointToEnd(moduleOp.getBody());
 
     auto funcOp = rewriter.create<mlir::func::FuncOp>(
-        op.getLoc(), "dynamicModelEnd",
-        rewriter.getFunctionType(std::nullopt, std::nullopt));
+        op.getLoc(), "dynamicModelEnd", rewriter.getFunctionType({}, {}));
 
     rewriter.inlineRegionBefore(op.getBodyRegion(), funcOp.getFunctionBody(),
                                 funcOp.getFunctionBody().end());
@@ -293,7 +283,7 @@ public:
     argsTypes.push_back(
         mlir::LLVM::LLVMPointerType::get(rewriter.getContext()));
 
-    auto functionType = rewriter.getFunctionType(argsTypes, std::nullopt);
+    auto functionType = rewriter.getFunctionType(argsTypes, {});
 
     auto funcOp = rewriter.create<mlir::func::FuncOp>(
         op.getLoc(), op.getSymName(), functionType);

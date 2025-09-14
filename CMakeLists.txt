@@ -79,7 +79,7 @@ include(AddMLIR)
 include(AddClang)
 
 link_directories(${LLVM_BUILD_LIBRARY_DIR})
-add_definitions(${LLVM_DEFINITIONS})
+#add_definitions(${LLVM_DEFINITIONS})
 
 # Search the tablegen executable
 find_program(LLVM_TABLEGEN_EXE "llvm-tblgen"

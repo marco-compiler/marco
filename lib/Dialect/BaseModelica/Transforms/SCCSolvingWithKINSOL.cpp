@@ -368,8 +368,7 @@ mlir::func::FuncOp KINSOLInstance::createCopyFromProxyFunction(
   std::string funcName = "proxy_copy_to_" + variableOp.getSymName().str();
 
   auto funcOp = builder.create<mlir::func::FuncOp>(
-      loc, getKINSOLFunctionName(funcName),
-      builder.getFunctionType(std::nullopt, std::nullopt));
+      loc, getKINSOLFunctionName(funcName), builder.getFunctionType({}, {}));
 
   builder.setInsertionPointToStart(funcOp.addEntryBlock());
 
@@ -408,8 +407,7 @@ mlir::func::FuncOp KINSOLInstance::createCopyToProxyFunction(
   std::string funcName = "proxy_copy_from_" + variableOp.getSymName().str();
 
   auto funcOp = builder.create<mlir::func::FuncOp>(
-      loc, getKINSOLFunctionName(funcName),
-      builder.getFunctionType(std::nullopt, std::nullopt));
+      loc, getKINSOLFunctionName(funcName), builder.getFunctionType({}, {}));
 
   builder.setInsertionPointToStart(funcOp.addEntryBlock());
   IndexSet variableIndices = variableOp.getIndices();
@@ -1413,7 +1411,7 @@ mlir::LogicalResult KINSOLInstance::createJacobianFunction(
       auto seedArrayType = mlir::cast<ArrayType>(seed.getType());
 
       if (seedArrayType.isScalar()) {
-        seed = builder.create<LoadOp>(loc, seed, std::nullopt);
+        seed = builder.create<LoadOp>(loc, seed);
       } else {
         auto tensorType = mlir::RankedTensorType::get(
             seedArrayType.getShape(), seedArrayType.getElementType());
@@ -1560,8 +1558,8 @@ mlir::LogicalResult KINSOLInstance::replaceVariableGetOps(
         replacement = rewriter.create<ArrayToTensorOp>(
             replacement.getLoc(), variableGetOp.getType(), replacement);
       } else {
-        replacement = rewriter.create<LoadOp>(replacement.getLoc(), replacement,
-                                              std::nullopt);
+        replacement =
+            rewriter.create<LoadOp>(replacement.getLoc(), replacement);
       }
 
       rewriter.replaceOp(variableGetOp, replacement);

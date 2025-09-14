@@ -105,8 +105,8 @@ protected:
       if (auto tensorType =
               mlir::dyn_cast<mlir::TensorType>(replacement.getType());
           tensorType && !tensorType.hasRank()) {
-        replacement = rewriter.create<TensorExtractOp>(
-            componentGetOp.getLoc(), replacement, std::nullopt);
+        replacement = rewriter.create<TensorExtractOp>(componentGetOp.getLoc(),
+                                                       replacement);
       }
 
       rewriter.replaceOp(componentGetOp, replacement);
@@ -148,8 +148,8 @@ protected:
           if (auto tensorType =
                   mlir::dyn_cast<mlir::TensorType>(componentValue.getType());
               tensorType && !tensorType.hasRank()) {
-            componentValue = builder.create<TensorExtractOp>(
-                callOp.getLoc(), componentValue, std::nullopt);
+            componentValue = builder.create<TensorExtractOp>(callOp.getLoc(),
+                                                             componentValue);
           }
 
           newArgs.push_back(componentValue);
@@ -1039,7 +1039,7 @@ public:
 
       for (mlir::Value element : op.getValues()) {
         llvm::SmallVector<int64_t, 3> shape;
-        llvm::ArrayRef<int64_t> elementShape = std::nullopt;
+        llvm::ArrayRef<int64_t> elementShape;
 
         if (auto elementTensorType =
                 mlir::dyn_cast<mlir::TensorType>(element.getType())) {
@@ -1131,7 +1131,7 @@ public:
       llvm::SmallVector<mlir::Value, 3> componentValues;
       mlir::Value element = op.getValue();
       llvm::SmallVector<int64_t, 3> getResultShape;
-      llvm::ArrayRef<int64_t> elementShape = std::nullopt;
+      llvm::ArrayRef<int64_t> elementShape;
 
       if (auto elementTensorType =
               mlir::dyn_cast<mlir::TensorType>(element.getType())) {

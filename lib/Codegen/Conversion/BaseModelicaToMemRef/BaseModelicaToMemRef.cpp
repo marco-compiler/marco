@@ -343,7 +343,7 @@ class ArrayFromElementsOpLowering
     assert(arrayType.hasStaticShape());
 
     auto allocOp =
-        rewriter.replaceOpWithNewOp<AllocOp>(op, arrayType, std::nullopt);
+        rewriter.replaceOpWithNewOp<AllocOp>(op, arrayType, mlir::ValueRange());
 
     mlir::ValueRange values = op.getValues();
     size_t currentValue = 0;

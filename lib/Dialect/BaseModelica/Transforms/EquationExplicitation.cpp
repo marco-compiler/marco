@@ -466,7 +466,7 @@ EquationExplicitationPass::cloneEquationTemplateIntoFunction(
 
       if (lhsSubscripts.empty()) {
         rewriter.create<QualifiedVariableSetOp>(
-            lhsGetOp.getLoc(), lhsGetOp.getVariable(), std::nullopt, rhs);
+            lhsGetOp.getLoc(), lhsGetOp.getVariable(), mlir::ValueRange(), rhs);
       } else {
         auto lhsTensorType =
             mlir::cast<mlir::TensorType>(lhsGetOp.getResult().getType());
@@ -492,8 +492,7 @@ EquationExplicitationPass::cloneEquationTemplateIntoFunction(
             rhs = rewriter.create<CastOp>(rhs.getLoc(), lhsElementType, rhs);
           }
 
-          rewriter.create<StoreOp>(equationSidesOp.getLoc(), rhs, lhs,
-                                   std::nullopt);
+          rewriter.create<StoreOp>(equationSidesOp.getLoc(), rhs, lhs);
         }
       }
     } else if (auto variableGetOp = mlir::dyn_cast<VariableGetOp>(op)) {

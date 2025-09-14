@@ -243,7 +243,7 @@ mlir::LogicalResult SchedulingPass::processMainModel(
   };
 
   if (mlir::failed(schedule(symbolTableCollection, modelOp, scheduleOp, SCCs,
-                            std::nullopt, createContainerFn))) {
+                            {}, createContainerFn))) {
     return mlir::failure();
   }
 

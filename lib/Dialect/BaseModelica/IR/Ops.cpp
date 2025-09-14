@@ -1540,7 +1540,7 @@ namespace mlir::bmodelica {
 void VariableSetOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
                           VariableOp variableOp, mlir::Value value) {
   auto variableName = variableOp.getSymName();
-  build(builder, state, variableName, std::nullopt, value);
+  build(builder, state, variableName, {}, value);
 }
 
 void VariableSetOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
@@ -1755,7 +1755,7 @@ VariableComponentSetOp::getComponentSubscripts(size_t componentIndex) {
   auto subscripts = getSubscriptions();
 
   if (subscripts.empty()) {
-    return std::nullopt;
+    return {};
   }
 
   auto numOfSubscripts =
@@ -1763,7 +1763,7 @@ VariableComponentSetOp::getComponentSubscripts(size_t componentIndex) {
           .getInt();
 
   if (numOfSubscripts == 0) {
-    return std::nullopt;
+    return {};
   }
 
   size_t beginPos = 0;
@@ -1948,7 +1948,7 @@ namespace mlir::bmodelica {
 void QualifiedVariableSetOp::build(mlir::OpBuilder &builder,
                                    mlir::OperationState &state,
                                    VariableOp variableOp, mlir::Value value) {
-  build(builder, state, variableOp, std::nullopt, value);
+  build(builder, state, variableOp, {}, value);
 }
 
 void QualifiedVariableSetOp::build(mlir::OpBuilder &builder,
@@ -9396,7 +9396,7 @@ void EquationFunctionOp::build(mlir::OpBuilder &builder,
   llvm::SmallVector<mlir::Type> argTypes(numOfInductions * 2,
                                          builder.getIndexType());
 
-  auto functionType = builder.getFunctionType(argTypes, std::nullopt);
+  auto functionType = builder.getFunctionType(argTypes, {});
 
   state.addAttribute(getFunctionTypeAttrName(state.name),
                      mlir::TypeAttr::get(functionType));
@@ -9410,9 +9410,9 @@ void EquationFunctionOp::build(mlir::OpBuilder &builder,
 
   assert(functionType.getNumInputs() == argAttrs.size());
 
-  call_interface_impl::addArgAndResultAttrs(
-      builder, state, argAttrs, std::nullopt, getArgAttrsAttrName(state.name),
-      getResAttrsAttrName(state.name));
+  call_interface_impl::addArgAndResultAttrs(builder, state, argAttrs, {},
+                                            getArgAttrsAttrName(state.name),
+                                            getResAttrsAttrName(state.name));
 }
 
 mlir::Value EquationFunctionOp::getLowerBound(uint64_t induction) {
@@ -10217,9 +10217,9 @@ void RawFunctionOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
 
   assert(type.getNumInputs() == argAttrs.size());
 
-  call_interface_impl::addArgAndResultAttrs(
-      builder, state, argAttrs, std::nullopt, getArgAttrsAttrName(state.name),
-      getResAttrsAttrName(state.name));
+  call_interface_impl::addArgAndResultAttrs(builder, state, argAttrs, {},
+                                            getArgAttrsAttrName(state.name),
+                                            getResAttrsAttrName(state.name));
 }
 
 mlir::ParseResult RawFunctionOp::parse(mlir::OpAsmParser &parser,

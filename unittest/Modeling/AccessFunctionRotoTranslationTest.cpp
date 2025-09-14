@@ -9,7 +9,7 @@ using namespace ::marco::test;
 
 TEST(AccessFunctionRotoTranslation, creation_empty) {
   mlir::MLIRContext ctx;
-  auto affineMap = mlir::AffineMap::get(0, 0, std::nullopt, &ctx);
+  auto affineMap = mlir::AffineMap::get(0, 0, {}, &ctx);
   EXPECT_FALSE(AccessFunctionRotoTranslation::canBeBuilt(affineMap));
 }
 
@@ -25,7 +25,7 @@ TEST(AccessFunctionRotoTranslation, creation_emptyDimensions) {
 
 TEST(AccessFunctionRotoTranslation, creation_emptyResults) {
   mlir::MLIRContext ctx;
-  auto affineMap = mlir::AffineMap::get(1, 0, std::nullopt, &ctx);
+  auto affineMap = mlir::AffineMap::get(1, 0, {}, &ctx);
   EXPECT_FALSE(AccessFunctionRotoTranslation::canBeBuilt(affineMap));
 }
 

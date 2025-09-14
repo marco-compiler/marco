@@ -53,7 +53,7 @@ bool WhileStatementLowerer::lower(const ast::WhileStatement &statement) {
     if (auto &body = whileOp.getBodyRegion().back();
         body.empty() || !body.back().hasTrait<mlir::OpTrait::IsTerminator>()) {
       builder().setInsertionPointToEnd(&body);
-      builder().create<YieldOp>(location, std::nullopt);
+      builder().create<YieldOp>(location);
     }
   }
 

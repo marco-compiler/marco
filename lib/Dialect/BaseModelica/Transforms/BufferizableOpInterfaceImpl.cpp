@@ -35,7 +35,7 @@ struct RawVariableOpInterface
       return mlir::success();
     }
 
-    mlir::FailureOr<mlir::BaseMemRefType> resultType =
+    mlir::FailureOr<mlir::bufferization::BufferLikeType> resultType =
         mlir::bufferization::getBufferType(rawVariableOp.getResult(), options,
                                            state);
 

@@ -1,5 +1,5 @@
 set(SOURCES
-        Verifier.cpp)
+    Verifier.cpp)
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
@@ -9,8 +9,15 @@ get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
 get_property(extension_libs GLOBAL PROPERTY MLIR_EXTENSION_LIBS)
 get_property(conversion_libs GLOBAL PROPERTY MLIR_CONVERSION_LIBS)
 
-target_link_libraries(modelica-verifier
-        PRIVATE ${dialect_libs}
-        PRIVATE ${extension_libs}
-        PRIVATE ${conversion_libs}
-        PRIVATE marco::JIT)
+set(LIBS
+    marco::JIT
+    ${dialect_libs}
+    ${extension_libs}
+    ${conversion_libs}
+    MLIROptLib
+    MLIRRegisterAllDialects
+    MLIRRegisterAllExtensions
+    MLIRRegisterAllPasses
+    MLIRToLLVMIRTranslationRegistration)
+
+target_link_libraries(modelica-verifier PRIVATE ${LIBS})

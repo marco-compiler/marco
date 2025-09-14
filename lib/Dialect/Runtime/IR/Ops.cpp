@@ -81,9 +81,8 @@ mlir::ParseResult InitFunctionOp::parse(mlir::OpAsmParser &parser,
     return mlir::failure();
   }
 
-  result.addAttribute(
-      getFunctionTypeAttrName(result.name),
-      mlir::TypeAttr::get(builder.getFunctionType(std::nullopt, std::nullopt)));
+  result.addAttribute(getFunctionTypeAttrName(result.name),
+                      mlir::TypeAttr::get(builder.getFunctionType({}, {})));
 
   if (bodyRegion->empty()) {
     bodyRegion->emplaceBlock();
@@ -118,9 +117,8 @@ mlir::ParseResult DeinitFunctionOp::parse(mlir::OpAsmParser &parser,
     return mlir::failure();
   }
 
-  result.addAttribute(
-      getFunctionTypeAttrName(result.name),
-      mlir::TypeAttr::get(builder.getFunctionType(std::nullopt, std::nullopt)));
+  result.addAttribute(getFunctionTypeAttrName(result.name),
+                      mlir::TypeAttr::get(builder.getFunctionType({}, {})));
 
   if (bodyRegion->empty()) {
     bodyRegion->emplaceBlock();
@@ -197,6 +195,15 @@ mlir::BlockArgument VariableGetterOp::getIndex(uint64_t dimension) {
 } // namespace mlir::runtime
 
 //===---------------------------------------------------------------------===//
+// YieldOp
+
+namespace mlir::runtime {
+void YieldOp::build(mlir::OpBuilder &builder, mlir::OperationState &state) {
+  build(builder, state, {});
+}
+} // namespace mlir::runtime
+
+//===---------------------------------------------------------------------===//
 // EquationFunctionOp
 
 namespace mlir::runtime {
@@ -231,7 +238,7 @@ void EquationFunctionOp::build(mlir::OpBuilder &builder,
   llvm::SmallVector<mlir::Type> argTypes(numOfInductions * 2,
                                          builder.getIndexType());
 
-  auto functionType = builder.getFunctionType(argTypes, std::nullopt);
+  auto functionType = builder.getFunctionType(argTypes, {});
 
   state.addAttribute(getFunctionTypeAttrName(state.name),
                      mlir::TypeAttr::get(functionType));
@@ -246,7 +253,7 @@ void EquationFunctionOp::build(mlir::OpBuilder &builder,
   assert(functionType.getNumInputs() == argAttrs.size());
 
   mlir::call_interface_impl::addArgAndResultAttrs(
-      builder, state, argAttrs, std::nullopt, getArgAttrsAttrName(state.name),
+      builder, state, argAttrs, {}, getArgAttrsAttrName(state.name),
       getResAttrsAttrName(state.name));
 }
 } // namespace mlir::runtime
@@ -284,6 +291,15 @@ void FunctionOp::print(mlir::OpAsmPrinter &printer) {
   mlir::function_interface_impl::printFunctionOp(
       printer, *this, false, getFunctionTypeAttrName(), getArgAttrsAttrName(),
       getResAttrsAttrName());
+}
+} // namespace mlir::runtime
+
+//===---------------------------------------------------------------------===//
+// ReturnOp
+
+namespace mlir::runtime {
+void ReturnOp::build(mlir::OpBuilder &builder, mlir::OperationState &state) {
+  build(builder, state, {});
 }
 } // namespace mlir::runtime
 

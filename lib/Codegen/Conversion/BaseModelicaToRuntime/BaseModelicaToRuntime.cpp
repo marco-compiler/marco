@@ -361,7 +361,7 @@ mlir::LogicalResult BaseModelicaToRuntimeConversionPass::convertSchedules(
 
     auto funcOp = rewriter.create<mlir::func::FuncOp>(
         scheduleOp.getLoc(), flattenScheduleName(qualifiedName),
-        rewriter.getFunctionType(std::nullopt, std::nullopt));
+        rewriter.getFunctionType({}, {}));
 
     symbolTableCollection.getSymbolTable(moduleOp).insert(funcOp);
     mlir::Block *entryBlock = funcOp.addEntryBlock();
@@ -379,9 +379,7 @@ mlir::LogicalResult BaseModelicaToRuntimeConversionPass::convertSchedules(
 
     for (RunScheduleOp runScheduleOp : schedules[scheduleOp]) {
       rewriter.setInsertionPoint(runScheduleOp);
-
-      rewriter.replaceOpWithNewOp<mlir::func::CallOp>(runScheduleOp, funcOp,
-                                                      std::nullopt);
+      rewriter.replaceOpWithNewOp<mlir::func::CallOp>(runScheduleOp, funcOp);
     }
 
     symbolTableCollection.getSymbolTable(modelOp).remove(scheduleOp);
@@ -805,7 +803,7 @@ mlir::LogicalResult BaseModelicaToRuntimeConversionPass::createInitFunction(
   }
 
   rewriter.setInsertionPointToEnd(&initFunctionOp.getBodyRegion().back());
-  rewriter.create<mlir::runtime::YieldOp>(modelOp.getLoc(), std::nullopt);
+  rewriter.create<mlir::runtime::YieldOp>(modelOp.getLoc());
 
   llvm::SmallVector<VariableGetOp> variableGetOps;
 
@@ -835,7 +833,7 @@ mlir::LogicalResult BaseModelicaToRuntimeConversionPass::createDeinitFunction(
       builder.createBlock(&deinitFunctionOp.getBodyRegion());
 
   builder.setInsertionPointToStart(entryBlock);
-  builder.create<mlir::runtime::YieldOp>(modelOp.getLoc(), std::nullopt);
+  builder.create<mlir::runtime::YieldOp>(modelOp.getLoc());
 
   return mlir::success();
 }
@@ -907,8 +905,7 @@ BaseModelicaToRuntimeConversionPass::convertQualifiedVariableAccesses(
     auto arrayType = mlir::cast<ArrayType>(replacement.getType());
 
     if (arrayType.isScalar()) {
-      replacement = rewriter.create<LoadOp>(replacement.getLoc(), replacement,
-                                            std::nullopt);
+      replacement = rewriter.create<LoadOp>(replacement.getLoc(), replacement);
     } else if (mlir::isa<mlir::TensorType>(getOp.getResult().getType())) {
       replacement = rewriter.create<ArrayToTensorOp>(
           replacement.getLoc(), variableOp.getVariableType().toTensorType(),
@@ -935,8 +932,7 @@ BaseModelicaToRuntimeConversionPass::convertQualifiedVariableAccesses(
                                                expectedType, writtenValue);
       }
 
-      rewriter.create<StoreOp>(setOp.getLoc(), writtenValue, globalVariable,
-                               std::nullopt);
+      rewriter.create<StoreOp>(setOp.getLoc(), writtenValue, globalVariable);
     } else {
       if (mlir::isa<mlir::TensorType>(writtenValue.getType())) {
         writtenValue = rewriter.create<TensorToArrayOp>(
@@ -955,8 +951,7 @@ BaseModelicaToRuntimeConversionPass::convertQualifiedVariableAccesses(
           mlir::cast<mlir::ShapedType>(destination.getType());
 
       if (destinationShapedType.getShape().empty()) {
-        rewriter.create<StoreOp>(setOp.getLoc(), writtenValue, destination,
-                                 std::nullopt);
+        rewriter.create<StoreOp>(setOp.getLoc(), writtenValue, destination);
       } else {
         rewriter.create<ArrayCopyOp>(setOp.getLoc(), writtenValue, destination);
       }
@@ -977,7 +972,7 @@ GlobalVariableOp BaseModelicaToRuntimeConversionPass::declareTimeVariable(
   auto timeType = RealType::get(builder.getContext());
 
   auto globalVariableOp = builder.create<GlobalVariableOp>(
-      moduleOp.getLoc(), "time", ArrayType::get(std::nullopt, timeType));
+      moduleOp.getLoc(), "time", ArrayType::get({}, timeType));
 
   symbolTableCollection.getSymbolTable(moduleOp).insert(globalVariableOp);
   return globalVariableOp;
@@ -993,8 +988,7 @@ mlir::LogicalResult BaseModelicaToRuntimeConversionPass::createTimeGetterOp(
   mlir::Location loc = timeVariableOp.getLoc();
 
   auto functionOp = builder.create<mlir::runtime::FunctionOp>(
-      loc, "getTime",
-      builder.getFunctionType(std::nullopt, builder.getF64Type()));
+      loc, "getTime", builder.getFunctionType({}, builder.getF64Type()));
 
   symbolTableCollection.getSymbolTable(moduleOp).insert(functionOp);
 
@@ -1021,8 +1015,7 @@ mlir::LogicalResult BaseModelicaToRuntimeConversionPass::createTimeSetterOp(
   mlir::Location loc = timeVariableOp.getLoc();
 
   auto functionOp = builder.create<mlir::runtime::FunctionOp>(
-      loc, "setTime",
-      builder.getFunctionType(builder.getF64Type(), std::nullopt));
+      loc, "setTime", builder.getFunctionType(builder.getF64Type(), {}));
 
   symbolTableCollection.getSymbolTable(moduleOp).insert(functionOp);
 
@@ -1034,8 +1027,8 @@ mlir::LogicalResult BaseModelicaToRuntimeConversionPass::createTimeSetterOp(
   mlir::Value newTime = builder.create<CastOp>(
       loc, RealType::get(builder.getContext()), functionOp.getArgument(0));
 
-  builder.create<StoreOp>(loc, newTime, array, std::nullopt);
-  builder.create<mlir::runtime::ReturnOp>(loc, std::nullopt);
+  builder.create<StoreOp>(loc, newTime, array);
+  builder.create<mlir::runtime::ReturnOp>(loc);
 
   return mlir::success();
 }
@@ -1049,9 +1042,9 @@ BaseModelicaToRuntimeConversionPass::convertTimeOp(mlir::ModuleOp moduleOp) {
     auto timeType = timeOp.getType();
 
     auto globalGetOp = rewriter.create<GlobalVariableGetOp>(
-        timeOp.getLoc(), ArrayType::get(std::nullopt, timeType), "time");
+        timeOp.getLoc(), ArrayType::get({}, timeType), "time");
 
-    rewriter.replaceOpWithNewOp<LoadOp>(timeOp, globalGetOp, std::nullopt);
+    rewriter.replaceOpWithNewOp<LoadOp>(timeOp, globalGetOp);
   });
 
   return mlir::success();

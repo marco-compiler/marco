@@ -33,6 +33,8 @@ public:
 } // namespace
 
 namespace mlir::bmodelica::bridge {
+EquationBridge::AccessesList::AccessesList() = default;
+
 EquationBridge::AccessesList::AccessesList(Reference accesses)
     : accesses(std::move(accesses)) {}
 
@@ -146,7 +148,7 @@ EquationBridge::AccessesList EquationBridge::getOriginalAccesses() {
   }
 
   llvm_unreachable("Can't compute the accesses");
-  return AccessesList(std::nullopt);
+  return {};
 }
 
 EquationBridge::AccessesList EquationBridge::getOriginalWriteAccesses() {
@@ -157,7 +159,7 @@ EquationBridge::AccessesList EquationBridge::getOriginalWriteAccesses() {
                                             getSymbolTableCollection(),
                                             getOriginalIndices(), accesses))) {
     llvm_unreachable("Can't compute write accesses");
-    return AccessesList(std::nullopt);
+    return {};
   }
 
   return AccessesList(std::move(writeAccesses));
@@ -171,7 +173,7 @@ EquationBridge::AccessesList EquationBridge::getOriginalReadAccesses() {
                                            getSymbolTableCollection(),
                                            getOriginalIndices(), accesses))) {
     llvm_unreachable("Can't compute write accesses");
-    return AccessesList(std::nullopt);
+    return {};
   }
 
   return AccessesList(std::move(readAccesses));

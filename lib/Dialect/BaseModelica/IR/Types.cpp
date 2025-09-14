@@ -24,6 +24,7 @@ void BaseModelicaDialect::registerTypes() {
   addTypes<
 #define GET_TYPEDEF_LIST
 #include "marco/Dialect/BaseModelica/IR/BaseModelicaTypes.cpp.inc"
+
       >();
 }
 } // namespace mlir::bmodelica
@@ -542,7 +543,7 @@ VariableType VariableType::wrap(mlir::Type type,
                              arrayType.getMemorySpace());
   }
 
-  return VariableType::get(std::nullopt, type, variabilityProperty, ioProperty);
+  return VariableType::get({}, type, variabilityProperty, ioProperty);
 }
 
 ArrayType VariableType::toArrayType() const {

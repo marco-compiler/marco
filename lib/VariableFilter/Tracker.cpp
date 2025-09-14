@@ -6,7 +6,7 @@ using namespace ::marco::vf;
 namespace marco::vf {
 Tracker::Tracker() {}
 
-Tracker::Tracker(llvm::StringRef name) : Tracker(name, std::nullopt) {}
+Tracker::Tracker(llvm::StringRef name) : Tracker(name, {}) {}
 
 Tracker::Tracker(llvm::StringRef name, llvm::ArrayRef<Range> ranges)
     : name(name.str()), ranges(ranges.begin(), ranges.end()) {}

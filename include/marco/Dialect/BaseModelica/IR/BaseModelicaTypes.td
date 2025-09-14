@@ -154,7 +154,7 @@ def UnrankedArrayType : BaseModelica_Type<"UnrankedArray",
         using ShapedType::Trait<UnrankedArrayType>::getDimSize;
         using ShapedType::Trait<UnrankedArrayType>::getDynamicDimIndex;
 
-        llvm::ArrayRef<int64_t> getShape() const { return std::nullopt; }
+        llvm::ArrayRef<int64_t> getShape() const { return {}; }
     }];
 
     let genVerifyDecl = 1;
