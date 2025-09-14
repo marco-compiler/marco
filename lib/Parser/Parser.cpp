@@ -12,8 +12,8 @@ using namespace ::marco::parser;
   static_assert(true)
 
 #define TRY(outVar, expression)                                                \
-  auto(outVar) = expression;                                                   \
-  if (!(outVar).has_value()) {                                                 \
+  auto outVar = expression;                                                    \
+  if (!outVar.has_value()) {                                                   \
     return std::nullopt;                                                       \
   }                                                                            \
   static_assert(true)
