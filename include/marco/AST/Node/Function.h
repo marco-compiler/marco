@@ -95,7 +95,7 @@ public:
   FunctionType getType() const;
 
 private:
-  bool pure;
+  bool pure{true};
 };
 
 class DerivativeAnnotation {
