@@ -110,7 +110,7 @@ ASTNode::ASTNode(const ASTNode &other) = default;
 
 ASTNode::~ASTNode() = default;
 
-SourceRange ASTNode::getLocation() const { return location; }
+const SourceRange &ASTNode::getLocation() const { return location; }
 
 void ASTNode::setLocation(SourceRange loc) { this->location = std::move(loc); }
 

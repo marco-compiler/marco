@@ -123,7 +123,7 @@ public:
 
   virtual std::unique_ptr<ASTNode> clone() const = 0;
 
-  SourceRange getLocation() const;
+  const SourceRange &getLocation() const;
 
   void setLocation(SourceRange loc);
 
