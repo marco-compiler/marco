@@ -5,7 +5,7 @@ LABEL org.opencontainers.image.source="https://github.com/marco-compiler/marco"
 # Install compilation dependencies.
 RUN apt update -y && \
     apt install -y build-essential gfortran ninja-build lld mold cmake ccache \
-    git python3-pip python3-venv libxml2-dev libtinfo-dev wget doxygen
+    git python3-pip python3-venv libxml2-dev libtinfo-dev wget doxygen libasan6
 
 # Create a Python virtual environment.
 COPY ./setup_venv.sh /tmp/
@@ -16,6 +16,7 @@ ARG LLVM_PARALLEL_COMPILE_JOBS=4
 ARG LLVM_PARALLEL_LINK_JOBS=1
 ARG LLVM_BUILD_TYPE=Release
 ARG LLVM_ENABLE_ASSERTIONS=OFF
+ARG LLVM_SANITIZER=""
 
 COPY ./version_llvm.txt /tmp/
 COPY ./install_llvm.sh /tmp/
@@ -42,9 +43,6 @@ RUN chmod +x /tmp/install_marco_runtime.sh && \
     /tmp/install_marco_runtime.sh
 
 # Install additional MARCO dependencies.
-RUN apt update -y && \
-    apt install -y libasan6
-
 RUN pip install nltk
 
 # Reduce image size.
