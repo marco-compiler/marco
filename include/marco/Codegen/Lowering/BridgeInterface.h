@@ -105,6 +105,10 @@ public:
   [[nodiscard]] virtual bool
   lower(const ast::AssignmentStatement &statement) = 0;
 
+  [[nodiscard]] virtual bool lowerAssignmentToComponentReference(
+      mlir::Location assignmentLoc, const ast::ComponentReference &destination,
+      mlir::Value value) = 0;
+
   [[nodiscard]] virtual bool lower(const ast::BreakStatement &statement) = 0;
 
   [[nodiscard]] virtual bool lower(const ast::CallStatement &statement) = 0;

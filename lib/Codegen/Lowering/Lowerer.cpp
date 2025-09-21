@@ -364,6 +364,13 @@ bool Lowerer::lower(const ast::AssignmentStatement &statement) {
   return bridge->lower(statement);
 }
 
+bool Lowerer::lowerAssignmentToComponentReference(
+    mlir::Location assignmentLoc, const ast::ComponentReference &destination,
+    mlir::Value value) {
+  return bridge->lowerAssignmentToComponentReference(assignmentLoc, destination,
+                                                     value);
+}
+
 bool Lowerer::lower(const ast::BreakStatement &statement) {
   return bridge->lower(statement);
 }

@@ -11,9 +11,21 @@ namespace mlir {
 void populateBaseModelicaToFuncConversionPatterns(
     mlir::RewritePatternSet &patterns, mlir::MLIRContext *context,
     mlir::TypeConverter &typeConverter,
-    mlir::SymbolTableCollection &symbolTableCollection);
+    mlir::SymbolTableCollection &symbolTables);
 
 std::unique_ptr<mlir::Pass> createBaseModelicaToFuncConversionPass();
+
+#define GEN_PASS_DECL_BASEMODELICAEXTERNALCALLSCONVERSIONPASS
+#include "marco/Codegen/Conversion/Passes.h.inc"
+
+void populateBaseModelicaExternalCallsTypeLegalizationPatterns(
+    mlir::RewritePatternSet &patterns, mlir::MLIRContext *context,
+    mlir::TypeConverter &typeConverter);
+
+std::unique_ptr<mlir::Pass> createBaseModelicaExternalCallsConversionPass();
+
+std::unique_ptr<mlir::Pass> createBaseModelicaExternalCallsConversionPass(
+    const BaseModelicaExternalCallsConversionPassOptions &options);
 
 #define GEN_PASS_DECL_BASEMODELICARAWVARIABLESCONVERSIONPASS
 #include "marco/Codegen/Conversion/Passes.h.inc"

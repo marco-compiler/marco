@@ -26,58 +26,69 @@ bool AssignmentStatementLowerer::lower(
     const auto *destinationRef =
         destinations->getExpression(i)->cast<ast::ComponentReference>();
 
-    size_t pathLength = destinationRef->getPathLength();
-
-    llvm::SmallVector<mlir::Attribute> path;
-    llvm::SmallVector<mlir::Value> subscripts;
-    llvm::SmallVector<int64_t> subscriptsAmounts;
-
-    for (size_t pathIndex = 0; pathIndex < pathLength; ++pathIndex) {
-      const ast::ComponentReferenceEntry *refEntry =
-          destinationRef->getElement(pathIndex);
-
-      path.push_back(mlir::FlatSymbolRefAttr::get(builder().getContext(),
-                                                  refEntry->getName()));
-
-      size_t numOfSubscripts = refEntry->getNumOfSubscripts();
-      subscriptsAmounts.push_back(static_cast<int64_t>(numOfSubscripts));
-
-      for (size_t subscriptIndex = 0; subscriptIndex < numOfSubscripts;
-           ++subscriptIndex) {
-        mlir::Location subscriptLoc =
-            loc(refEntry->getSubscript(subscriptIndex)->getLocation());
-
-        std::optional<Results> loweredSubscript =
-            lower(*refEntry->getSubscript(subscriptIndex));
-        if (!loweredSubscript) {
-          return false;
-        }
-        mlir::Value subscriptValue = (*loweredSubscript)[0].get(subscriptLoc);
-
-        subscripts.push_back(subscriptValue);
-      }
+    if (!lowerAssignmentToComponentReference(statementLoc, *destinationRef,
+                                             (*values)[i].get(valuesLoc))) {
+      return false;
     }
+  }
 
-    if (path.size() == 1) {
-      std::optional<Reference> variableRef = lookupVariable(
-          mlir::cast<mlir::FlatSymbolRefAttr>(path.front()).getValue());
-      if (!variableRef) {
-        emitIdentifierError(
-            IdentifierError::IdentifierType::VARIABLE,
-            mlir::cast<mlir::FlatSymbolRefAttr>(path.front()).getValue(),
-            getVariablesSymbolTable().getVariables(true),
-            statement.getExpression()->getLocation());
+  return true;
+}
+
+bool AssignmentStatementLowerer::lowerAssignmentToComponentReference(
+    mlir::Location assignmentLoc, const ast::ComponentReference &destination,
+    mlir::Value value) {
+  size_t pathLength = destination.getPathLength();
+
+  llvm::SmallVector<mlir::Attribute> path;
+  llvm::SmallVector<mlir::Value> subscripts;
+  llvm::SmallVector<int64_t> subscriptsAmounts;
+
+  for (size_t pathIndex = 0; pathIndex < pathLength; ++pathIndex) {
+    const ast::ComponentReferenceEntry *refEntry =
+        destination.getElement(pathIndex);
+
+    path.push_back(mlir::FlatSymbolRefAttr::get(builder().getContext(),
+                                                refEntry->getName()));
+
+    size_t numOfSubscripts = refEntry->getNumOfSubscripts();
+    subscriptsAmounts.push_back(static_cast<int64_t>(numOfSubscripts));
+
+    for (size_t subscriptIndex = 0; subscriptIndex < numOfSubscripts;
+         ++subscriptIndex) {
+      mlir::Location subscriptLoc =
+          loc(refEntry->getSubscript(subscriptIndex)->getLocation());
+
+      std::optional<Results> loweredSubscript =
+          lower(*refEntry->getSubscript(subscriptIndex));
+      if (!loweredSubscript) {
         return false;
       }
+      mlir::Value subscriptValue = (*loweredSubscript)[0].get(subscriptLoc);
 
-      mlir::Value rhs = (*values)[i].get(valuesLoc);
-      variableRef->set(statementLoc, subscripts, rhs);
-    } else {
-      builder().create<VariableComponentSetOp>(
-          statementLoc, builder().getArrayAttr(path), subscripts,
-          builder().getI64ArrayAttr(subscriptsAmounts),
-          (*values)[i].get(valuesLoc));
+      subscripts.push_back(subscriptValue);
     }
+  }
+
+  if (path.size() == 1) {
+    std::optional<Reference> variableRef = lookupVariable(
+        mlir::cast<mlir::FlatSymbolRefAttr>(path.front()).getValue());
+
+    if (!variableRef) {
+      emitIdentifierError(
+          IdentifierError::IdentifierType::VARIABLE,
+          mlir::cast<mlir::FlatSymbolRefAttr>(path.front()).getValue(),
+          getVariablesSymbolTable().getVariables(true),
+          destination.getLocation());
+
+      return false;
+    }
+
+    variableRef->set(assignmentLoc, subscripts, value);
+  } else {
+    builder().create<VariableComponentSetOp>(
+        assignmentLoc, builder().getArrayAttr(path), subscripts,
+        builder().getI64ArrayAttr(subscriptsAmounts), value);
   }
 
   return true;

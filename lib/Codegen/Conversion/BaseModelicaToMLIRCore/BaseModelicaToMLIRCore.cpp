@@ -11,6 +11,7 @@
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Bufferization/IR/Bufferization.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
@@ -53,12 +54,12 @@ mlir::LogicalResult BaseModelicaToMLIRCoreConversionPass::convertOperations() {
   mlir::DataLayout dataLayout(moduleOp);
   TypeConverter typeConverter(&getContext(), dataLayout);
 
-  target.addLegalDialect<mlir::BuiltinDialect, mlir::arith::ArithDialect,
-                         mlir::bufferization::BufferizationDialect,
-                         mlir::func::FuncDialect, mlir::linalg::LinalgDialect,
-                         mlir::memref::MemRefDialect, mlir::scf::SCFDialect,
-                         mlir::runtime::RuntimeDialect,
-                         mlir::tensor::TensorDialect>();
+  target.addLegalDialect<
+      mlir::BuiltinDialect, mlir::arith::ArithDialect,
+      mlir::bufferization::BufferizationDialect, mlir::func::FuncDialect,
+      mlir::LLVM::LLVMDialect, mlir::linalg::LinalgDialect,
+      mlir::memref::MemRefDialect, mlir::scf::SCFDialect,
+      mlir::runtime::RuntimeDialect, mlir::tensor::TensorDialect>();
 
   target.addDynamicallyLegalOp<mlir::tensor::DimOp>([](mlir::tensor::DimOp op) {
     return !mlir::isa<BooleanType, IntegerType, RealType>(
@@ -116,6 +117,22 @@ mlir::LogicalResult BaseModelicaToMLIRCoreConversionPass::convertOperations() {
     return valueType == typeConverter.convertType(valueType);
   });
 
+  target.addDynamicallyLegalOp<ExternalCallOp>([&](ExternalCallOp op) {
+    for (mlir::Type type : op.getArgs().getTypes()) {
+      if (type != typeConverter.convertType(type)) {
+        return false;
+      }
+    }
+
+    for (mlir::Type type : op.getResultTypes()) {
+      if (type != typeConverter.convertType(type)) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+
   target.addIllegalOp<AbsOp, AcosOp, AsinOp, AtanOp, Atan2Op, CeilOp, CosOp,
                       CoshOp, DiagonalOp, DivTruncOp, ExpOp, FillOp, FloorOp,
                       IdentityOp, IntegerOp, LinspaceOp, LogOp, Log10Op, OnesOp,
@@ -140,6 +157,9 @@ mlir::LogicalResult BaseModelicaToMLIRCoreConversionPass::convertOperations() {
 
   populateBaseModelicaToFuncConversionPatterns(
       patterns, &getContext(), typeConverter, symbolTableCollection);
+
+  populateBaseModelicaExternalCallsTypeLegalizationPatterns(
+      patterns, &getContext(), typeConverter);
 
   populateBaseModelicaRawVariablesTypeLegalizationPatterns(
       patterns, &getContext(), typeConverter);

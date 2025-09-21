@@ -172,6 +172,20 @@ bool StandardFunctionLowerer::lower(const ast::StandardFunction &function) {
     }
   }
 
+  if (function.isExternal()) {
+    if (function.hasExternalFunctionCall()) {
+      if (!lowerExternalFunctionCall(function.getExternalLanguage(),
+                                     *function.getExternalFunctionCall(),
+                                     functionOp)) {
+        return false;
+      }
+    } else {
+      if (!createImplicitExternalFunctionCall(function)) {
+        return false;
+      }
+    }
+  }
+
   // Special handling of record constructors.
   if (isRecordConstructor(function)) {
     mlir::Location location = loc(function.getLocation());
@@ -239,5 +253,189 @@ bool StandardFunctionLowerer::lowerVariableDefaultValue(
 bool StandardFunctionLowerer::isRecordConstructor(
     const ast::StandardFunction &function) {
   return function.getName().contains("'constructor'");
+}
+
+bool StandardFunctionLowerer::lowerExternalFunctionCall(
+    llvm::StringRef language,
+    const ast::ExternalFunctionCall &externalFunctionCall, FunctionOp funcOp) {
+  mlir::SymbolTable symbolTable(funcOp);
+
+  auto algorithmOp =
+      builder().create<AlgorithmOp>(loc(externalFunctionCall.getLocation()));
+
+  builder().createBlock(&algorithmOp.getBodyRegion());
+  llvm::SmallVector<mlir::Type> expectedResultTypes;
+
+  if (externalFunctionCall.hasDestination()) {
+    // Temporarily lower the destination as a read access to determine the type
+    // needed for the result of the external function call.
+    builder().setInsertionPointToStart(&algorithmOp.getBodyRegion().front());
+
+    auto loweredDestination = lower(*externalFunctionCall.getDestination()
+                                         ->cast<ast::ComponentReference>());
+
+    if (!loweredDestination) {
+      return false;
+    }
+
+    expectedResultTypes.push_back(
+        (*loweredDestination)[0]
+            .get(loc(externalFunctionCall.getDestination()->getLocation()))
+            .getType());
+
+    algorithmOp.getBodyRegion().front().clear();
+  }
+
+  // Create the call to the external function.
+  builder().setInsertionPointToStart(&algorithmOp.getBodyRegion().front());
+  llvm::SmallVector<mlir::Value> callArgs;
+
+  llvm::SmallVector<std::pair<ast::ComponentReference *, mlir::Value>>
+      temporaryArrays;
+
+  for (const auto &arg : externalFunctionCall.getArguments()) {
+    if (auto componentReference = arg->dyn_cast<ast::ComponentReference>()) {
+      // Special handling for protected and output variables, which can be
+      // modified by the external function.
+      auto variableOp = symbolTable.lookup<VariableOp>(
+          componentReference->getElement(0)->getName());
+
+      if (!variableOp) {
+        emitIdentifierError(IdentifierError::IdentifierType::VARIABLE,
+                            componentReference->getElement(0)->getName(),
+                            getVariablesSymbolTable().getVariables(),
+                            componentReference->getLocation());
+        return false;
+      }
+
+      if (!variableOp.isInput() && variableOp.getVariableType().isScalar()) {
+        // Extract the previous value and store it into temporary memory.
+        auto loweredArg = lower(*arg->cast<ast::Expression>());
+
+        if (!loweredArg) {
+          return false;
+        }
+
+        mlir::Value currentValue =
+            (*loweredArg)[0].get((*loweredArg)[0].getLoc());
+
+        auto allocOp = builder().create<AllocOp>(
+            currentValue.getLoc(), ArrayType::get({}, currentValue.getType()),
+            mlir::ValueRange());
+
+        builder().create<StoreOp>(currentValue.getLoc(), currentValue, allocOp);
+        callArgs.push_back(allocOp);
+        temporaryArrays.emplace_back(componentReference, allocOp);
+        continue;
+      }
+    }
+
+    // Read-only argument.
+    auto loweredArg = lower(*arg->cast<ast::Expression>());
+
+    if (!loweredArg) {
+      return false;
+    }
+
+    for (const auto &loweredArgResult : *loweredArg) {
+      callArgs.push_back(loweredArgResult.get(loweredArgResult.getLoc()));
+    }
+  }
+
+  // Create the call to the external function.
+  auto callOp = builder().create<ExternalCallOp>(
+      loc(externalFunctionCall.getLocation()), expectedResultTypes,
+      externalFunctionCall.getCallee(), callArgs);
+
+  callOp.setLanguage(language);
+
+  // Copy the modified scalar arguments back to the original variable.
+  for (auto &[componentRef, array] : temporaryArrays) {
+    auto loweredDestination = lower(*componentRef);
+
+    if (!loweredDestination) {
+      return false;
+    }
+
+    mlir::Value loadedValue = builder().create<LoadOp>(array.getLoc(), array);
+
+    if (!this->lowerAssignmentToComponentReference(
+            loc(externalFunctionCall.getLocation()), *componentRef,
+            loadedValue)) {
+      return false;
+    }
+  }
+
+  // Assign the result of the call to the left-hand side variable.
+  if (externalFunctionCall.hasDestination()) {
+    return this->lowerAssignmentToComponentReference(
+        loc(externalFunctionCall.getLocation()),
+        *externalFunctionCall.getDestination()->cast<ast::ComponentReference>(),
+        callOp.getResult(0));
+  }
+
+  return true;
+}
+
+bool StandardFunctionLowerer::createImplicitExternalFunctionCall(
+    const ast::Function &function) {
+  auto algorithmOp = builder().create<AlgorithmOp>(loc(function.getLocation()));
+
+  builder().createBlock(&algorithmOp.getBodyRegion());
+  llvm::SmallVector<mlir::Type> expectedResultTypes;
+
+  // Temporarily lower the destination as a read access to determine the type
+  // needed for the result of the external function call.
+  builder().setInsertionPointToStart(&algorithmOp.getBodyRegion().front());
+
+  for (const auto &variable : function.getVariables()) {
+    if (variable->cast<ast::Member>()->isOutput()) {
+      if (!expectedResultTypes.empty()) {
+        // Multiple output variables are not supported for implicit external
+        // function calls.
+        emitError(loc(function.getLocation()))
+            << "Functions with multiple output variables are not supported "
+               "for implicit external function calls";
+
+        return false;
+      }
+
+      expectedResultTypes.push_back(
+          lookupVariable(variable->cast<ast::Member>()->getName())
+              ->get(loc(variable->getLocation()))
+              .getType());
+    }
+  }
+
+  algorithmOp.getBodyRegion().front().clear();
+
+  // Create the call to the external function.
+  builder().setInsertionPointToStart(&algorithmOp.getBodyRegion().front());
+  llvm::SmallVector<mlir::Value> callArgs;
+
+  for (const auto &variable : function.getVariables()) {
+    if (variable->cast<ast::Member>()->isOutput()) {
+      continue;
+    }
+
+    auto variableRef = lookupVariable(variable->cast<ast::Member>()->getName());
+    callArgs.push_back(variableRef->get(variableRef->getLoc()));
+  }
+
+  auto callOp = builder().create<ExternalCallOp>(loc(function.getLocation()),
+                                                 expectedResultTypes,
+                                                 function.getName(), callArgs);
+
+  callOp.setLanguage(function.getExternalLanguage());
+  ;
+
+  for (const auto &variable : function.getVariables()) {
+    if (variable->cast<ast::Member>()->isOutput()) {
+      lookupVariable(variable->cast<ast::Member>()->getName())
+          ->set(loc(variable->getLocation()), {}, callOp.getResult(0));
+    }
+  }
+
+  return true;
 }
 } // namespace marco::codegen::lowering

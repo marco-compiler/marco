@@ -186,6 +186,10 @@ protected:
   [[nodiscard]] virtual bool
   lower(const ast::AssignmentStatement &statement) override;
 
+  [[nodiscard]] virtual bool lowerAssignmentToComponentReference(
+      mlir::Location assignmentLoc, const ast::ComponentReference &destination,
+      mlir::Value value) override;
+
   [[nodiscard]] virtual bool
   lower(const ast::BreakStatement &statement) override;
 

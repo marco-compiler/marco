@@ -2611,3 +2611,209 @@ TEST(Parser, annotation_functionDerivativeWithoutOrder) {
   EXPECT_EQ(annotation.getName(), "foo1");
   EXPECT_EQ(annotation.getOrder(), 1);
 }
+
+TEST(Parser, externalFunctionCall_destinationAndArguments) {
+  auto str = R"(a = foo(b, c))";
+
+  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
+  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
+  auto &sourceManager = fileSourceMgr.get();
+
+  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
+  sourceFile->setMemoryBuffer(buffer.get());
+
+  Parser parser(*diagnostics, sourceManager, sourceFile);
+
+  auto node = parser.parseExternalFunctionCall();
+  ASSERT_TRUE(node.has_value());
+
+  EXPECT_EQ((*node)->getLocation().begin.line, 1);
+  EXPECT_EQ((*node)->getLocation().begin.column, 1);
+
+  EXPECT_EQ((*node)->getLocation().end.line, 1);
+  EXPECT_EQ((*node)->getLocation().end.column, 13);
+
+  ASSERT_TRUE((*node)->isa<ExternalFunctionCall>());
+
+  ASSERT_TRUE((*node)->cast<ExternalFunctionCall>()->hasDestination());
+  auto destination = (*node)->cast<ExternalFunctionCall>()->getDestination();
+
+  EXPECT_TRUE(destination->isa<ComponentReference>());
+  EXPECT_EQ((*node)->cast<ExternalFunctionCall>()->getCallee(), "foo");
+
+  ASSERT_EQ((*node)->cast<ExternalFunctionCall>()->getNumOfArguments(), 2);
+
+  EXPECT_TRUE((*node)
+                  ->cast<ExternalFunctionCall>()
+                  ->getArgument(0)
+                  ->isa<ComponentReference>());
+
+  EXPECT_TRUE((*node)
+                  ->cast<ExternalFunctionCall>()
+                  ->getArgument(1)
+                  ->isa<ComponentReference>());
+}
+
+TEST(Parser, externalFunctionCall_functionOnly) {
+  auto str = R"(foo())";
+
+  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
+  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
+  auto &sourceManager = fileSourceMgr.get();
+
+  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
+  sourceFile->setMemoryBuffer(buffer.get());
+
+  Parser parser(*diagnostics, sourceManager, sourceFile);
+
+  auto node = parser.parseExternalFunctionCall();
+  ASSERT_TRUE(node.has_value());
+
+  EXPECT_EQ((*node)->getLocation().begin.line, 1);
+  EXPECT_EQ((*node)->getLocation().begin.column, 1);
+
+  EXPECT_EQ((*node)->getLocation().end.line, 1);
+  EXPECT_EQ((*node)->getLocation().end.column, 5);
+
+  ASSERT_TRUE((*node)->isa<ExternalFunctionCall>());
+
+  EXPECT_FALSE((*node)->cast<ExternalFunctionCall>()->hasDestination());
+  EXPECT_EQ((*node)->cast<ExternalFunctionCall>()->getCallee(), "foo");
+  ASSERT_EQ((*node)->cast<ExternalFunctionCall>()->getNumOfArguments(), 0);
+}
+
+TEST(Parser, externalFunctionCall_destinationOnly) {
+  auto str = R"(a = foo())";
+
+  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
+  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
+  auto &sourceManager = fileSourceMgr.get();
+
+  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
+  sourceFile->setMemoryBuffer(buffer.get());
+
+  Parser parser(*diagnostics, sourceManager, sourceFile);
+
+  auto node = parser.parseExternalFunctionCall();
+  ASSERT_TRUE(node.has_value());
+
+  EXPECT_EQ((*node)->getLocation().begin.line, 1);
+  EXPECT_EQ((*node)->getLocation().begin.column, 1);
+
+  EXPECT_EQ((*node)->getLocation().end.line, 1);
+  EXPECT_EQ((*node)->getLocation().end.column, 9);
+
+  ASSERT_TRUE((*node)->isa<ExternalFunctionCall>());
+
+  ASSERT_TRUE((*node)->cast<ExternalFunctionCall>()->hasDestination());
+  auto destination = (*node)->cast<ExternalFunctionCall>()->getDestination();
+  EXPECT_TRUE(destination->isa<ComponentReference>());
+  EXPECT_EQ((*node)->cast<ExternalFunctionCall>()->getCallee(), "foo");
+
+  ASSERT_EQ((*node)->cast<ExternalFunctionCall>()->getNumOfArguments(), 0);
+}
+
+TEST(Parser, externalFunctionCall_argumentsOnly) {
+  auto str = R"(foo(b, c))";
+
+  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
+  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
+  auto &sourceManager = fileSourceMgr.get();
+
+  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
+  sourceFile->setMemoryBuffer(buffer.get());
+
+  Parser parser(*diagnostics, sourceManager, sourceFile);
+
+  auto node = parser.parseExternalFunctionCall();
+  ASSERT_TRUE(node.has_value());
+
+  EXPECT_EQ((*node)->getLocation().begin.line, 1);
+  EXPECT_EQ((*node)->getLocation().begin.column, 1);
+
+  EXPECT_EQ((*node)->getLocation().end.line, 1);
+  EXPECT_EQ((*node)->getLocation().end.column, 9);
+
+  ASSERT_TRUE((*node)->isa<ExternalFunctionCall>());
+
+  EXPECT_FALSE((*node)->cast<ExternalFunctionCall>()->hasDestination());
+  EXPECT_EQ((*node)->cast<ExternalFunctionCall>()->getCallee(), "foo");
+
+  ASSERT_EQ((*node)->cast<ExternalFunctionCall>()->getNumOfArguments(), 2);
+
+  EXPECT_TRUE((*node)
+                  ->cast<ExternalFunctionCall>()
+                  ->getArgument(0)
+                  ->isa<ComponentReference>());
+
+  EXPECT_TRUE((*node)
+                  ->cast<ExternalFunctionCall>()
+                  ->getArgument(1)
+                  ->isa<ComponentReference>());
+}
+
+TEST(Parser, function_external) {
+  auto str = R"(function foo
+  input Real x;
+  output Real y;
+external;
+end foo;)";
+
+  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
+  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
+  auto &sourceManager = fileSourceMgr.get();
+
+  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
+  sourceFile->setMemoryBuffer(buffer.get());
+
+  Parser parser(*diagnostics, sourceManager, sourceFile);
+
+  auto node = parser.parseClassDefinition();
+  ASSERT_TRUE(node.has_value());
+
+  ASSERT_TRUE((*node)->isa<Class>());
+  EXPECT_TRUE((*node)->cast<Class>()->isExternal());
+  EXPECT_FALSE((*node)->cast<Class>()->hasExternalFunctionCall());
+}
+
+TEST(Parser, function_externalFunctionCall) {
+  auto str = R"(function foo
+  input Real x;
+  output Real y;
+external y = foo_ext(x);
+end foo;)";
+
+  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
+  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
+  auto &sourceManager = fileSourceMgr.get();
+
+  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
+  sourceFile->setMemoryBuffer(buffer.get());
+
+  Parser parser(*diagnostics, sourceManager, sourceFile);
+
+  auto node = parser.parseClassDefinition();
+  ASSERT_TRUE(node.has_value());
+
+  ASSERT_TRUE((*node)->isa<Class>());
+  EXPECT_TRUE((*node)->cast<Class>()->isExternal());
+  EXPECT_TRUE((*node)->cast<Class>()->hasExternalFunctionCall());
+}

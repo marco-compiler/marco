@@ -12,6 +12,10 @@ public:
 
   [[nodiscard]] bool lower(const ast::AssignmentStatement &statement) override;
 
+  [[nodiscard]] bool lowerAssignmentToComponentReference(
+      mlir::Location assignmentLoc, const ast::ComponentReference &destination,
+      mlir::Value value) override;
+
 protected:
   using Lowerer::lower;
 };

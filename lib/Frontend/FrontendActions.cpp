@@ -1072,6 +1072,13 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
     addMLIRLoopTilingPass(pm.nest<mlir::func::FuncOp>());
   }
 
+  // Convert the calls to external functions. This is performed before the
+  // insertion of deallocation instructions, because the conversion may
+  // introduce temporary buffers to store the date in case of mismatch in
+  // bitwidths. It is also performed before promoting buffers to stack, so that
+  // the temporary allocations may also be promoted.
+  pm.addPass(createMLIRBaseModelicaExternalCallsConversionPass());
+
   if (ci.getCodeGenOptions().heapToStackPromotion) {
     pm.addNestedPass<mlir::func::FuncOp>(createMLIRPromoteBuffersToStackPass());
   }
@@ -1224,6 +1231,19 @@ CodeGenAction::createMLIRBaseModelicaToRuntimeConversionPass() {
   options.variableFilter = ci.getFrontendOptions().variableFilter;
 
   return mlir::createBaseModelicaToRuntimeConversionPass(options);
+}
+
+std::unique_ptr<mlir::Pass>
+CodeGenAction::createMLIRBaseModelicaExternalCallsConversionPass() {
+  CompilerInstance &ci = getInstance();
+
+  mlir::BaseModelicaExternalCallsConversionPassOptions options;
+  options.booleanBitWidth = ci.getTarget().getIntWidth();
+  options.integerBitWidth = ci.getTarget().getIntWidth();
+  options.indexBitWidth =
+      ci.getTarget().getPointerWidth(clang::LangAS::Default);
+
+  return mlir::createBaseModelicaExternalCallsConversionPass(options);
 }
 
 std::unique_ptr<mlir::Pass> CodeGenAction::createMLIROneShotBufferizePass() {

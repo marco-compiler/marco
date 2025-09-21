@@ -176,6 +176,42 @@ def BaseModelicaToFuncConversionPass
 }
 
 //===---------------------------------------------------------------------===//
+// Base Modelica External Calls conversion
+//===---------------------------------------------------------------------===//
+
+def BaseModelicaExternalCallsConversionPass
+    : Pass<"convert-bmodelica-external-calls", "mlir::ModuleOp">
+{
+    let summary = "Base Modelica: conversion to Func dialect";
+
+    let description = [{
+        Convert the bmodelica.external_call operation into the func dialect.
+    }];
+
+    let dependentDialects = [
+        "mlir::arith::ArithDialect",
+        "mlir::func::FuncDialect",
+        "mlir::LLVM::LLVMDialect",
+        "mlir::memref::MemRefDialect",
+        "mlir::scf::SCFDialect"
+    ];
+
+    let options = [
+        Option<"booleanBitWidth", "boolean-bit-width",
+               "int", "32",
+               "Bitwidth for boolean type">,
+        Option<"integerBitWidth", "integer-bit-width",
+               "int", "32",
+               "Bitwidth for integer type">,
+       Option<"indexBitWidth", "index-bit-width",
+               "int", "64",
+               "Bitwidth for index type">
+    ];
+
+    let constructor = "mlir::createBaseModelicaExternalCallsConversionPass()";
+}
+
+//===---------------------------------------------------------------------===//
 // Base Modelica Raw Variables conversion
 //===---------------------------------------------------------------------===//
 

@@ -3,11 +3,16 @@
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Transforms/DialectConversion.h"
 
 namespace mlir {
 #define GEN_PASS_DEF_BASEMODELICATOFUNCCONVERSIONPASS
+#include "marco/Codegen/Conversion/Passes.h.inc"
+
+#define GEN_PASS_DEF_BASEMODELICAEXTERNALCALLSCONVERSIONPASS
 #include "marco/Codegen/Conversion/Passes.h.inc"
 
 #define GEN_PASS_DEF_BASEMODELICARAWVARIABLESCONVERSIONPASS
@@ -316,6 +321,27 @@ struct CallOpLowering : public mlir::OpConversionPattern<CallOp> {
     return mlir::success();
   }
 };
+
+struct ExternalCallOpTypePattern
+    : public mlir::OpConversionPattern<ExternalCallOp> {
+  using mlir::OpConversionPattern<ExternalCallOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(ExternalCallOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    llvm::SmallVector<mlir::Type> convertedResultTypes;
+
+    for (mlir::Type resultType : op.getResultTypes()) {
+      convertedResultTypes.push_back(
+          getTypeConverter()->convertType(resultType));
+    }
+
+    rewriter.replaceOpWithNewOp<ExternalCallOp>(
+        op, convertedResultTypes, adaptor.getCallee(), adaptor.getArgs());
+
+    return mlir::success();
+  }
+};
 } // namespace
 
 namespace {
@@ -389,9 +415,9 @@ namespace mlir {
 void populateBaseModelicaToFuncConversionPatterns(
     mlir::RewritePatternSet &patterns, mlir::MLIRContext *context,
     mlir::TypeConverter &typeConverter,
-    mlir::SymbolTableCollection &symbolTableCollection) {
+    mlir::SymbolTableCollection &symbolTables) {
   patterns.insert<EquationFunctionOpLowering, RawFunctionOpLowering>(
-      typeConverter, context, symbolTableCollection);
+      typeConverter, context, symbolTables);
 
   patterns.insert<EquationCallOpLowering, RawReturnOpLowering, CallOpLowering>(
       typeConverter, context);
@@ -399,6 +425,319 @@ void populateBaseModelicaToFuncConversionPatterns(
 
 std::unique_ptr<mlir::Pass> createBaseModelicaToFuncConversionPass() {
   return std::make_unique<BaseModelicaToFuncConversionPass>();
+}
+} // namespace mlir
+
+namespace {
+class ExternalCallOpCLowering : public mlir::OpRewritePattern<ExternalCallOp> {
+  mlir::SymbolTableCollection &symbolTables;
+  int booleanBitWidth{32};
+  int integerBitWidth{32};
+  int indexBitWidth{64};
+
+public:
+  ExternalCallOpCLowering(mlir::MLIRContext *context,
+                          mlir::SymbolTableCollection &symbolTables,
+                          int booleanBitWidth, int integerBitWidth,
+                          int indexBitWidth)
+      : mlir::OpRewritePattern<ExternalCallOp>(context),
+        symbolTables(symbolTables), booleanBitWidth(booleanBitWidth),
+        integerBitWidth(integerBitWidth), indexBitWidth(indexBitWidth) {}
+
+  mlir::LogicalResult
+  matchAndRewrite(ExternalCallOp op,
+                  mlir::PatternRewriter &rewriter) const override {
+    if (op.getLanguage() != "C") {
+      return rewriter.notifyMatchFailure(op, "Not a C function");
+    }
+
+    llvm::SmallVector<mlir::Type> newResultTypes;
+
+    for (mlir::Type resultType : op.getResultTypes()) {
+      newResultTypes.push_back(convertType(resultType));
+    }
+
+    llvm::SmallVector<mlir::Value> newArgs;
+
+    for (mlir::Value arg : op.getArgs()) {
+      if (auto memRefType = mlir::dyn_cast<mlir::MemRefType>(arg.getType())) {
+        // If needed, convert the memref to a compatible type.
+        mlir::Value memRef =
+            convertMemRefAndCopyData(newArgs, rewriter, op, arg);
+
+        // Add the pointer to the memref data to the list of call arguments.
+        mlir::Value pointer =
+            rewriter.create<mlir::memref::ExtractAlignedPointerAsIndexOp>(
+                memRef.getLoc(), memRef);
+
+        pointer = rewriter.create<mlir::arith::IndexCastOp>(
+            pointer.getLoc(), rewriter.getI64Type(), pointer);
+
+        pointer = rewriter.create<mlir::LLVM::IntToPtrOp>(
+            pointer.getLoc(),
+            mlir::LLVM::LLVMPointerType::get(rewriter.getContext()), pointer);
+
+        newArgs.push_back(pointer);
+
+        // Add the dimensions of the memref to the list of call arguments.
+        for (unsigned int dim = 0; dim < memRefType.getRank(); ++dim) {
+          mlir::Value size = rewriter.create<mlir::memref::DimOp>(
+              memRef.getLoc(), memRef, dim);
+
+          size = rewriter.create<mlir::arith::IndexCastOp>(
+              size.getLoc(), convertType(size.getType()), size);
+
+          newArgs.push_back(size);
+        }
+
+        continue;
+      }
+
+      if (arg.getType() == convertType(arg.getType())) {
+        newArgs.push_back(arg);
+        continue;
+      }
+
+      newArgs.push_back(rewriter.create<CastOp>(
+          arg.getLoc(), convertType(arg.getType()), arg));
+    }
+
+    auto newFuncOp = getOrDeclareExternalFunction(
+        rewriter, op->getParentOfType<mlir::ModuleOp>(), op.getLoc(),
+        op.getCallee(), newArgs, newResultTypes);
+
+    auto callOp =
+        rewriter.create<mlir::func::CallOp>(op.getLoc(), newFuncOp, newArgs);
+
+    // Convert the results back to the original types if needed.
+    llvm::SmallVector<mlir::Value> convertedResults;
+
+    for (unsigned int i = 0, e = callOp.getNumResults(); i < e; ++i) {
+      mlir::Value result = callOp.getResult(i);
+      mlir::Type originalType = op.getResultTypes()[i];
+      mlir::Type convertedType = convertType(originalType);
+
+      if (convertedType == originalType) {
+        convertedResults.push_back(result);
+      } else {
+        convertedResults.push_back(
+            rewriter.create<CastOp>(result.getLoc(), originalType, result));
+      }
+    }
+
+    rewriter.replaceOp(op, convertedResults);
+    return mlir::success();
+  }
+
+  mlir::Type convertType(mlir::Type type) const {
+    if (auto integerType = mlir::dyn_cast<mlir::IntegerType>(type)) {
+      return convertIntegerType(integerType);
+    }
+
+    if (auto floatType = mlir::dyn_cast<mlir::FloatType>(type)) {
+      return convertFloatType(floatType);
+    }
+
+    if (auto indexType = mlir::dyn_cast<mlir::IndexType>(type)) {
+      return convertIndexType(indexType);
+    }
+
+    if (auto memRefType = mlir::dyn_cast<mlir::MemRefType>(type)) {
+      mlir::Type convertedElementType =
+          convertType(memRefType.getElementType());
+
+      return mlir::MemRefType::get(memRefType.getShape(), convertedElementType);
+    }
+
+    return type;
+  }
+
+  mlir::Type convertIntegerType(mlir::IntegerType type) const {
+    if (type.getIntOrFloatBitWidth() == 1) {
+      return mlir::IntegerType::get(type.getContext(), booleanBitWidth);
+    }
+
+    return mlir::IntegerType::get(type.getContext(), integerBitWidth);
+  }
+
+  mlir::Type convertFloatType(mlir::FloatType type) const {
+    return mlir::Float64Type::get(type.getContext());
+  }
+
+  mlir::Type convertIndexType(mlir::IndexType type) const {
+    return mlir::IntegerType::get(type.getContext(), indexBitWidth);
+  }
+
+  mlir::Value
+  convertMemRefAndCopyData(llvm::SmallVectorImpl<mlir::Value> &newArgs,
+                           mlir::RewriterBase &rewriter, mlir::Operation *op,
+                           mlir::Value arg) const {
+    auto memRefType = mlir::cast<mlir::MemRefType>(arg.getType());
+    auto convertedElementType = convertType(memRefType.getElementType());
+
+    if (convertedElementType == memRefType.getElementType()) {
+      return arg;
+    }
+
+    mlir::Value zero = rewriter.create<mlir::arith::ConstantOp>(
+        arg.getLoc(), rewriter.getIndexAttr(0));
+
+    mlir::Value one = rewriter.create<mlir::arith::ConstantOp>(
+        arg.getLoc(), rewriter.getIndexAttr(1));
+
+    llvm::SmallVector<mlir::Value> lowerBounds(memRefType.getRank(), zero);
+    llvm::SmallVector<mlir::Value> upperBounds;
+    llvm::SmallVector<mlir::Value> steps(memRefType.getRank(), one);
+
+    llvm::SmallVector<mlir::Value> dynSizes;
+
+    for (unsigned int dim = 0, rank = memRefType.getRank(); dim < rank; ++dim) {
+      mlir::Value size =
+          rewriter.create<mlir::memref::DimOp>(arg.getLoc(), arg, dim);
+
+      upperBounds.push_back(size);
+
+      if (memRefType.isDynamicDim(dim)) {
+        dynSizes.push_back(size);
+      }
+    }
+
+    mlir::Value newMemRef = rewriter.create<mlir::memref::AllocOp>(
+        arg.getLoc(),
+        mlir::MemRefType::get(memRefType.getShape(), convertedElementType),
+        dynSizes);
+
+    // Copy from the original memref to the temporary one.
+    mlir::scf::buildLoopNest(
+        rewriter, arg.getLoc(), lowerBounds, upperBounds, steps,
+        [&](mlir::OpBuilder &nestedBuilder, mlir::Location nestedLoc,
+            mlir::ValueRange ivs) {
+          mlir::Value value =
+              nestedBuilder.create<mlir::memref::LoadOp>(nestedLoc, arg, ivs);
+
+          value = nestedBuilder.create<CastOp>(nestedLoc, convertedElementType,
+                                               value);
+
+          nestedBuilder.create<mlir::memref::StoreOp>(nestedLoc, value,
+                                                      newMemRef, ivs);
+        });
+
+    // Copy from the temporary memref to the original one.
+    mlir::OpBuilder::InsertionGuard guard(rewriter);
+    rewriter.setInsertionPointAfter(op);
+
+    mlir::scf::buildLoopNest(
+        rewriter, arg.getLoc(), lowerBounds, upperBounds, steps,
+        [&](mlir::OpBuilder &nestedBuilder, mlir::Location nestedLoc,
+            mlir::ValueRange ivs) {
+          mlir::Value value = nestedBuilder.create<mlir::memref::LoadOp>(
+              nestedLoc, newMemRef, ivs);
+
+          value = nestedBuilder.create<CastOp>(
+              nestedLoc, memRefType.getElementType(), value);
+
+          nestedBuilder.create<mlir::memref::StoreOp>(nestedLoc, value, arg,
+                                                      ivs);
+        });
+
+    return newMemRef;
+  }
+
+  mlir::func::FuncOp
+  getOrDeclareExternalFunction(mlir::OpBuilder &builder,
+                               mlir::ModuleOp moduleOp, mlir::Location loc,
+                               llvm::StringRef name, mlir::ValueRange args,
+                               mlir::TypeRange resultTypes) const {
+    return getOrDeclareExternalFunction(builder, moduleOp, loc, name,
+                                        args.getTypes(), resultTypes);
+  }
+
+  mlir::func::FuncOp
+  getOrDeclareExternalFunction(mlir::OpBuilder &builder,
+                               mlir::ModuleOp moduleOp, mlir::Location loc,
+                               llvm::StringRef name, mlir::TypeRange argTypes,
+                               mlir::TypeRange resultTypes) const {
+    auto funcOp = symbolTables.lookupSymbolIn<mlir::func::FuncOp>(
+        moduleOp, builder.getStringAttr(name));
+
+    if (funcOp) {
+      return funcOp;
+    }
+
+    mlir::OpBuilder::InsertionGuard guard(builder);
+    builder.setInsertionPointToStart(moduleOp.getBody());
+
+    auto newFuncOp = builder.create<mlir::func::FuncOp>(
+        loc, name, builder.getFunctionType(argTypes, resultTypes));
+
+    newFuncOp.setPrivate();
+
+    symbolTables.getSymbolTable(moduleOp).insert(newFuncOp);
+    return newFuncOp;
+  }
+};
+} // namespace
+
+namespace mlir {
+void populateBaseModelicaExternalCallsTypeLegalizationPatterns(
+    mlir::RewritePatternSet &patterns, mlir::MLIRContext *context,
+    mlir::TypeConverter &typeConverter) {
+  patterns.insert<ExternalCallOpTypePattern, RawVariableGetOpTypePattern,
+                  RawVariableSetOpTypePattern>(typeConverter, context);
+}
+
+void populateBaseModelicaExternalCallConversionPatterns(
+    mlir::RewritePatternSet &patterns, mlir::MLIRContext *context,
+    mlir::SymbolTableCollection &symbolTables, int booleanBitWidth,
+    int integerBitWidth, int indexBitWidth) {
+  patterns.insert<ExternalCallOpCLowering>(
+      context, symbolTables, booleanBitWidth, integerBitWidth, indexBitWidth);
+}
+} // namespace mlir
+
+namespace {
+class BaseModelicaExternalCallsConversionPass
+    : public mlir::impl::BaseModelicaExternalCallsConversionPassBase<
+          BaseModelicaExternalCallsConversionPass> {
+public:
+  using BaseModelicaExternalCallsConversionPassBase::
+      BaseModelicaExternalCallsConversionPassBase;
+
+  void runOnOperation() override;
+};
+} // namespace
+
+void BaseModelicaExternalCallsConversionPass::runOnOperation() {
+  mlir::ModuleOp moduleOp = getOperation();
+  mlir::ConversionTarget target(getContext());
+
+  target.addIllegalOp<ExternalCallOp>();
+  target.markUnknownOpDynamicallyLegal([](mlir::Operation *) { return true; });
+
+  mlir::RewritePatternSet patterns(&getContext());
+  mlir::SymbolTableCollection symbolTables;
+
+  populateBaseModelicaExternalCallConversionPatterns(
+      patterns, &getContext(), symbolTables, booleanBitWidth, integerBitWidth,
+      indexBitWidth);
+
+  if (mlir::failed(
+          applyPartialConversion(moduleOp, target, std::move(patterns)))) {
+    mlir::emitError(getOperation().getLoc(),
+                    "Error in converting the external calls");
+
+    return signalPassFailure();
+  }
+}
+
+namespace mlir {
+std::unique_ptr<mlir::Pass> createBaseModelicaExternalCallsConversionPass() {
+  return std::make_unique<BaseModelicaExternalCallsConversionPass>();
+}
+
+std::unique_ptr<mlir::Pass> createBaseModelicaExternalCallsConversionPass(
+    const BaseModelicaExternalCallsConversionPassOptions &options) {
+  return std::make_unique<BaseModelicaExternalCallsConversionPass>(options);
 }
 } // namespace mlir
 

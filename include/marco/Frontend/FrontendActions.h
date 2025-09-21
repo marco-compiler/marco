@@ -186,6 +186,9 @@ protected:
 
   std::unique_ptr<mlir::Pass> createMLIRBaseModelicaToRuntimeConversionPass();
 
+  std::unique_ptr<mlir::Pass>
+  createMLIRBaseModelicaExternalCallsConversionPass();
+
   /// }
   /// @name MLIR built-in passes.
   /// {

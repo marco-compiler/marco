@@ -5,6 +5,7 @@
 
 namespace marco::ast {
 class Annotation;
+class ExternalFunctionCall;
 
 class Class : public ASTNode {
 public:
@@ -55,6 +56,30 @@ public:
   void
   setInnerClasses(llvm::ArrayRef<std::unique_ptr<ASTNode>> newInnerClasses);
 
+  bool isExternal() const;
+
+  void setExternal(bool isExternal);
+
+  llvm::StringRef getExternalLanguage() const;
+
+  void setExternalLanguage(llvm::StringRef language);
+
+  bool hasExternalFunctionCall() const;
+
+  ExternalFunctionCall *getExternalFunctionCall();
+
+  const ExternalFunctionCall *getExternalFunctionCall() const;
+
+  void setExternalFunctionCall(std::unique_ptr<ASTNode> node);
+
+  bool hasExternalAnnotation() const;
+
+  Annotation *getExternalAnnotation();
+
+  const Annotation *getExternalAnnotation() const;
+
+  void setExternalAnnotation(std::unique_ptr<ASTNode> node);
+
   bool hasAnnotation() const;
 
   Annotation *getAnnotation();
@@ -69,6 +94,10 @@ private:
   llvm::SmallVector<std::unique_ptr<ASTNode>> equationSections;
   llvm::SmallVector<std::unique_ptr<ASTNode>> algorithms;
   llvm::SmallVector<std::unique_ptr<ASTNode>> innerClasses;
+  bool external{false};
+  std::string externalLanguage{"C"};
+  std::unique_ptr<ASTNode> externalFunctionCall;
+  std::unique_ptr<ASTNode> externalAnnotation;
   std::unique_ptr<ASTNode> annotation;
 };
 } // namespace marco::ast

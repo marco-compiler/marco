@@ -4896,6 +4896,33 @@ def BaseModelica_CallOp : BaseModelica_Op<"call",
     }];
 }
 
+def BaseModelica_ExternalCallOp : BaseModelica_Op<"external_call",
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
+{
+    let summary = "External call operation.";
+
+    let description = [{
+        The operation represents a direct call to an externally-defined function.
+
+        Example:
+
+        ```mlir
+        %2 = bmodelica.external_call @foo(%0, %1) {language = "C"} : (!bmodelica.int, !bmodelica.real) -> !bmodelica.real
+        ```
+    }];
+
+    let arguments = (ins
+        FlatSymbolRefAttr:$callee,
+        Variadic<AnyType>:$args,
+        DefaultValuedStrAttr<StrAttr, "C">:$language);
+
+    let results = (outs Variadic<AnyType>);
+
+    let assemblyFormat = [{
+        $callee `(` $args `)` attr-dict `:` functional-type($args, results)
+    }];
+}
+
 def BaseModelica_ScheduleOp : BaseModelica_Op<"schedule",
     [ParentOneOf<["ModelOp"]>,
     Symbol,

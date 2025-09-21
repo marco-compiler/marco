@@ -229,7 +229,8 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseClassDefinition() {
   bool firstElementListParsable = true;
 
   while (!lookahead[0].isa<TokenKind::End>() &&
-         !lookahead[0].isa<TokenKind::Annotation>()) {
+         !lookahead[0].isa<TokenKind::Annotation>() &&
+         !lookahead[0].isa<TokenKind::External>()) {
     if (lookahead[0].isa<TokenKind::Initial>() &&
         lookahead[1].isa<TokenKind::Equation>()) {
       TRY(section, parseEquationSection());
@@ -297,6 +298,36 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseClassDefinition() {
     }
   }
 
+  // Parse the optional 'external'-related information.
+  if (lookahead[0].isa<TokenKind::External>()) {
+    EXPECT(TokenKind::External);
+    result->cast<Class>()->setExternal(true);
+
+    if (lookahead[0].isa<TokenKind::String>()) {
+      TRY(language, parseString());
+
+      result->cast<Class>()->setExternalLanguage(
+          std::move(language->getValue()));
+    }
+
+    if (lookahead[0].isa<TokenKind::Dot>() ||
+        lookahead[0].isa<TokenKind::Identifier>()) {
+      TRY(externalFunctionCall, parseExternalFunctionCall());
+
+      result->cast<Class>()->setExternalFunctionCall(
+          std::move(*externalFunctionCall));
+    }
+
+    if (!lookahead[0].isa<TokenKind::Semicolon>()) {
+      TRY(externalFunctionAnnotation, parseAnnotation());
+
+      result->cast<Class>()->setExternalAnnotation(
+          std::move(*externalFunctionAnnotation));
+    }
+
+    EXPECT(TokenKind::Semicolon);
+  }
+
   // Parse an optional annotation.
   if (lookahead[0].isa<TokenKind::Annotation>()) {
     TRY(annotation, parseAnnotation());
@@ -324,6 +355,54 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseClassDefinition() {
   result->dyn_cast<Class>()->setInnerClasses(innerClasses);
 
   return std::move(result);
+}
+
+ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseExternalFunctionCall() {
+  SourceRange loc = getLocation();
+
+  auto result = std::make_unique<ExternalFunctionCall>(loc);
+
+  // Optional destination.
+  bool hasDestination = !(lookahead[0].isa<TokenKind::Identifier>() &&
+                          lookahead[1].isa<TokenKind::LPar>());
+
+  if (hasDestination) {
+    TRY(destination, parseComponentReference());
+    loc = (*destination)->getLocation();
+    result->setDestination(std::move(*destination));
+    EXPECT(TokenKind::EqualityOperator);
+  }
+
+  // Callee.
+  TRY(callee, parseIdentifier());
+
+  if (!result->hasDestination()) {
+    loc = callee->getLocation();
+  }
+
+  result->setCallee(callee->getValue());
+
+  EXPECT(TokenKind::LPar);
+
+  // Function arguments.
+  llvm::SmallVector<std::unique_ptr<ast::ASTNode>> args;
+
+  while (!lookahead[0].isa<TokenKind::RPar>()) {
+    TRY(arg, parseExpression());
+    args.push_back(std::move(*arg));
+
+    if (!lookahead[0].isa<TokenKind::RPar>()) {
+      EXPECT(TokenKind::Comma);
+    }
+  }
+
+  result->setArguments(std::move(args));
+  EXPECT(TokenKind::RPar);
+
+  loc.end = getLocation().end;
+  result->setLocation(loc);
+
+  return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
 }
 
 ParseResult<std::unique_ptr<ASTNode>> Parser::parseModification() {
@@ -1714,7 +1793,8 @@ Parser::parseElementList(bool publicSection) {
          !lookahead[0].isa<TokenKind::Function>() &&
          !lookahead[0].isa<TokenKind::Model>() &&
          !lookahead[0].isa<TokenKind::Package>() &&
-         !lookahead[0].isa<TokenKind::Record>()) {
+         !lookahead[0].isa<TokenKind::Record>() &&
+         !lookahead[0].isa<TokenKind::External>()) {
     TRY(member, parseElement(publicSection));
     EXPECT(TokenKind::Semicolon);
     members.push_back(std::move(*member));

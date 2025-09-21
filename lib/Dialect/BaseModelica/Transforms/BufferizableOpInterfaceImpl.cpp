@@ -186,6 +186,69 @@ struct RawVariableSetOpInterface
     return {};
   }
 };
+
+struct ExternalCallOpInterface
+    : public BufferizableOpInterface::ExternalModel<ExternalCallOpInterface,
+                                                    ExternalCallOp> {
+  bool bufferizesToAllocation(mlir::Operation *op, mlir::Value value) const {
+    return false;
+  }
+
+  bool bufferizesToMemoryRead(mlir::Operation *op, mlir::OpOperand &opOperand,
+                              const AnalysisState &state) const {
+    return mlir::isa<mlir::TensorType>(opOperand.get().getType());
+  }
+
+  bool bufferizesToMemoryWrite(mlir::Operation *op, mlir::OpOperand &opOperand,
+                               const AnalysisState &state) const {
+    // This tricks the bufferization framework into thinking that the buffer can
+    // be reused. In principle, the result should be true for output buffers,
+    // but doing so would lead to RaW hazards when the buffer is then later
+    // obtained again through the raw_variable_get operation.
+
+    return false;
+  }
+
+  bool mustBufferizeInPlace(mlir::Operation *op, mlir::OpOperand &opOperand,
+                            const AnalysisState &state) const {
+    return mlir::isa<mlir::TensorType>(opOperand.get().getType());
+  }
+
+  mlir::LogicalResult bufferize(mlir::Operation *op,
+                                mlir::RewriterBase &rewriter,
+                                const BufferizationOptions &options,
+                                BufferizationState &state) const {
+    auto externalCallOp = mlir::cast<ExternalCallOp>(op);
+    llvm::SmallVector<mlir::Value> newArgs;
+
+    for (mlir::Value arg : externalCallOp.getArgs()) {
+      if (mlir::isa<mlir::TensorType>(arg.getType())) {
+        mlir::FailureOr<mlir::Value> argBuffer =
+            getBuffer(rewriter, arg, options, state);
+
+        if (mlir::failed(argBuffer)) {
+          return mlir::failure();
+        }
+
+        newArgs.push_back(*argBuffer);
+      } else {
+        newArgs.push_back(arg);
+      }
+    }
+
+    rewriter.replaceOpWithNewOp<ExternalCallOp>(
+        op, externalCallOp.getResultTypes(), externalCallOp.getCallee(),
+        newArgs);
+
+    return mlir::success();
+  }
+
+  AliasingValueList getAliasingValues(mlir::Operation *op,
+                                      mlir::OpOperand &opOperand,
+                                      const AnalysisState &state) const {
+    return {};
+  }
+};
 } // namespace
 
 namespace mlir::bmodelica {
@@ -196,6 +259,7 @@ void registerBufferizableOpInterfaceExternalModels(
     RawVariableOp::attachInterface<::RawVariableOpInterface>(*context);
     RawVariableGetOp::attachInterface<::RawVariableGetOpInterface>(*context);
     RawVariableSetOp::attachInterface<::RawVariableSetOpInterface>(*context);
+    ExternalCallOp::attachInterface<::ExternalCallOpInterface>(*context);
   });
 }
 } // namespace mlir::bmodelica
