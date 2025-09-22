@@ -1267,6 +1267,7 @@ public:
 
 private:
   void addVariable(Variable variable) {
+  VertexDescriptor addVariable(Variable variable) {
     auto id = variable.getId();
     assert(!hasVariableWithId(id) && "Already existing variable");
 
@@ -1274,6 +1275,7 @@ private:
         getBaseGraph().addVertex(std::move(variable));
 
     variablesMap[id] = variableDescriptor;
+    return variableDescriptor;
   }
 
   void removeVariable(VertexDescriptor variableDescriptor) {
