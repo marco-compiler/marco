@@ -1021,6 +1021,28 @@ private:
   Container<Flow> flows;
 };
 
+template <typename VertexDescriptor>
+class Visits {
+  std::mutex mutex;
+  llvm::MapVector<VertexDescriptor, IndexSet> visitedVariables;
+  llvm::MapVector<VertexDescriptor, IndexSet> visitedEquations;
+
+public:
+  void addVariableVisit(VertexDescriptor vertex, const IndexSet &indices) {
+    std::lock_guard lock(mutex);
+    visitedVariables[vertex] += indices;
+  }
+
+  void addEquationVisit(VertexDescriptor vertex, const IndexSet &indices) {
+    std::lock_guard lock(mutex);
+    visitedEquations[vertex] += indices;
+  }
+
+  auto getVisitedVariables() const { return visitedVariables.getArrayRef(); }
+
+  auto getVisitedEquations() const { return visitedEquations.getArrayRef(); }
+};
+
 /// The class represents to which indices of a variable an equation is matched.
 template <typename EquationProperty, typename VariableProperty>
 class MatchingSolution {
@@ -1081,6 +1103,7 @@ protected:
 
   using BFSStep = BFSStep<Graph, Variable, Equation>;
   using Frontier = Frontier<BFSStep>;
+  using Visits = Visits<VertexDescriptor>;
   using Flow = Flow<Graph, Variable, Equation>;
   using AugmentingPath = AugmentingPath<Flow>;
 
@@ -2348,20 +2371,29 @@ private:
   }
 
   std::vector<std::shared_ptr<BFSStep>>
-  getCandidateAugmentingPaths(const TraversableEdges &traversableEdges) const {
+  getCandidateAugmentingPaths(const TraversableEdges &traversableEdges,
+                              Visits *visits = nullptr) const {
     std::vector<std::shared_ptr<BFSStep>> paths;
     Frontier frontier;
 
     // Computation of the initial frontier.
     getInitialFrontier(frontier);
 
-    // Breadth-first search.
-    Frontier newFrontier;
+    return getCandidateAugmentingPaths(frontier, traversableEdges, visits);
+  }
 
+  std::vector<std::shared_ptr<BFSStep>>
+  getCandidateAugmentingPaths(Frontier &frontier,
+                              const TraversableEdges &traversableEdges,
+                              Visits *visits = nullptr) const {
+    std::vector<std::shared_ptr<BFSStep>> paths;
+
+    // Breadth-first search.
     std::mutex newFrontierMutex;
     std::mutex pathsMutex;
 
     while (!frontier.empty() && paths.empty()) {
+      Frontier newFrontier;
       sortFrontier(frontier);
       LLVM_DEBUG(frontier.dump(llvm::dbgs()));
 
@@ -2369,7 +2401,8 @@ private:
         std::vector<std::shared_ptr<BFSStep>> localFrontier;
         std::vector<std::shared_ptr<BFSStep>> localPaths;
 
-        expandFrontier(step, traversableEdges, localFrontier, localPaths);
+        expandFrontier(step, traversableEdges, localFrontier, localPaths,
+                       visits);
 
         if (!localFrontier.empty()) {
           std::lock_guard<std::mutex> lock(newFrontierMutex);
@@ -2458,7 +2491,8 @@ private:
   void expandFrontier(const std::shared_ptr<BFSStep> &step,
                       const TraversableEdges &traversableEdges,
                       std::vector<std::shared_ptr<BFSStep>> &newFrontier,
-                      std::vector<std::shared_ptr<BFSStep>> &paths) const {
+                      std::vector<std::shared_ptr<BFSStep>> &paths,
+                      Visits *visits = nullptr) const {
     LLVM_DEBUG({
       llvm::dbgs() << "Current traversal: ";
       step->dump(llvm::dbgs());
@@ -2466,6 +2500,10 @@ private:
     });
 
     const VertexDescriptor &vertexDescriptor = step->getNode();
+
+    if (visits) {
+      addVisit(*visits, vertexDescriptor, step->getCandidates());
+    }
 
     auto containsFn = [&](VertexDescriptor node, const IndexSet &indices) {
       const BFSStep *currentStep = step.get();
@@ -2496,6 +2534,11 @@ private:
 
       if (isEquation(vertexDescriptor)) {
         assert(isVariable(nextNode));
+
+        if (visits) {
+          addVisit(*visits, nextNode, edge.getIncidenceMatrix().flattenRows());
+        }
+
         const Variable &var = getVariableFromDescriptor(nextNode);
 
         LLVM_DEBUG({
@@ -2636,6 +2679,24 @@ private:
       std::visit([&match](auto &node) { node.addMatch(match.second); },
                  getBaseGraph()[match.first]);
     });
+  }
+
+private:
+  void addVisit(Visits &visits, VertexDescriptor node,
+                const IndexSet &indices) const {
+    if (isVariable(node)) {
+      LLVM_DEBUG(llvm::dbgs() << "Adding visit to variable "
+                              << getVariableFromDescriptor(node).getId()
+                              << " @ " << indices << "\n");
+
+      visits.addVariableVisit(node, indices);
+    } else {
+      LLVM_DEBUG(llvm::dbgs() << "Adding visit to equation "
+                              << getEquationFromDescriptor(node).getId()
+                              << " @ " << indices << "\n");
+
+      visits.addEquationVisit(node, indices);
+    }
   }
 };
 } // namespace internal::matching
