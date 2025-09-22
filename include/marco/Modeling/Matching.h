@@ -401,9 +401,9 @@ class EquationVertex : public Matchable, public Dumpable {
       ::marco::modeling::matching::VariableTraits<VariableProperty>;
 
 public:
-  using ScalarVariablesMap = llvm::DenseMap<
-      typename VariableTraits::Id,
-      llvm::DenseMap<Point, typename VariableVertex<VariableProperty>::Id>>;
+  using ScalarVariablesMap =
+      llvm::DenseMap<typename VariableTraits::Id,
+                     llvm::DenseMap<Point, VariableId<VariableProperty>>>;
 
   using Property = std::shared_ptr<EquationProperty>;
   using Id = EquationId<EquationProperty>;
