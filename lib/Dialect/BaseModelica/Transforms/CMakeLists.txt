@@ -42,6 +42,7 @@ add_mlir_dialect_library(MLIRBaseModelicaTransforms
     ModelAlgorithmConversion.cpp
     ModelDebugCanonicalization.cpp
     OpDistribution.cpp
+    Pantelides.cpp
     Passes.cpp
     PrintModelInfo.cpp
     PureFunctionInlining.cpp

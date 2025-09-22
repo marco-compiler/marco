@@ -31,6 +31,7 @@ set(SOURCES
     MCIMGroupEmpty.cpp
     MCIMGroupGeneric.cpp
     MultidimensionalRange.cpp
+    Pantelides.cpp
     Point.cpp
     Range.cpp
     RTree.cpp

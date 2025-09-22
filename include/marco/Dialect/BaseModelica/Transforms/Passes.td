@@ -528,6 +528,21 @@ def MatchingPass : Pass<"match", "mlir::ModuleOp">
     let constructor = "mlir::bmodelica::createMatchingPass()";
 }
 
+def PantelidesPass : Pass<"pantelides", "mlir::ModuleOp">
+{
+    let summary = "Perform index reduction using Pantelides' algorithm";
+
+    let description = [{
+        Apply the Pantelides' algorithm to perform index reduction.
+    }];
+
+    let dependentDialects = [
+        "mlir::bmodelica::BaseModelicaDialect"
+    ];
+
+    let constructor = "mlir::bmodelica::createPantelidesPass()";
+}
+
 def SCCAbsenceVerificationPass : Pass<"scc-absence-verification", "mlir::ModuleOp">
 {
     let dependentDialects = [

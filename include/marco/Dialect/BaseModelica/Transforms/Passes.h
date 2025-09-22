@@ -30,6 +30,7 @@
 #include "marco/Dialect/BaseModelica/Transforms/ModelAlgorithmConversion.h"
 #include "marco/Dialect/BaseModelica/Transforms/ModelDebugCanonicalization.h"
 #include "marco/Dialect/BaseModelica/Transforms/OpDistribution.h"
+#include "marco/Dialect/BaseModelica/Transforms/Pantelides.h"
 #include "marco/Dialect/BaseModelica/Transforms/PrintModelInfo.h"
 #include "marco/Dialect/BaseModelica/Transforms/PureFunctionInlining.h"
 #include "marco/Dialect/BaseModelica/Transforms/RangeBoundariesInference.h"

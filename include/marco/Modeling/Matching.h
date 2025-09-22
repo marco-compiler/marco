@@ -415,9 +415,11 @@ public:
 /// Graph node representing an equation.
 template <typename EquationProperty>
 class EquationVertex : public Matchable, public Dumpable {
+public:
   using EquationTraits =
       ::marco::modeling::matching::EquationTraits<EquationProperty>;
 
+private:
   using VariableProperty = typename EquationTraits::VariableType;
 
   using VariableTraits =
@@ -457,7 +459,6 @@ public:
   using Access = ::marco::modeling::matching::Access<
       typename VariableVertex<VariableProperty>::Id>;
 
-public:
   explicit EquationVertex(mlir::MLIRContext *context,
                           std::shared_ptr<EquationProperty> property)
       : EquationVertex(
@@ -1288,8 +1289,7 @@ public:
     addVariable(std::move(variable));
   }
 
-private:
-  void addVariable(Variable variable) {
+protected:
   VertexDescriptor addVariable(Variable variable) {
     auto id = variable.getId();
     assert(!hasVariableWithId(id) && "Already existing variable");
@@ -1359,7 +1359,7 @@ public:
     discoverAccesses(equationDescriptor);
   }
 
-private:
+protected:
   VertexDescriptor addEquation(Equation equation) {
     [[maybe_unused]] auto id = equation.getId();
 
@@ -1473,7 +1473,7 @@ public:
     return findEdge<Variable, Equation>(variableId, equationId).first;
   }
 
-private:
+protected:
   using MatchingSolutions =
       llvm::MapVector<typename Equation::Id::BaseId,
                       llvm::MapVector<typename Variable::Id::BaseId,
@@ -1596,6 +1596,7 @@ private:
     }
   }
 
+protected:
   /// Check if a variable with a given ID exists.
   bool hasVariableWithId(typename Variable::Id id) const {
     return variablesMap.find(id) != variablesMap.end();
@@ -1830,6 +1831,7 @@ private:
     getBaseGraph()[edge].setVisibility(false);
   }
 
+private:
   /// Apply the simplification algorithm in order to perform all
   /// the obligatory matches, that is the variables and equations
   /// having only one incident edge.
@@ -1888,7 +1890,6 @@ private:
         // candidates list, thus worsening the overall complexity of the
         // algorithm.
 
-        assert(std::visit(allComponentsMatchedFn, v));
         LLVM_DEBUG(llvm::dbgs() << "First vertex not visible\n");
         continue;
       }
@@ -2002,10 +2003,12 @@ private:
     }
   }
 
+protected:
   /// Collect the list of vertices with exactly one incident edge.
   /// The function returns 'false' if there exist a node with no incident
   /// edges (which would make the matching process to fail in aby case).
-  void collectSimplifiableNodes(std::list<VertexDescriptor> &nodes) const {
+  virtual void
+  collectSimplifiableNodes(std::list<VertexDescriptor> &nodes) const {
     std::mutex resultMutex;
 
     auto collectFn = [&](VertexDescriptor vertex) {
@@ -2021,6 +2024,7 @@ private:
                           getBaseGraph().verticesEnd(), collectFn);
   }
 
+private:
   /// Apply an array-aware variant of the Hopcroft-Karp algorithm.
   /// Returns true if a full match is obtained.
   bool applyHK() {
@@ -2056,6 +2060,7 @@ private:
     return complete;
   }
 
+protected:
   void collectTraversableEdges(TraversableEdges &traversableEdges) const {
     std::mutex mutex;
 
@@ -2088,6 +2093,7 @@ private:
         });
   }
 
+private:
   std::optional<Derived> getScalarGraph(double scalarAccessThreshold) const {
     // Determine which variables should be scalarized.
     llvm::DenseSet<VertexDescriptor> toScalarize;
@@ -2225,6 +2231,7 @@ private:
            variable.getIndices().flatSize();
   }
 
+private:
   bool matchIteration(TraversableEdges &traversableEdges) {
     std::vector<AugmentingPath> augmentingPaths;
     getAugmentingPaths(augmentingPaths, traversableEdges);
@@ -2240,6 +2247,7 @@ private:
     return true;
   }
 
+protected:
   void getAugmentingPaths(std::vector<AugmentingPath> &augmentingPaths,
                           const TraversableEdges &traversableEdges) const {
     // Get the possible augmenting paths.
@@ -2426,6 +2434,7 @@ private:
     return paths;
   }
 
+private:
   void getInitialFrontier(Frontier &frontier) const {
     std::mutex mutex;
 
@@ -2609,6 +2618,7 @@ private:
     }
   }
 
+protected:
   /// Apply an augmenting path to the graph.
   void applyPath(const AugmentingPath &path,
                  TraversableEdges &traversableEdges) {
