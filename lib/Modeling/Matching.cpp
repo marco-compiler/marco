@@ -11,6 +11,12 @@ const IndexSet &Matchable::getMatchableIndices() const {
   return *matchableIndices;
 }
 
+void Matchable::setMatchableIndices(std::shared_ptr<const IndexSet> indices) {
+  matchableIndices = indices;
+  matched = matched.intersect(*indices);
+  unmatched = unmatched.intersect(*indices);
+}
+
 const IndexSet &Matchable::getMatched() const { return matched; }
 
 const IndexSet &Matchable::getUnmatched() const { return unmatched; }

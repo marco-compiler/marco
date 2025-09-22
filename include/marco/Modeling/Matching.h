@@ -96,6 +96,8 @@ private:
   const IndexSet &getMatchableIndices() const;
 
 public:
+  void setMatchableIndices(std::shared_ptr<const IndexSet> indices);
+
   const IndexSet &getMatched() const;
 
   const IndexSet &getUnmatched() const;
@@ -254,6 +256,27 @@ public:
   std::shared_ptr<const IndexSet> getIndicesPtr() const {
     assert(indices && "Indices not set");
     return indices;
+  }
+
+  void setIndices(std::shared_ptr<const IndexSet> newIndices) {
+    assert(!newIndices->empty());
+    indices = newIndices;
+    setMatchableIndices(newIndices);
+  }
+
+  /// Remove a set of indices from the variable. Return true if the operation
+  /// was successfull, false if all the indices would be removed and therefore
+  /// the variable should be removed from the graph.
+  bool removeIndices(const IndexSet &removedIndices) {
+    auto newIndices =
+        std::make_shared<const IndexSet>(*indices - removedIndices);
+
+    if (newIndices->empty()) {
+      return false;
+    }
+
+    setIndices(newIndices);
+    return true;
   }
 
   size_t flatSize() const { return getIndices().flatSize(); }
@@ -519,6 +542,27 @@ public:
     return indices;
   }
 
+  void setIndices(std::shared_ptr<const IndexSet> newIndices) {
+    assert(!newIndices->empty());
+    indices = std::move(newIndices);
+    setMatchableIndices(newIndices);
+  }
+
+  /// Remove a set of indices from the variable. Return true if the operation
+  /// was successfull, false if all the indices would be removed and therefore
+  /// the variable should be removed from the graph.
+  bool removeIndices(const IndexSet &removedIndices) {
+    auto newIndices =
+        std::make_shared<const IndexSet>(*indices - removedIndices);
+
+    if (newIndices->empty()) {
+      return false;
+    }
+
+    setIndices(newIndices);
+    return true;
+  }
+
   unsigned int flatSize() const { return getIndices().flatSize(); }
 
   EquationVertex withMask(Point mask) const {
@@ -626,6 +670,43 @@ public:
     os << "  - Matched variables: " << getMatched().flattenRows() << "\n";
     os << "  - Matched matrix:\n" << getMatched() << "\n";
     os << "  - Unmatched matrix:\n" << getUnmatched() << "\n";
+  }
+
+  void setIndices(std::shared_ptr<const IndexSet> newEquationIndices,
+                  std::shared_ptr<const IndexSet> newVariableIndices) {
+    incidenceMatrix.setSpaces(newEquationIndices, newVariableIndices);
+    matchMatrix.setSpaces(newEquationIndices, newVariableIndices);
+    unmatchMatrix.setSpaces(newEquationIndices, newVariableIndices);
+  }
+
+  void setEquationIndices(std::shared_ptr<const IndexSet> newEquationIndices) {
+    incidenceMatrix.setEquationSpace(newEquationIndices);
+    matchMatrix.setEquationSpace(newEquationIndices);
+    unmatchMatrix.setEquationSpace(newEquationIndices);
+  }
+
+  void removeEquationIndices(const IndexSet &removedIndices) {
+    auto newEquationIndices = std::make_shared<const IndexSet>(
+        incidenceMatrix.getEquationSpace() - removedIndices);
+
+    incidenceMatrix.setEquationSpace(newEquationIndices);
+    matchMatrix.setEquationSpace(newEquationIndices);
+    unmatchMatrix.setEquationSpace(newEquationIndices);
+  }
+
+  void setVariableIndices(std::shared_ptr<const IndexSet> newVariableIndices) {
+    incidenceMatrix.setVariableSpace(newVariableIndices);
+    matchMatrix.setVariableSpace(newVariableIndices);
+    unmatchMatrix.setVariableSpace(newVariableIndices);
+  }
+
+  void removeVariableIndices(const IndexSet &removedIndices) {
+    auto newVariableIndices = std::make_shared<const IndexSet>(
+        incidenceMatrix.getVariableSpace() - removedIndices);
+
+    incidenceMatrix.setVariableSpace(newVariableIndices);
+    matchMatrix.setVariableSpace(newVariableIndices);
+    unmatchMatrix.setVariableSpace(newVariableIndices);
   }
 
   const MCIM &getIncidenceMatrix() const { return incidenceMatrix; }
@@ -1195,6 +1276,18 @@ private:
     variablesMap[id] = variableDescriptor;
   }
 
+  void removeVariable(VertexDescriptor variableDescriptor) {
+    const Variable &variable = getVariableFromDescriptor(variableDescriptor);
+    auto it = variablesMap.find(variable.getId());
+
+    if (it != variablesMap.end()) {
+      assert(it->second == variableDescriptor);
+      variablesMap.erase(it);
+    }
+
+    getBaseGraph().removeVertex(variableDescriptor);
+  }
+
 public:
   bool hasEquation(typename Equation::Id id) const {
     std::lock_guard<std::mutex> lockGuard(mutex);
@@ -1253,7 +1346,19 @@ private:
     return equationDescriptor;
   }
 
-  void discoverAccesses(VertexDescriptor equationDescriptor) {
+  void removeEquation(VertexDescriptor equationDescriptor) {
+    const Equation &equation = getVariableFromDescriptor(equationDescriptor);
+    auto it = equationsMap.find(equation.getId());
+
+    if (it != equationsMap.end()) {
+      assert(it->second == equationDescriptor);
+      equationsMap.erase(it);
+    }
+
+    getBaseGraph().removeVertex(equationDescriptor);
+  }
+
+  virtual void discoverAccesses(VertexDescriptor equationDescriptor) {
     const Equation &equation = getEquationFromDescriptor(equationDescriptor);
 
     // Add an edge for each accessed variable.
