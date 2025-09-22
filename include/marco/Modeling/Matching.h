@@ -1968,7 +1968,7 @@ private:
     }
 
     // Build the graph with scalarized variables.
-    Derived scalarizedGraph(getContext());
+    Derived scalarizedGraph = this->newInstance();
 
     auto scalarVariablesMap =
         std::make_shared<typename Equation::ScalarVariablesMap>();
