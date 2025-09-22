@@ -648,11 +648,11 @@ private:
 };
 
 template <typename Variable, typename Equation>
-class Edge : public Dumpable {
+class GraphEdge : public Dumpable {
 public:
-  Edge(typename Equation::Id equation, typename Variable::Id variable,
-       std::shared_ptr<const IndexSet> equationIndices,
-       std::shared_ptr<const IndexSet> variableIndices)
+  GraphEdge(typename Equation::Id equation, typename Variable::Id variable,
+            std::shared_ptr<const IndexSet> equationIndices,
+            std::shared_ptr<const IndexSet> variableIndices)
       : equation(std::move(equation)), variable(std::move(variable)),
         incidenceMatrix(equationIndices, variableIndices),
         matchMatrix(equationIndices, variableIndices),
@@ -757,40 +757,41 @@ private:
   llvm::SmallVector<std::unique_ptr<AccessFunction>> accessFunctions;
 };
 
+namespace traversal {
+namespace bfs {
 template <typename Graph, typename Variable, typename Equation>
-class BFSStep : public Dumpable {
+class Step : public Dumpable {
 public:
   using VertexDescriptor = typename Graph::VertexDescriptor;
   using EdgeDescriptor = typename Graph::EdgeDescriptor;
 
   using VertexProperty = typename Graph::VertexProperty;
 
-  BFSStep(const Graph &graph, VertexDescriptor node, IndexSet candidates)
+  Step(const Graph &graph, VertexDescriptor node, IndexSet candidates)
       : graph(&graph), previous(nullptr), node(std::move(node)),
         candidates(std::move(candidates)), edge(std::nullopt),
         mappedFlow(std::nullopt) {}
 
-  BFSStep(const Graph &graph, std::shared_ptr<BFSStep> previous,
-          EdgeDescriptor edge, VertexDescriptor node, IndexSet candidates,
-          MCIM mappedFlow)
+  Step(const Graph &graph, std::shared_ptr<Step> previous, EdgeDescriptor edge,
+       VertexDescriptor node, IndexSet candidates, MCIM mappedFlow)
       : graph(&graph), previous(previous), node(std::move(node)),
         candidates(std::move(candidates)), edge(std::move(edge)),
         mappedFlow(std::move(mappedFlow)) {}
 
-  BFSStep(const BFSStep &other) = default;
+  Step(const Step &other) = default;
 
-  BFSStep(BFSStep &&other) = default;
+  Step(Step &&other) = default;
 
-  ~BFSStep() = default;
+  ~Step() = default;
 
-  BFSStep &operator=(const BFSStep &other) = default;
+  Step &operator=(const Step &other) = default;
 
-  BFSStep &operator=(BFSStep &&other) = default;
+  Step &operator=(Step &&other) = default;
 
   using Dumpable::dump;
 
   void dump(llvm::raw_ostream &os) const override {
-    std::vector<const BFSStep *> path;
+    std::vector<const Step *> path;
     path.push_back(this);
 
     while (path.back()->hasPrevious()) {
@@ -802,7 +803,7 @@ public:
         os << " -> ";
       }
 
-      const BFSStep *step = path[e - i - 1];
+      const Step *step = path[e - i - 1];
       dumpId(os, step->getNode());
       os << " " << step->getCandidates();
     }
@@ -810,7 +811,7 @@ public:
 
   bool hasPrevious() const { return previous != nullptr; }
 
-  const BFSStep *getPrevious() const { return previous.get(); }
+  const Step *getPrevious() const { return previous.get(); }
 
   const VertexDescriptor &getNode() const { return node; }
 
@@ -841,7 +842,7 @@ private:
   // Stored for debugging purpose
   const Graph *graph;
 
-  std::shared_ptr<BFSStep> previous;
+  std::shared_ptr<Step> previous;
   VertexDescriptor node;
   IndexSet candidates;
   std::optional<EdgeDescriptor> edge;
@@ -928,13 +929,12 @@ public:
 private:
   Container<BFSStep> steps;
 };
+} // namespace bfs
 
 template <typename Graph, typename Variable, typename Equation>
 class Flow : public Dumpable {
-private:
   using VertexDescriptor = typename Graph::VertexDescriptor;
   using EdgeDescriptor = typename Graph::EdgeDescriptor;
-
   using VertexProperty = typename Graph::VertexProperty;
 
 public:
@@ -986,7 +986,6 @@ public:
 
 template <typename Flow>
 class AugmentingPath : public Dumpable {
-private:
   template <typename T>
   using Container = std::vector<T>;
 
@@ -1043,7 +1042,9 @@ public:
 
   auto getVisitedEquations() const { return visitedEquations.getArrayRef(); }
 };
+} // namespace traversal
 
+namespace result {
 /// The class represents to which indices of a variable an equation is matched.
 template <typename EquationProperty, typename VariableProperty>
 class MatchingSolution {
@@ -1075,6 +1076,7 @@ private:
   VariableId variable;
   IndexSet variableIndices;
 };
+} // namespace result
 
 template <typename Derived, typename VariableProperty,
           typename EquationProperty>
@@ -1083,7 +1085,7 @@ public:
   using Variable = VariableVertex<VariableProperty>;
   using Equation = EquationVertex<EquationProperty>;
   using Vertex = std::variant<Variable, Equation>;
-  using Edge = Edge<Variable, Equation>;
+  using Edge = GraphEdge<Variable, Equation>;
 
 private:
   using Graph = UndirectedGraph<Vertex, Edge>;
@@ -1102,11 +1104,11 @@ protected:
   using TraversableEdges =
       llvm::MapVector<VertexDescriptor, llvm::SetVector<EdgeDescriptor>>;
 
-  using BFSStep = BFSStep<Graph, Variable, Equation>;
-  using Frontier = Frontier<BFSStep>;
-  using Visits = Visits<VertexDescriptor>;
-  using Flow = Flow<Graph, Variable, Equation>;
-  using AugmentingPath = AugmentingPath<Flow>;
+  using BFSStep = traversal::bfs::Step<Graph, Variable, Equation>;
+  using Frontier = traversal::bfs::Frontier<BFSStep>;
+  using Visits = traversal::Visits<VertexDescriptor>;
+  using Flow = traversal::Flow<Graph, Variable, Equation>;
+  using AugmentingPath = traversal::AugmentingPath<Flow>;
 
 public:
   using VariableIterator = typename Graph::FilteredVertexIterator;
@@ -1114,7 +1116,9 @@ public:
 
   using Access = modeling::matching::Access<typename Variable::Id>;
   using MatchingOptions = modeling::matching::MatchingOptions;
-  using MatchingSolution = MatchingSolution<EquationProperty, VariableProperty>;
+
+  using MatchingSolution =
+      result::MatchingSolution<EquationProperty, VariableProperty>;
 
 private:
   mlir::MLIRContext *context;
