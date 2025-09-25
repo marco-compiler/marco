@@ -5,6 +5,7 @@
 #include "marco/Dialect/BaseModelica/Transforms/AutomaticDifferentiation.h"
 #include "marco/Dialect/BaseModelica/Transforms/BindingEquationConversion.h"
 #include "marco/Dialect/BaseModelica/Transforms/CallCSE.h"
+#include "marco/Dialect/BaseModelica/Transforms/DataRecomputation.h"
 #include "marco/Dialect/BaseModelica/Transforms/DerivativeChainRule.h"
 #include "marco/Dialect/BaseModelica/Transforms/DerivativesInitialization.h"
 #include "marco/Dialect/BaseModelica/Transforms/DerivativesMaterialization.h"
