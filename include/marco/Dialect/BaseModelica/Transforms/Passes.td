@@ -463,6 +463,21 @@ def VariablesPruningPass : Pass<"variables-pruning", "mlir::ModuleOp">
     let constructor = "mlir::bmodelica::createVariablesPruningPass()";
 }
 
+def DataRecomputationPass : Pass<"data-recomputation", "mlir::ModuleOp">
+{
+  let summary = "Applies data recomputation where likely to be profitable";
+
+  let description = [{
+    // TODO
+  }];
+
+  let dependentDialects = [
+    "memref::MemRefDialect", "vector::VectorDialect", "affine::AffineDialect"
+  ];
+
+  let constructor = "mlir::bmodelica::createDataRecomputationPass()";
+}
+
 //===---------------------------------------------------------------------===//
 // Model solving
 //===---------------------------------------------------------------------===//
@@ -852,5 +867,6 @@ def NegateOpDistributionPass : Pass<"distribute-neg", "mlir::ModuleOp">
 
     let constructor = "mlir::bmodelica::createNegateOpDistributionPass()";
 }
+
 
 #endif // MARCO_DIALECT_SIMULATION_TRANSFORMS_PASSES_TD

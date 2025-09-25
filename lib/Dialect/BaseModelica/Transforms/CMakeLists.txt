@@ -43,6 +43,7 @@ add_mlir_dialect_library(MLIRBaseModelicaTransforms
     ModelDebugCanonicalization.cpp
     OpDistribution.cpp
     Pantelides.cpp
+    DataRecomputation.cpp
     Passes.cpp
     PrintModelInfo.cpp
     PureFunctionInlining.cpp
@@ -64,6 +65,7 @@ add_mlir_dialect_library(MLIRBaseModelicaTransforms
     VariablesPruning.cpp
     VectorizableOpInterfaceImpl.cpp
     ViewAccessFolding.cpp
+
 
 #    ADDITIONAL_HEADER_DIRS
 #    ${MLIR_MAIN_INCLUDE_DIR}/mlir/Dialect/Linalg

@@ -1109,6 +1109,8 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
   pm.addNestedPass<mlir::func::FuncOp>(
       mlir::memref::createExpandStridedMetadataPass());
 
+  pm.addPass(mlir::bmodelica::createDataRecomputationPass());
+
   pm.addNestedPass<mlir::func::FuncOp>(mlir::createLowerAffinePass());
   pm.addNestedPass<mlir::func::FuncOp>(mlir::createSCFToControlFlowPass());
   pm.addPass(mlir::createRuntimeModelMetadataConversionPass());
@@ -1117,6 +1119,7 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
   // as additional operations may have been introduced by the canonicalization
   // patterns.
   pm.addPass(mlir::createBaseModelicaToMLIRCoreConversionPass());
+
 
   pm.addPass(mlir::createAllToLLVMConversionPass());
   pm.addPass(mlir::createConvertToLLVMPass());
