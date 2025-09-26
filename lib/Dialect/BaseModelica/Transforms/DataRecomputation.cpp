@@ -10,6 +10,7 @@
 #include "marco/Dialect/BaseModelica/Transforms/DataRecomputation.h"
 
 #include "marco/Modeling/GraphDumper.h"
+#include "marco/Modeling/IndexSet.h"
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
@@ -83,10 +84,21 @@ struct GlobalDef {
 };
 
 
+// Generic Instantiable Index Set Element
+
+
 /// DataRecomputation Write
 struct DRWrite {
+  DRWrite(mlir::memref::StoreOp storeOp) noexcept : storeOp{storeOp} { }
+  DRWrite(mlir::affine::AffineStoreOp storeOp) noexcept : storeOp{storeOp} {}
+
+  DRWrite(const DRWrite &) = default;
+  DRWrite(DRWrite &&) = default;
+  DRWrite &operator=(const DRWrite &) = default;
+  DRWrite &operator=(DRWrite &&) = default;
   // Discern between memref write, affine write, tensor write, etc.
   std::variant<::mlir::memref::StoreOp, ::mlir::affine::AffineStoreOp> storeOp;
+  std::optional<mlir::Operation *> allocatingOperation;
 
   bool isMemref() const {
     return std::holds_alternative<mlir::memref::StoreOp>(storeOp);
@@ -95,15 +107,16 @@ struct DRWrite {
   bool isAffine() const {
     return std::holds_alternative<mlir::affine::AffineStoreOp>(storeOp);
   }
-
-
 };
+
 
 
 
 using GlobalAccessPair = std::pair<llvm::StringRef, GlobalDef>;
 using GlobalAccessMap = llvm::DenseMap<decltype(std::declval<GlobalAccessPair>().first), decltype(std::declval<GlobalAccessPair>().second)>;
 
+using FunctionWritesVec = llvm::SmallVector<DRWrite, 4>;
+using FunctionWritesMap = llvm::DenseMap<mlir::Operation *, FunctionWritesVec>;
 
 } // namespace detail
 
@@ -126,8 +139,13 @@ private:
   ::detail::GlobalAccessMap getGlobalReads(mlir::ModuleOp moduleOp);
   ::detail::GlobalAccessMap getGlobalWrites(mlir::ModuleOp moduleOp);
 
+  ::detail::FunctionWritesVec getFunctionWrites(mlir::func::FuncOp funcOp);
+
   /// A map of functions in the module
   llvm::DenseMap<mlir::StringRef, FuncOp> functionMap;
+
+  ::detail::FunctionWritesMap functionWritesMap;
+
 };
 } // namespace
 
@@ -156,14 +174,12 @@ DataRecomputationPass::getGlobalReads(mlir::ModuleOp moduleOp) {
 
     auto users = getGlobalOp.getResult().getUsers();
 
-
     llvm::for_each(users, [&](mlir::Operation *op) {
       if ( mlir::memref::ReinterpretCastOp reinterpretCastOp =
         mlir::dyn_cast<mlir::memref::ReinterpretCastOp>(op) ) {
 
         auto sourceType = reinterpretCastOp.getSource().getType();
         auto shape = sourceType.getShape();
-        auto dimensionality = shape.size();
 
         llvm::dbgs() << "A loaded global's memref was reinterpreted!" << "\n";
       }
@@ -216,6 +232,7 @@ void DataRecomputationPass::runOnOperation() {
   moduleOp.walk([&](FuncOp funcOp) {
     // Insert the function into the function map
     functionMap.insert(std::make_pair(funcOp.getName(), funcOp));
+    functionWritesMap.insert(std::make_pair(funcOp.getOperation(), getFunctionWrites(funcOp)));
 
     llvm::dbgs() << "Walking " << funcOp.getName() << "\n";
 
@@ -248,7 +265,36 @@ void DataRecomputationPass::runOnOperation() {
         });
       }
     }
+
+    for ( auto *op : functionWritesMap.keys() ) {
+      auto funcOp = mlir::dyn_cast<mlir::func::FuncOp>(op);
+
+      llvm::dbgs() << funcOp.getName() << " has " << functionWritesMap[op].size() << " writes\n";
+    }
+
   });
+}
+
+
+::detail::FunctionWritesVec
+DataRecomputationPass::getFunctionWrites(mlir::func::FuncOp funcOp) {
+
+  ::detail::FunctionWritesVec writes{};
+
+  funcOp.walk([&](mlir::Operation *op) {
+    // If affine store
+    if ( mlir::affine::AffineStoreOp storeOp = mlir::dyn_cast<mlir::affine::AffineStoreOp>(op) ) {
+      writes.emplace_back(storeOp);
+    }
+
+    // If memref store
+    if ( mlir::memref::StoreOp storeOp = mlir::dyn_cast<mlir::memref::StoreOp>(op) ) {
+      writes.emplace_back(storeOp);
+    }
+  });
+
+  return writes;
+
 }
 
 namespace mlir::bmodelica {
