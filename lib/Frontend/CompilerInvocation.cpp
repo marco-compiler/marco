@@ -534,6 +534,7 @@ static void parseCodegenArgs(marco::frontend::CodegenOptions &options,
   if (options.optLevel.getSpeedupLevel() > 1) {
     options.outputArraysPromotion = true;
     options.heapToStackPromotion = true;
+    options.mem2reg = true;
     options.readOnlyVariablesPropagation = true;
     options.variablesPruning = true;
     options.variablesToParametersPromotion = true;

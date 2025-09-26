@@ -1105,6 +1105,10 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
   pm.addNestedPass<mlir::func::FuncOp>(
       mlir::createBaseModelicaRawVariablesConversionPass());
 
+  if (ci.getCodeGenOptions().mem2reg) {
+    pm.addNestedPass<mlir::func::FuncOp>(mlir::createMem2Reg());
+  }
+
   // Lower to LLVM dialect.
   pm.addNestedPass<mlir::func::FuncOp>(
       mlir::memref::createExpandStridedMetadataPass());

@@ -19,6 +19,7 @@ struct CodegenOptions : public clang::CodeGenOptions {
   bool inlining = false;
   bool outputArraysPromotion = false;
   bool heapToStackPromotion = false;
+  bool mem2reg = false;
   bool readOnlyVariablesPropagation = false;
   bool matchingGraphScalarization = true;
   double matchingGraphScalarizationThreshold = 0.5;
