@@ -180,6 +180,8 @@ protected:
   std::unique_ptr<mlir::Pass> createMLIRSCCSolvingBySubstitutionPass();
   std::unique_ptr<mlir::Pass> createMLIRSCCSolvingWithKINSOLPass();
 
+  std::unique_ptr<mlir::Pass> createMLIREquationFunctionPeelingPass();
+
   /// }
   /// @name Conversion passes.
   /// {
@@ -197,6 +199,9 @@ protected:
   void buildMLIRBufferDeallocationPipeline(mlir::OpPassManager &pm);
   void addMLIRLoopTilingPass(mlir::OpPassManager &pm);
   std::unique_ptr<mlir::Pass> createMLIRPromoteBuffersToStackPass();
+
+  std::unique_ptr<mlir::Pass> createMLIRAffineVectorizePass();
+  std::unique_ptr<mlir::Pass> createMLIRVectorToLLVMConversionPass();
 
   /// }
   /// @name LLVM-IR

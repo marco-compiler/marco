@@ -548,6 +548,7 @@ static void parseCodegenArgs(marco::frontend::CodegenOptions &options,
   if (options.optLevel.getSpeedupLevel() > 2) {
     options.loopTiling = true;
     options.singleValuedInductionElimination = true;
+    options.vectorization = true;
   }
 
   if (options.optLevel.getSizeLevel() > 0) {
@@ -652,8 +653,9 @@ static void parseCodegenArgs(marco::frontend::CodegenOptions &options,
 
   options.features = args.getAllArgValues(options::OPT_target_feature);
 
-  // Enable loop tiling only if the equations are statically scheduled.
+  // Static schedule only optimizations.
   options.loopTiling &= !options.equationsRuntimeScheduling;
+  options.vectorization &= !options.equationsRuntimeScheduling;
 }
 
 static void parseSimulationArgs(marco::frontend::SimulationOptions &options,
