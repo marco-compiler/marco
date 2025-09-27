@@ -15,7 +15,7 @@
 #include "marco/Frontend/CompilerInstance.h"
 #include "marco/Frontend/Instrumentation/VerificationModelEmitter.h"
 #include "marco/IO/Command.h"
-#include "marco/Parser/Parser.h"
+#include "marco/Parser/BaseModelica/Parser.h"
 #include "mlir/Conversion/Passes.h"
 #include "mlir/Dialect/Affine/Passes.h"
 #include "mlir/Dialect/Bufferization/Pipelines/Passes.h"
@@ -299,7 +299,7 @@ bool ASTAction::beginSourceFilesAction() {
   }
 
   sourceFile->setMemoryBuffer(fileBuffer->get());
-  parser::Parser parser(diags, ci.getSourceManager(), sourceFile);
+  parser::bmodelica::Parser parser(diags, ci.getSourceManager(), sourceFile);
   auto cls = parser.parseRoot();
 
   if (!cls.has_value()) {

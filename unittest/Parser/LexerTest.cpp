@@ -1,9 +1,9 @@
 #include "marco/Parser/Lexer.h"
-#include "marco/Parser/ModelicaStateMachine.h"
+#include "marco/Parser/BaseModelica/StateMachine.h"
 #include "gtest/gtest.h"
 
 using namespace ::marco;
-using namespace ::marco::parser;
+using namespace ::marco::parser::bmodelica;
 
 TEST(ModelicaLexer, defaults) {
   auto str = R"(test)";
@@ -11,7 +11,7 @@ TEST(ModelicaLexer, defaults) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_EQ(lexer.getInt(), 0);
   EXPECT_EQ(lexer.getFloat(), 0.0);
@@ -25,7 +25,7 @@ TEST(ModelicaLexer, singleLineCommentsAreIgnored) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
   EXPECT_EQ(lexer.getCurrentPosition().line, 1);
@@ -41,7 +41,7 @@ TEST(ModelicaLexer, multiLineCommentsAreIgnored) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
   EXPECT_EQ(lexer.getCurrentPosition().line, 3);
@@ -54,7 +54,7 @@ TEST(ModelicaLexer, singleDigitInteger) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Integer>());
   EXPECT_EQ(lexer.getInt(), 2);
@@ -68,7 +68,7 @@ TEST(ModelicaLexer, integerValue) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Integer>());
   EXPECT_EQ(lexer.getInt(), 12345);
@@ -88,7 +88,7 @@ TEST(ModelicaLexer, multipleIntegerValues) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Integer>());
   EXPECT_EQ(lexer.getInt(), 1234);
@@ -117,7 +117,7 @@ TEST(ModelicaLexer, floatValue) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::FloatingPoint>());
   EXPECT_DOUBLE_EQ(lexer.getFloat(), 1.23);
@@ -137,7 +137,7 @@ TEST(ModelicaLexer, multipleFloatValues) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::FloatingPoint>());
   EXPECT_DOUBLE_EQ(lexer.getFloat(), 1.23);
@@ -166,7 +166,7 @@ TEST(ModelicaLexer, floatsInExponentialFormat) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::FloatingPoint>());
   EXPECT_DOUBLE_EQ(lexer.getFloat(), 20000);
@@ -195,7 +195,7 @@ TEST(ModelicaLexer, floatWithDotOnly) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::FloatingPoint>());
   EXPECT_DOUBLE_EQ(lexer.getFloat(), 2);
@@ -215,7 +215,7 @@ TEST(ModelicaLexer, exponentialFloatWithSignOnly) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Error>());
 
@@ -234,7 +234,7 @@ TEST(ModelicaLexer, exponentialFloatWithoutExponent) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Error>());
 
@@ -253,7 +253,7 @@ TEST(ModelicaLexer, string) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::String>());
   EXPECT_EQ(lexer.getString(), "string");
@@ -273,7 +273,7 @@ TEST(ModelicaLexer, specialCharactersInsideString) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::String>());
   EXPECT_EQ(lexer.getString(), "\"\n\r\t\v?");
@@ -293,7 +293,7 @@ TEST(ModelicaLexer, malformedString) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Error>());
 
@@ -312,7 +312,7 @@ TEST(ModelicaLexer, identifier) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Identifier>());
   EXPECT_EQ(lexer.getIdentifier(), "identifier");
@@ -332,7 +332,7 @@ TEST(ModelicaLexer, singleCharIdentifier) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Identifier>());
   EXPECT_EQ(lexer.getIdentifier(), "x");
@@ -352,7 +352,7 @@ TEST(ModelicaLexer, qIdentifier) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Identifier>());
   EXPECT_EQ(lexer.getIdentifier(), "identifier");
@@ -372,7 +372,7 @@ TEST(ModelicaLexer, algorithmKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Algorithm>());
 
@@ -391,7 +391,7 @@ TEST(ModelicaLexer, andKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::And>());
 
@@ -410,7 +410,7 @@ TEST(ModelicaLexer, annotationKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Annotation>());
 
@@ -429,7 +429,7 @@ TEST(ModelicaLexer, blockKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Block>());
 
@@ -448,7 +448,7 @@ TEST(ModelicaLexer, breakKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Break>());
 
@@ -467,7 +467,7 @@ TEST(ModelicaLexer, classKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Class>());
 
@@ -486,7 +486,7 @@ TEST(ModelicaLexer, connectKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Connect>());
 
@@ -505,7 +505,7 @@ TEST(ModelicaLexer, connectorKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Connector>());
 
@@ -524,7 +524,7 @@ TEST(ModelicaLexer, constantKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Constant>());
 
@@ -543,7 +543,7 @@ TEST(ModelicaLexer, constrainedByKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::ConstrainedBy>());
 
@@ -562,7 +562,7 @@ TEST(ModelicaLexer, derKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Der>());
 
@@ -581,7 +581,7 @@ TEST(ModelicaLexer, discreteKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Discrete>());
 
@@ -600,7 +600,7 @@ TEST(ModelicaLexer, eachKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Each>());
 
@@ -619,7 +619,7 @@ TEST(ModelicaLexer, elseKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Else>());
 
@@ -638,7 +638,7 @@ TEST(ModelicaLexer, elseIfKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::ElseIf>());
 
@@ -657,7 +657,7 @@ TEST(ModelicaLexer, elseWhenKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::ElseWhen>());
 
@@ -676,7 +676,7 @@ TEST(ModelicaLexer, encapsulatedKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Encapsulated>());
 
@@ -695,7 +695,7 @@ TEST(ModelicaLexer, endKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::End>());
 
@@ -714,7 +714,7 @@ TEST(ModelicaLexer, enumerationKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Enumeration>());
 
@@ -733,7 +733,7 @@ TEST(ModelicaLexer, equationKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Equation>());
 
@@ -752,7 +752,7 @@ TEST(ModelicaLexer, expandableKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Expandable>());
 
@@ -771,7 +771,7 @@ TEST(ModelicaLexer, extendsKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Extends>());
 
@@ -790,7 +790,7 @@ TEST(ModelicaLexer, externalKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::External>());
 
@@ -809,7 +809,7 @@ TEST(ModelicaLexer, falseKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::False>());
 
@@ -828,7 +828,7 @@ TEST(ModelicaLexer, finalKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Final>());
 
@@ -847,7 +847,7 @@ TEST(ModelicaLexer, flowKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Flow>());
 
@@ -866,7 +866,7 @@ TEST(ModelicaLexer, forKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::For>());
 
@@ -885,7 +885,7 @@ TEST(ModelicaLexer, functionKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Function>());
 
@@ -904,7 +904,7 @@ TEST(ModelicaLexer, ifKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::If>());
 
@@ -923,7 +923,7 @@ TEST(ModelicaLexer, importKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Import>());
 
@@ -942,7 +942,7 @@ TEST(ModelicaLexer, impureKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Impure>());
 
@@ -961,7 +961,7 @@ TEST(ModelicaLexer, inKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::In>());
 
@@ -980,7 +980,7 @@ TEST(ModelicaLexer, initialKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Initial>());
 
@@ -999,7 +999,7 @@ TEST(ModelicaLexer, innerKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Inner>());
 
@@ -1018,7 +1018,7 @@ TEST(ModelicaLexer, inputKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Input>());
 
@@ -1037,7 +1037,7 @@ TEST(ModelicaLexer, loopKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Loop>());
 
@@ -1056,7 +1056,7 @@ TEST(ModelicaLexer, modelKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Model>());
 
@@ -1075,7 +1075,7 @@ TEST(ModelicaLexer, notKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Not>());
 
@@ -1094,7 +1094,7 @@ TEST(ModelicaLexer, operatorKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Operator>());
 
@@ -1113,7 +1113,7 @@ TEST(ModelicaLexer, oorKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Or>());
 
@@ -1132,7 +1132,7 @@ TEST(ModelicaLexer, outerKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Outer>());
 
@@ -1151,7 +1151,7 @@ TEST(ModelicaLexer, outputKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Output>());
 
@@ -1170,7 +1170,7 @@ TEST(ModelicaLexer, packageKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Package>());
 
@@ -1189,7 +1189,7 @@ TEST(ModelicaLexer, parameterKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Parameter>());
 
@@ -1208,7 +1208,7 @@ TEST(ModelicaLexer, partialKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Partial>());
 
@@ -1227,7 +1227,7 @@ TEST(ModelicaLexer, protectedKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Protected>());
 
@@ -1246,7 +1246,7 @@ TEST(ModelicaLexer, publicKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Public>());
 
@@ -1265,7 +1265,7 @@ TEST(ModelicaLexer, pureKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Pure>());
 
@@ -1284,7 +1284,7 @@ TEST(ModelicaLexer, recordKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Record>());
 
@@ -1303,7 +1303,7 @@ TEST(ModelicaLexer, redeclareKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Redeclare>());
 
@@ -1322,7 +1322,7 @@ TEST(ModelicaLexer, replaceableKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Replaceable>());
 
@@ -1341,7 +1341,7 @@ TEST(ModelicaLexer, returnKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Return>());
 
@@ -1360,7 +1360,7 @@ TEST(ModelicaLexer, streamKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Stream>());
 
@@ -1379,7 +1379,7 @@ TEST(ModelicaLexer, thenKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Then>());
 
@@ -1398,7 +1398,7 @@ TEST(ModelicaLexer, trueKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::True>());
 
@@ -1417,7 +1417,7 @@ TEST(ModelicaLexer, typeKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Type>());
 
@@ -1436,7 +1436,7 @@ TEST(ModelicaLexer, whenKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::When>());
 
@@ -1455,7 +1455,7 @@ TEST(ModelicaLexer, whileKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::While>());
 
@@ -1474,7 +1474,7 @@ TEST(ModelicaLexer, withinKeyword) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Within>());
 
@@ -1493,7 +1493,7 @@ TEST(ModelicaLexer, plus) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Plus>());
 
@@ -1512,7 +1512,7 @@ TEST(ModelicaLexer, plusEW) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::PlusEW>());
 
@@ -1531,7 +1531,7 @@ TEST(ModelicaLexer, minus) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Minus>());
 
@@ -1550,7 +1550,7 @@ TEST(ModelicaLexer, minusEW) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::MinusEW>());
 
@@ -1569,7 +1569,7 @@ TEST(ModelicaLexer, product) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Product>());
 
@@ -1588,7 +1588,7 @@ TEST(ModelicaLexer, productEW) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::ProductEW>());
 
@@ -1607,7 +1607,7 @@ TEST(ModelicaLexer, division) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Division>());
 
@@ -1626,7 +1626,7 @@ TEST(ModelicaLexer, divisionEW) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::DivisionEW>());
 
@@ -1645,7 +1645,7 @@ TEST(ModelicaLexer, pow) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Pow>());
 
@@ -1664,7 +1664,7 @@ TEST(ModelicaLexer, powEW) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::PowEW>());
 
@@ -1683,7 +1683,7 @@ TEST(ModelicaLexer, dot) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Dot>());
 
@@ -1702,7 +1702,7 @@ TEST(ModelicaLexer, equal) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Equal>());
 
@@ -1721,7 +1721,7 @@ TEST(ModelicaLexer, notEqual) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::NotEqual>());
 
@@ -1740,7 +1740,7 @@ TEST(ModelicaLexer, less) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Less>());
 
@@ -1759,7 +1759,7 @@ TEST(ModelicaLexer, lessEqual) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::LessEqual>());
 
@@ -1778,7 +1778,7 @@ TEST(ModelicaLexer, greater) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Greater>());
 
@@ -1797,7 +1797,7 @@ TEST(ModelicaLexer, greaterEqual) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::GreaterEqual>());
 
@@ -1816,7 +1816,7 @@ TEST(ModelicaLexer, comma) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Comma>());
 
@@ -1835,7 +1835,7 @@ TEST(ModelicaLexer, semicolon) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Semicolon>());
 
@@ -1854,7 +1854,7 @@ TEST(ModelicaLexer, colon) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::Colon>());
 
@@ -1873,7 +1873,7 @@ TEST(ModelicaLexer, LPar) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::LPar>());
 
@@ -1892,7 +1892,7 @@ TEST(ModelicaLexer, RPar) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::RPar>());
 
@@ -1911,7 +1911,7 @@ TEST(ModelicaLexer, LSquare) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::LSquare>());
 
@@ -1930,7 +1930,7 @@ TEST(ModelicaLexer, RSquare) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::RSquare>());
 
@@ -1949,7 +1949,7 @@ TEST(ModelicaLexer, LCurly) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::LCurly>());
 
@@ -1968,7 +1968,7 @@ TEST(ModelicaLexer, RCurly) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::RCurly>());
 
@@ -1987,7 +1987,7 @@ TEST(ModelicaLexer, equalityOperator) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EqualityOperator>());
 
@@ -2006,7 +2006,7 @@ TEST(ModelicaLexer, assignmentOperator) {
   auto sourceFile = std::make_shared<SourceFile>("-");
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
-  Lexer<ModelicaStateMachine> lexer(sourceFile);
+  Lexer<StateMachine> lexer(sourceFile);
 
   EXPECT_TRUE(lexer.scan().isa<TokenKind::AssignmentOperator>());
 

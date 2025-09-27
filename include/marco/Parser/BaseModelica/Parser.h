@@ -1,15 +1,15 @@
-#ifndef MARCO_PARSER_PARSER_H
-#define MARCO_PARSER_PARSER_H
+#ifndef MARCO_PARSER_BASEMODELICA_PARSER_H
+#define MARCO_PARSER_BASEMODELICA_PARSER_H
 
 #include "marco/AST/BaseModelica/AST.h"
+#include "marco/Parser/BaseModelica/StateMachine.h"
 #include "marco/Parser/Location.h"
-#include "marco/Parser/ModelicaStateMachine.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/SourceManager.h"
 #include "llvm/ADT/SmallVector.h"
 #include <memory>
 
-namespace marco::parser {
+namespace marco::parser::bmodelica {
 template <typename T>
 class ValueWrapper {
 public:
@@ -299,10 +299,10 @@ private:
 private:
   clang::DiagnosticsEngine *diagnosticsEngine;
   clang::SourceManager *sourceManager;
-  Lexer<ModelicaStateMachine> lexer;
+  Lexer<StateMachine> lexer;
   Token token{TokenKind::Begin};
   llvm::SmallVector<Token, 2> lookahead{2, Token(TokenKind::Begin)};
 };
-} // namespace marco::parser
+} // namespace marco::parser::bmodelica
 
-#endif // MARCO_PARSER_PARSER_H
+#endif // MARCO_PARSER_BASEMODELICA_PARSER_H

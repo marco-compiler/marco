@@ -1,8 +1,8 @@
-#include "marco/Parser/Parser.h"
+#include "marco/Parser/BaseModelica/Parser.h"
 
 using namespace ::marco;
 using namespace ::marco::ast::bmodelica;
-using namespace ::marco::parser;
+using namespace ::marco::parser::bmodelica;
 
 #define EXPECT(Token)                                                          \
   if (!accept<Token>()) {                                                      \
@@ -18,7 +18,7 @@ using namespace ::marco::parser;
   }                                                                            \
   static_assert(true)
 
-namespace marco::parser {
+namespace marco::parser::bmodelica {
 Parser::Parser(clang::DiagnosticsEngine &diagnosticsEngine,
                clang::SourceManager &sourceManager,
                std::shared_ptr<SourceFile> source)
@@ -1979,4 +1979,4 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseTermModification() {
   EXPECT(TokenKind::RPar);
   return std::move(expression);
 }
-} // namespace marco::parser
+} // namespace marco::parser::bmodelica

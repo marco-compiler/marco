@@ -1,5 +1,5 @@
-#ifndef MARCO_PARSER_TOKEN_H
-#define MARCO_PARSER_TOKEN_H
+#ifndef MARCO_PARSER_BASEMODELICA_TOKEN_H
+#define MARCO_PARSER_BASEMODELICA_TOKEN_H
 
 #include "marco/Parser/Location.h"
 #include "llvm/ADT/StringRef.h"
@@ -11,7 +11,7 @@ namespace llvm {
 class raw_ostream;
 } // namespace llvm
 
-namespace marco::parser {
+namespace marco::parser::bmodelica {
 enum class TokenKind {
   // Control tokens.
   None,
@@ -156,6 +156,6 @@ private:
 std::string toString(const Token &obj);
 
 llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const Token &obj);
-} // namespace marco::parser
+} // namespace marco::parser::bmodelica
 
-#endif // MARCO_PARSER_TOKEN_H
+#endif // MARCO_PARSER_BASEMODELICA_TOKEN_H

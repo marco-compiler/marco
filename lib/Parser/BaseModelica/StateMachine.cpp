@@ -1,7 +1,7 @@
-#include "marco/Parser/ModelicaStateMachine.h"
+#include "marco/Parser/BaseModelica/StateMachine.h"
 
 using namespace ::marco;
-using namespace ::marco::parser;
+using namespace ::marco::parser::bmodelica;
 
 namespace {
 bool isDigit(char c) { return ('0' <= c && c <= '9'); }
@@ -47,9 +47,8 @@ char escapedChar(char c) {
 }
 } // namespace
 
-namespace marco::parser {
-ModelicaStateMachine::ModelicaStateMachine(
-    const std::shared_ptr<SourceFile> &file, char first)
+namespace marco::parser::bmodelica {
+StateMachine::StateMachine(const std::shared_ptr<SourceFile> &file, char first)
     : state(State::Normal), current('\0'), next(first), identifier(""),
       stringValue(""), currentPosition(SourcePosition(file, 1, 0)),
       beginPosition(SourcePosition(file, 1, 0)),
@@ -116,29 +115,27 @@ ModelicaStateMachine::ModelicaStateMachine(
   reservedKeywords["within"] = TokenKind::Within;
 }
 
-std::string ModelicaStateMachine::getIdentifier() const { return identifier; }
+std::string StateMachine::getIdentifier() const { return identifier; }
 
-std::string ModelicaStateMachine::getString() const { return stringValue; }
+std::string StateMachine::getString() const { return stringValue; }
 
-int64_t ModelicaStateMachine::getInt() const {
-  return numberLexer.getUpperPart();
-}
+int64_t StateMachine::getInt() const { return numberLexer.getUpperPart(); }
 
-double ModelicaStateMachine::getFloat() const { return numberLexer.get(); }
+double StateMachine::getFloat() const { return numberLexer.get(); }
 
-llvm::StringRef ModelicaStateMachine::getError() const { return error; }
+llvm::StringRef StateMachine::getError() const { return error; }
 
-SourcePosition ModelicaStateMachine::getCurrentPosition() const {
+SourcePosition StateMachine::getCurrentPosition() const {
   return currentPosition;
 }
 
-SourceRange ModelicaStateMachine::getTokenPosition() const {
+SourceRange StateMachine::getTokenPosition() const {
   return {beginPosition, endPosition};
 }
 
 template <>
 std::optional<Token>
-ModelicaStateMachine::scan<ModelicaStateMachine::State::ParsingIdentifier>() {
+StateMachine::scan<StateMachine::State::ParsingIdentifier>() {
   setTokenEndPosition();
   identifier.push_back(current);
 
@@ -158,7 +155,7 @@ ModelicaStateMachine::scan<ModelicaStateMachine::State::ParsingIdentifier>() {
 
 template <>
 std::optional<Token>
-ModelicaStateMachine::scan<ModelicaStateMachine::State::ParsingQIdentifier>() {
+StateMachine::scan<StateMachine::State::ParsingQIdentifier>() {
   setTokenEndPosition();
 
   if (current == '\\') {
@@ -182,8 +179,7 @@ ModelicaStateMachine::scan<ModelicaStateMachine::State::ParsingQIdentifier>() {
 }
 
 template <>
-std::optional<Token>
-ModelicaStateMachine::scan<ModelicaStateMachine::State::ParsingNumber>() {
+std::optional<Token> StateMachine::scan<StateMachine::State::ParsingNumber>() {
   setTokenEndPosition();
 
   if (isDigit(current)) {
@@ -225,8 +221,7 @@ ModelicaStateMachine::scan<ModelicaStateMachine::State::ParsingNumber>() {
 }
 
 template <>
-std::optional<Token>
-ModelicaStateMachine::scan<ModelicaStateMachine::State::ParsingFloat>() {
+std::optional<Token> StateMachine::scan<StateMachine::State::ParsingFloat>() {
   if (std::isspace(current) || current == '\0') {
     state = State::Normal;
     return makeToken(TokenKind::FloatingPoint, getFloat());
@@ -259,8 +254,8 @@ ModelicaStateMachine::scan<ModelicaStateMachine::State::ParsingFloat>() {
 }
 
 template <>
-std::optional<Token> ModelicaStateMachine::scan<
-    ModelicaStateMachine::State::ParsingFloatExponentSign>() {
+std::optional<Token>
+StateMachine::scan<StateMachine::State::ParsingFloatExponentSign>() {
   if (std::isspace(current) || current == '\0') {
     state = State::Normal;
     error = "unexpected termination of the floating point number";
@@ -288,8 +283,8 @@ std::optional<Token> ModelicaStateMachine::scan<
 }
 
 template <>
-std::optional<Token> ModelicaStateMachine::scan<
-    ModelicaStateMachine::State::ParsingFloatExponent>() {
+std::optional<Token>
+StateMachine::scan<StateMachine::State::ParsingFloatExponent>() {
   if (std::isspace(current) || current == '\0') {
     state = State::Normal;
     // error = "unexpected termination of the floating point number";
@@ -311,8 +306,7 @@ std::optional<Token> ModelicaStateMachine::scan<
 }
 
 template <>
-std::optional<Token>
-ModelicaStateMachine::scan<ModelicaStateMachine::State::ParsingString>() {
+std::optional<Token> StateMachine::scan<StateMachine::State::ParsingString>() {
   if (current == '\0') {
     state = State::End;
     error = "reached end of file while parsing a string";
@@ -336,8 +330,8 @@ ModelicaStateMachine::scan<ModelicaStateMachine::State::ParsingString>() {
 }
 
 template <>
-std::optional<Token> ModelicaStateMachine::scan<
-    ModelicaStateMachine::State::ParsingSingleLineComment>() {
+std::optional<Token>
+StateMachine::scan<StateMachine::State::ParsingSingleLineComment>() {
   setTokenEndPosition();
 
   if (next == '\0') {
@@ -352,8 +346,8 @@ std::optional<Token> ModelicaStateMachine::scan<
 }
 
 template <>
-std::optional<Token> ModelicaStateMachine::scan<
-    ModelicaStateMachine::State::ParsingMultiLineComment>() {
+std::optional<Token>
+StateMachine::scan<StateMachine::State::ParsingMultiLineComment>() {
   setTokenEndPosition();
 
   if (next == '\0') {
@@ -369,7 +363,7 @@ std::optional<Token> ModelicaStateMachine::scan<
 
 template <>
 std::optional<Token>
-ModelicaStateMachine::scan<ModelicaStateMachine::State::ParsingBackSlash>() {
+StateMachine::scan<StateMachine::State::ParsingBackSlash>() {
   setTokenEndPosition();
   stringValue.push_back(escapedChar(current));
   state = State::ParsingString;
@@ -377,8 +371,8 @@ ModelicaStateMachine::scan<ModelicaStateMachine::State::ParsingBackSlash>() {
 }
 
 template <>
-std::optional<Token> ModelicaStateMachine::scan<
-    ModelicaStateMachine::State::ParsingQIdentifierBackSlash>() {
+std::optional<Token>
+StateMachine::scan<StateMachine::State::ParsingQIdentifierBackSlash>() {
   setTokenEndPosition();
   identifier.push_back(escapedChar(current));
   state = State::ParsingQIdentifier;
@@ -386,8 +380,8 @@ std::optional<Token> ModelicaStateMachine::scan<
 }
 
 template <>
-std::optional<Token> ModelicaStateMachine::scan<
-    ModelicaStateMachine::State::ParsingElementWiseSymbol>() {
+std::optional<Token>
+StateMachine::scan<StateMachine::State::ParsingElementWiseSymbol>() {
   setTokenEndPosition();
   state = State::Normal;
 
@@ -417,7 +411,7 @@ std::optional<Token> ModelicaStateMachine::scan<
 
 template <>
 std::optional<Token>
-ModelicaStateMachine::scan<ModelicaStateMachine::State::ParsingEqualSymbol>() {
+StateMachine::scan<StateMachine::State::ParsingEqualSymbol>() {
   setTokenEndPosition();
   state = State::Normal;
 
@@ -431,7 +425,7 @@ ModelicaStateMachine::scan<ModelicaStateMachine::State::ParsingEqualSymbol>() {
 
 template <>
 std::optional<Token>
-ModelicaStateMachine::scan<ModelicaStateMachine::State::ParsingLessSymbol>() {
+StateMachine::scan<StateMachine::State::ParsingLessSymbol>() {
   setTokenEndPosition();
   state = State::Normal;
 
@@ -448,8 +442,8 @@ ModelicaStateMachine::scan<ModelicaStateMachine::State::ParsingLessSymbol>() {
 }
 
 template <>
-std::optional<Token> ModelicaStateMachine::scan<
-    ModelicaStateMachine::State::ParsingGreaterSymbol>() {
+std::optional<Token>
+StateMachine::scan<StateMachine::State::ParsingGreaterSymbol>() {
   setTokenEndPosition();
   state = State::Normal;
 
@@ -463,7 +457,7 @@ std::optional<Token> ModelicaStateMachine::scan<
 
 template <>
 std::optional<Token>
-ModelicaStateMachine::scan<ModelicaStateMachine::State::ParsingColonSymbol>() {
+StateMachine::scan<StateMachine::State::ParsingColonSymbol>() {
   setTokenEndPosition();
   state = State::Normal;
 
@@ -477,15 +471,14 @@ ModelicaStateMachine::scan<ModelicaStateMachine::State::ParsingColonSymbol>() {
 
 template <>
 std::optional<Token>
-ModelicaStateMachine::scan<ModelicaStateMachine::State::IgnoredCharacter>() {
+StateMachine::scan<StateMachine::State::IgnoredCharacter>() {
   setTokenEndPosition();
   state = State::Normal;
   return std::nullopt;
 }
 
 template <>
-std::optional<Token>
-ModelicaStateMachine::scan<ModelicaStateMachine::State::Normal>() {
+std::optional<Token> StateMachine::scan<StateMachine::State::Normal>() {
   if (std::isspace(current) != 0) {
     // Skip spaces
     return std::nullopt;
@@ -537,7 +530,7 @@ ModelicaStateMachine::scan<ModelicaStateMachine::State::Normal>() {
   return trySymbolScan();
 }
 
-std::optional<Token> ModelicaStateMachine::trySymbolScan() {
+std::optional<Token> StateMachine::trySymbolScan() {
   if (current == '.') {
     switch (next) {
     case '+':
@@ -636,7 +629,7 @@ std::optional<Token> ModelicaStateMachine::trySymbolScan() {
   return makeToken(TokenKind::Error, getError());
 }
 
-std::optional<Token> ModelicaStateMachine::step(char c) {
+std::optional<Token> StateMachine::step(char c) {
   advance(c);
 
   switch (state) {
@@ -702,7 +695,7 @@ std::optional<Token> ModelicaStateMachine::step(char c) {
   return makeToken(TokenKind::Error, getError());
 }
 
-void ModelicaStateMachine::advance(char c) {
+void StateMachine::advance(char c) {
   current = next;
   next = c;
   ++currentPosition.column;
@@ -713,15 +706,11 @@ void ModelicaStateMachine::advance(char c) {
   }
 }
 
-void ModelicaStateMachine::setTokenBeginPosition() {
-  beginPosition = currentPosition;
-}
+void StateMachine::setTokenBeginPosition() { beginPosition = currentPosition; }
 
-void ModelicaStateMachine::setTokenEndPosition() {
-  endPosition = currentPosition;
-}
+void StateMachine::setTokenEndPosition() { endPosition = currentPosition; }
 
-Token ModelicaStateMachine::makeToken(TokenKind kind) {
+Token StateMachine::makeToken(TokenKind kind) {
   return Token(kind, SourceRange(beginPosition, endPosition));
 }
-} // namespace marco::parser
+} // namespace marco::parser::bmodelica

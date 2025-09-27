@@ -1,29 +1,30 @@
-#ifndef MARCO_PARSER_MODELICASTATEMACHINE_H
-#define MARCO_PARSER_MODELICASTATEMACHINE_H
+#ifndef MARCO_PARSER_BASEMODELICA_MODELICASTATEMACHINE_H
+#define MARCO_PARSER_BASEMODELICA_MODELICASTATEMACHINE_H
 
+#include "marco/Parser/BaseModelica/Token.h"
 #include "marco/Parser/FloatLexer.h"
 #include "marco/Parser/Lexer.h"
 #include "marco/Parser/Location.h"
-#include "marco/Parser/Token.h"
 #include "llvm/ADT/StringMap.h"
 #include <memory>
 #include <string>
 
 namespace marco::lexer {
 template <>
-struct TokenTraits<parser::TokenKind> {
-  static parser::Token getEOFToken() {
-    return parser::Token(parser::TokenKind::EndOfFile, SourceRange::unknown());
+struct TokenTraits<parser::bmodelica::TokenKind> {
+  static parser::bmodelica::Token getEOFToken() {
+    return parser::bmodelica::Token(parser::bmodelica::TokenKind::EndOfFile,
+                                    SourceRange::unknown());
   }
 };
 } // namespace marco::lexer
 
-namespace marco::parser {
+namespace marco::parser::bmodelica {
 /// State machine is the state machine of the modelica language.
 /// It implements the interface required by the lexer.
-class ModelicaStateMachine {
+class StateMachine {
 public:
-  using Token = ::marco::parser::Token;
+  using Token = ::marco::parser::bmodelica::Token;
 
   /// The possible states of the machine.
   enum class State {
@@ -50,7 +51,7 @@ public:
     IgnoredCharacter
   };
 
-  ModelicaStateMachine(const std::shared_ptr<SourceFile> &file, char first);
+  StateMachine(const std::shared_ptr<SourceFile> &file, char first);
 
 public:
   /// Returns the last seen identifier, or the one being built if the
@@ -126,6 +127,6 @@ private:
   SourcePosition beginPosition;
   SourcePosition endPosition;
 };
-} // namespace marco::parser
+} // namespace marco::parser::bmodelica
 
-#endif // MARCO_PARSER_MODELICASTATEMACHINE_H
+#endif // MARCO_PARSER_BASEMODELICA_MODELICASTATEMACHINE_H

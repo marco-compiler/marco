@@ -1,11 +1,11 @@
-#include "marco/Parser/Token.h"
+#include "marco/Parser/BaseModelica/Token.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 
 using namespace ::marco;
-using namespace ::marco::parser;
+using namespace ::marco::parser::bmodelica;
 
-namespace marco::parser {
+namespace marco::parser::bmodelica {
 std::string toString(TokenKind obj) {
   switch (obj) {
   case TokenKind::None:
@@ -329,4 +329,4 @@ std::string toString(const Token &obj) { return toString(obj.getKind()); }
 llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const Token &obj) {
   return os << obj.getKind();
 }
-} // namespace marco::parser
+} // namespace marco::parser::bmodelica

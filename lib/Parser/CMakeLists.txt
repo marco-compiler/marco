@@ -1,7 +1,7 @@
 set(SOURCES
-    ModelicaStateMachine.cpp
-    Parser.cpp
-    Token.cpp
+        BaseModelica/Parser.cpp
+        BaseModelica/StateMachine.cpp
+        BaseModelica/Token.cpp
     Location.cpp)
 
 marco_add_library(parser
@@ -19,4 +19,3 @@ marco_add_library(parser
 
     clangBasic
     clangCodeGen)
-# TODO check if really need the link libs

@@ -1,4 +1,4 @@
-#include "marco/Parser/Parser.h"
+#include "marco/Parser/BaseModelica/Parser.h"
 #include "mlir/IR/Diagnostics.h"
 #include "mlir/IR/MLIRContext.h"
 #include "clang/Frontend/TextDiagnosticPrinter.h"
@@ -6,7 +6,7 @@
 
 using namespace ::marco;
 using namespace ::marco::ast::bmodelica;
-using namespace ::marco::parser;
+using namespace ::marco::parser::bmodelica;
 
 std::unique_ptr<clang::DiagnosticsEngine>
 getDiagnosticsEngine(clang::DiagnosticOptions &diagOpts) {
