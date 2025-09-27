@@ -76,7 +76,7 @@ void Lowerer::pushLookupScope(mlir::Operation *lookupScope) {
 
 mlir::Operation *Lowerer::getClass(const ast::bmodelica::Class &cls) {
   llvm::SmallVector<const ast::bmodelica::Class *> classes;
-  const ast::bmodelica::ASTNode *current = &cls;
+  const ast::ASTNode *current = &cls;
 
   while (current != nullptr && !current->isa<ast::bmodelica::Root>()) {
     classes.push_back(current->cast<ast::bmodelica::Class>());

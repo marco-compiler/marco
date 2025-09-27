@@ -1,6 +1,6 @@
 #include "marco/Dialect/BaseModelica/Transforms/EquationTemplatesCreation.h"
 
-#include "marco/AST/BaseModelica/Node/Equation.h"
+#include "marco/AST/BaseModelica/Equation.h"
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 
 namespace mlir::bmodelica {

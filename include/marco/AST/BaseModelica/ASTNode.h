@@ -1,0 +1,78 @@
+#ifndef MARCO_AST_BASEMODELICA_ASTNODE_H
+#define MARCO_AST_BASEMODELICA_ASTNODE_H
+
+#include "marco/AST/ASTNode.h"
+
+namespace marco::ast::bmodelica {
+enum class ASTNodeKind : int32_t {
+  Root,
+  Algorithm,
+  Annotation,
+  Argument,
+  Argument_ElementModification,
+  Argument_ElementRedeclaration,
+  Argument_ElementReplaceable,
+  Argument_LastArgument,
+  ArrayDimension,
+  Class,
+  Class_Function,
+  Class_Function_PartialDerFunction,
+  Class_Function_StandardFunction,
+  Class_Function_LastFunction,
+  Class_Model,
+  Class_Package,
+  Class_Record,
+  Class_LastClass,
+  ClassModification,
+  ComponentReferenceEntry,
+  Equation,
+  Equation_Equality,
+  Equation_For,
+  Equation_If,
+  Equation_When,
+  Equation_LastEquation,
+  EquationSection,
+  Expression,
+  Expression_ArrayGenerator,
+  Expression_ArrayGenerator_ArrayConstant,
+  Expression_ArrayGenerator_ArrayForGenerator,
+  Expression_ArrayGenerator_LastArrayGenerator,
+  Expression_Call,
+  Expression_ComponentReference,
+  Expression_Constant,
+  Expression_Operation,
+  Expression_Reduction,
+  Expression_Subscript,
+  Expression_Tuple,
+  Expression_LastExpression,
+  ExternalFunctionCall,
+  ForIndex,
+  FunctionArgument,
+  FunctionArgument_Expression,
+  FunctionArgument_Named,
+  FunctionArgument_Reduction,
+  FunctionArgument_LastFunctionArgument,
+  Member,
+  Modification,
+  Statement,
+  Statement_Assignment,
+  Statement_Break,
+  Statement_Call,
+  Statement_For,
+  Statement_If,
+  Statement_Return,
+  Statement_When,
+  Statement_While,
+  Statement_LastStatement,
+  StatementsBlock,
+  TypePrefix,
+  VariableType,
+  VariableType_BuiltIn,
+  VariableType_UserDefined,
+  VariableType_LastVariableType
+};
+
+void addNodeKindToJSON(const ASTNode &node, llvm::json::Object &obj);
+} // namespace marco::ast::bmodelica
+
+#endif // MARCO_AST_BASEMODELICA_ASTNODE_H

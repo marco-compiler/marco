@@ -1,6 +1,7 @@
 #include "marco/Parser/BaseModelica/Parser.h"
 
 using namespace ::marco;
+using namespace ::marco::ast;
 using namespace ::marco::ast::bmodelica;
 using namespace ::marco::parser::bmodelica;
 

@@ -66,7 +66,7 @@ private:
   ASTActionKind action;
 
 protected:
-  std::unique_ptr<ast::bmodelica::ASTNode> ast;
+  std::unique_ptr<ast::ASTNode> ast;
 };
 
 class EmitASTAction : public ASTAction {
