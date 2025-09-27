@@ -1,12 +1,12 @@
-#include "marco/Codegen/Lowering/Lowerer.h"
-#include "marco/Codegen/Lowering/ClassDependencyGraph.h"
+#include "marco/Codegen/Lowering/BaseModelica/Lowerer.h"
+#include "marco/Codegen/Lowering/BaseModelica/ClassDependencyGraph.h"
 #include "mlir/IR/BuiltinOps.h"
 
 using namespace ::marco;
 using namespace ::marco::codegen;
 using namespace ::mlir::bmodelica;
 
-namespace marco::codegen::lowering {
+namespace marco::codegen::lowering::bmodelica {
 Lowerer::Lowerer(BridgeInterface *bridge) : bridge(bridge) {}
 
 Lowerer::~Lowerer() = default;
@@ -435,19 +435,23 @@ void Lowerer::emitIdentifierError(
 
   std::string errorString = "Unknown ";
   switch (identifierType) {
-  case marco::codegen::lowering::IdentifierError::IdentifierType::FUNCTION: {
+  case marco::codegen::lowering::bmodelica::IdentifierError::IdentifierType::
+      FUNCTION: {
     errorString += "function";
     break;
   }
-  case marco::codegen::lowering::IdentifierError::IdentifierType::VARIABLE: {
+  case marco::codegen::lowering::bmodelica::IdentifierError::IdentifierType::
+      VARIABLE: {
     errorString += "variable";
     break;
   }
-  case marco::codegen::lowering::IdentifierError::IdentifierType::TYPE: {
+  case marco::codegen::lowering::bmodelica::IdentifierError::IdentifierType::
+      TYPE: {
     errorString += "type or class";
     break;
   }
-  case marco::codegen::lowering::IdentifierError::IdentifierType::FIELD: {
+  case marco::codegen::lowering::bmodelica::IdentifierError::IdentifierType::
+      FIELD: {
     errorString += "field";
     break;
   }
@@ -464,4 +468,4 @@ void Lowerer::emitIdentifierError(
 
   mlir::emitError(loc(location)) << errorString;
 }
-} // namespace marco::codegen::lowering
+} // namespace marco::codegen::lowering::bmodelica

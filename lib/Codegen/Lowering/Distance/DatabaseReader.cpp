@@ -1,10 +1,10 @@
-#include "marco/Codegen/Lowering/Distance/DatabaseReader.h"
+#include "marco/Codegen/Lowering/BaseModelica/Distance/DatabaseReader.h"
 #include <fstream>
 #include <iostream>
 #include <string>
 #include <vector>
 
-namespace marco::codegen::lowering {
+namespace marco::codegen::lowering::bmodelica {
 DatabaseReader &DatabaseReader::getInstance() {
   static DatabaseReader instance;
   return instance;
@@ -231,4 +231,4 @@ int DatabaseReader::getSynsetCount(const Synset &synset) {
 }
 
 int DatabaseReader::getTotalSynsetCount() const { return totalSynsetCount; }
-} // namespace marco::codegen::lowering
+} // namespace marco::codegen::lowering::bmodelica

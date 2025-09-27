@@ -1,10 +1,10 @@
-#include "marco/Codegen/Lowering/PartialDerFunctionLowerer.h"
+#include "marco/Codegen/Lowering/BaseModelica/PartialDerFunctionLowerer.h"
 
 using namespace ::marco;
 using namespace ::marco::codegen;
 using namespace ::mlir::bmodelica;
 
-namespace marco::codegen::lowering {
+namespace marco::codegen::lowering::bmodelica {
 PartialDerFunctionLowerer::PartialDerFunctionLowerer(BridgeInterface *bridge)
     : Lowerer(bridge) {}
 
@@ -45,4 +45,4 @@ bool PartialDerFunctionLowerer::lower(
   // Nothing to do.
   return true;
 }
-} // namespace marco::codegen::lowering
+} // namespace marco::codegen::lowering::bmodelica

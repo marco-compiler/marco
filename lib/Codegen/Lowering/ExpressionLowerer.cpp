@@ -1,10 +1,10 @@
-#include "marco/Codegen/Lowering/ExpressionLowerer.h"
+#include "marco/Codegen/Lowering/BaseModelica/ExpressionLowerer.h"
 
 using namespace ::marco;
 using namespace ::marco::codegen;
 using namespace ::mlir::bmodelica;
 
-namespace marco::codegen::lowering {
+namespace marco::codegen::lowering::bmodelica {
 ExpressionLowerer::ExpressionLowerer(BridgeInterface *bridge)
     : Lowerer(bridge) {}
 
@@ -42,4 +42,4 @@ ExpressionLowerer::lower(const ast::bmodelica::Expression &expression) {
   llvm_unreachable("Unknown expression type");
   return {};
 }
-} // namespace marco::codegen::lowering
+} // namespace marco::codegen::lowering::bmodelica

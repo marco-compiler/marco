@@ -1,10 +1,10 @@
-#include "marco/Codegen/Lowering/TupleLowerer.h"
+#include "marco/Codegen/Lowering/BaseModelica/TupleLowerer.h"
 
 using namespace ::marco;
 using namespace ::marco::codegen;
 using namespace ::mlir::bmodelica;
 
-namespace marco::codegen::lowering {
+namespace marco::codegen::lowering::bmodelica {
 TupleLowerer::TupleLowerer(BridgeInterface *bridge) : Lowerer(bridge) {}
 
 std::optional<Results> TupleLowerer::lower(const ast::bmodelica::Tuple &tuple) {
@@ -25,4 +25,4 @@ std::optional<Results> TupleLowerer::lower(const ast::bmodelica::Tuple &tuple) {
 
   return result;
 }
-} // namespace marco::codegen::lowering
+} // namespace marco::codegen::lowering::bmodelica

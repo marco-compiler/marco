@@ -1,4 +1,4 @@
-#include "marco/Codegen/Lowering/Distance/WordDistanceCalculator.h"
+#include "marco/Codegen/Lowering/BaseModelica/Distance/WordDistanceCalculator.h"
 #include <cmath>
 #include <iostream>
 #include <tuple>
@@ -6,7 +6,7 @@
 
 using namespace std;
 
-namespace marco::codegen::lowering {
+namespace marco::codegen::lowering::bmodelica {
 
 WordDistanceCalculator::WordDistanceCalculator()
     : databaseReader(DatabaseReader::getInstance()), alpha(0.2), beta(0.45),
@@ -191,4 +191,4 @@ const pair<Synset, Synset> WordDistanceCalculator::getClosestSynsets() const {
 }
 
 Synset WordDistanceCalculator::getLCA() const { return lca; }
-} // namespace marco::codegen::lowering
+} // namespace marco::codegen::lowering::bmodelica

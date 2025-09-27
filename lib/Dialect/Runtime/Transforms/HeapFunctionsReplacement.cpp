@@ -1,7 +1,6 @@
 #include "marco/Dialect/Runtime/Transforms/HeapFunctionsReplacement.h"
-
-#include "marco/Codegen/Lowering/VariablesSymbolTable.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
+#include "mlir/IR/Threading.h"
 #include "mlir/Transforms/DialectConversion.h"
 
 namespace mlir::runtime {

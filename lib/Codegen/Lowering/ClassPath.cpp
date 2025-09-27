@@ -1,8 +1,8 @@
-#include "marco/Codegen/Lowering/ClassPath.h"
+#include "marco/Codegen/Lowering/BaseModelica/ClassPath.h"
 #include "llvm/ADT/PostOrderIterator.h"
 #include "llvm/ADT/SCCIterator.h"
 
-namespace marco::codegen::lowering {
+namespace marco::codegen::lowering::bmodelica {
 ClassPath::Scope::Scope(ClassPath &path)
     : path(&path), size(path.path.size()) {}
 
@@ -52,4 +52,4 @@ const ast::bmodelica::Class &ClassPath::getLeaf() const {
   assert(!path.empty());
   return *path.back();
 }
-} // namespace marco::codegen::lowering
+} // namespace marco::codegen::lowering::bmodelica

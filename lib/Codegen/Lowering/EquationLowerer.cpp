@@ -1,10 +1,10 @@
-#include "marco/Codegen/Lowering/EquationLowerer.h"
+#include "marco/Codegen/Lowering/BaseModelica/EquationLowerer.h"
 
 using namespace ::marco;
 using namespace ::marco::codegen;
 using namespace ::mlir::bmodelica;
 
-namespace marco::codegen::lowering {
+namespace marco::codegen::lowering::bmodelica {
 EquationLowerer::EquationLowerer(BridgeInterface *bridge) : Lowerer(bridge) {}
 
 bool EquationLowerer::lower(const ast::bmodelica::Equation &equation) {
@@ -27,4 +27,4 @@ bool EquationLowerer::lower(const ast::bmodelica::Equation &equation) {
   llvm_unreachable("Unknown equation type");
   return false;
 }
-} // namespace marco::codegen::lowering
+} // namespace marco::codegen::lowering::bmodelica

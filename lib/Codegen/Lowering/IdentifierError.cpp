@@ -1,8 +1,8 @@
-#include "marco/Codegen/Lowering/IdentifierError.h"
-#include "marco/Codegen/Lowering/Distance/EditDistance.h"
-#include "marco/Codegen/Lowering/Distance/SentenceDistanceCalculator.h"
+#include "marco/Codegen/Lowering/BaseModelica/IdentifierError.h"
+#include "marco/Codegen/Lowering/BaseModelica/Distance/EditDistance.h"
+#include "marco/Codegen/Lowering/BaseModelica/Distance/SentenceDistanceCalculator.h"
 
-namespace marco::codegen::lowering {
+namespace marco::codegen::lowering::bmodelica {
 IdentifierError::IdentifierError(
     const IdentifierType &identifierType, llvm::StringRef actual,
     const std::set<std::string> &declaredIdentifiers)
@@ -161,4 +161,4 @@ const std::set<std::string> IdentifierError::builtInFunctions = {
 
 const std::set<std::string> IdentifierError::builtInTypes = {
     "Real", "Integer", "String", "Boolean"};
-} // namespace marco::codegen::lowering
+} // namespace marco::codegen::lowering::bmodelica

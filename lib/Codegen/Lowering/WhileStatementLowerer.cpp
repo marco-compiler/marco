@@ -1,10 +1,10 @@
-#include "marco/Codegen/Lowering/WhileStatementLowerer.h"
+#include "marco/Codegen/Lowering/BaseModelica/WhileStatementLowerer.h"
 
 using namespace ::marco;
 using namespace ::marco::codegen;
 using namespace ::mlir::bmodelica;
 
-namespace marco::codegen::lowering {
+namespace marco::codegen::lowering::bmodelica {
 WhileStatementLowerer::WhileStatementLowerer(BridgeInterface *bridge)
     : Lowerer(bridge) {}
 
@@ -60,4 +60,4 @@ bool WhileStatementLowerer::lower(
 
   return true;
 }
-} // namespace marco::codegen::lowering
+} // namespace marco::codegen::lowering::bmodelica

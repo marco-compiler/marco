@@ -1,10 +1,10 @@
-#include "marco/Codegen/Lowering/SubscriptLowerer.h"
+#include "marco/Codegen/Lowering/BaseModelica/SubscriptLowerer.h"
 
 using namespace ::marco;
 using namespace ::marco::codegen;
 using namespace ::mlir::bmodelica;
 
-namespace marco::codegen::lowering {
+namespace marco::codegen::lowering::bmodelica {
 SubscriptLowerer::SubscriptLowerer(BridgeInterface *bridge) : Lowerer(bridge) {}
 
 std::optional<Results>
@@ -40,4 +40,4 @@ SubscriptLowerer::lower(const ast::bmodelica::Subscript &subscript) {
 
   return Reference::ssa(builder(), zeroBasedIndex);
 }
-} // namespace marco::codegen::lowering
+} // namespace marco::codegen::lowering::bmodelica

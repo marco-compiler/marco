@@ -1,10 +1,10 @@
-#include "marco/Codegen/Lowering/ReturnStatementLowerer.h"
+#include "marco/Codegen/Lowering/BaseModelica/ReturnStatementLowerer.h"
 
 using namespace ::marco;
 using namespace ::marco::codegen;
 using namespace ::mlir::bmodelica;
 
-namespace marco::codegen::lowering {
+namespace marco::codegen::lowering::bmodelica {
 ReturnStatementLowerer::ReturnStatementLowerer(BridgeInterface *bridge)
     : Lowerer(bridge) {}
 
@@ -14,4 +14,4 @@ bool ReturnStatementLowerer::lower(
   builder().create<ReturnOp>(location);
   return true;
 }
-} // namespace marco::codegen::lowering
+} // namespace marco::codegen::lowering::bmodelica

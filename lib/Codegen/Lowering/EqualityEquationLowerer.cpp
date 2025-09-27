@@ -1,10 +1,10 @@
-#include "marco/Codegen/Lowering/EqualityEquationLowerer.h"
+#include "marco/Codegen/Lowering/BaseModelica/EqualityEquationLowerer.h"
 
 using namespace ::marco;
 using namespace ::marco::codegen;
 using namespace ::mlir::bmodelica;
 
-namespace marco::codegen::lowering {
+namespace marco::codegen::lowering::bmodelica {
 EqualityEquationLowerer::EqualityEquationLowerer(BridgeInterface *bridge)
     : Lowerer(bridge) {}
 
@@ -59,4 +59,4 @@ bool EqualityEquationLowerer::lower(
 
   return true;
 }
-} // namespace marco::codegen::lowering
+} // namespace marco::codegen::lowering::bmodelica

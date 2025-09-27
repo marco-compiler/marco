@@ -1,10 +1,10 @@
-#include "marco/Codegen/Lowering/EquationSectionLowerer.h"
+#include "marco/Codegen/Lowering/BaseModelica/EquationSectionLowerer.h"
 
 using namespace ::marco;
 using namespace ::marco::codegen;
 using namespace ::mlir::bmodelica;
 
-namespace marco::codegen::lowering {
+namespace marco::codegen::lowering::bmodelica {
 EquationSectionLowerer::EquationSectionLowerer(BridgeInterface *bridge)
     : Lowerer(bridge) {}
 
@@ -44,4 +44,4 @@ bool EquationSectionLowerer::lower(
 
   return true;
 }
-} // namespace marco::codegen::lowering
+} // namespace marco::codegen::lowering::bmodelica

@@ -1,10 +1,10 @@
-#include "marco/Codegen/Lowering/Reference.h"
+#include "marco/Codegen/Lowering/BaseModelica/Reference.h"
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 
-using namespace ::marco::codegen::lowering;
+using namespace ::marco::codegen::lowering::bmodelica;
 using namespace ::mlir::bmodelica;
 
-namespace marco::codegen::lowering {
+namespace marco::codegen::lowering::bmodelica {
 class Reference::Impl {
 public:
   Impl(mlir::OpBuilder &builder, mlir::Location loc)
@@ -27,7 +27,7 @@ protected:
   mlir::OpBuilder *builder;
   mlir::Location loc;
 };
-} // namespace marco::codegen::lowering
+} // namespace marco::codegen::lowering::bmodelica
 
 namespace {
 class SSAReference : public Reference::Impl {
@@ -168,7 +168,7 @@ public:
 };
 } // namespace
 
-namespace marco::codegen::lowering {
+namespace marco::codegen::lowering::bmodelica {
 Reference::Reference() : impl(nullptr) {}
 
 Reference::Reference(std::unique_ptr<Impl> impl) : impl(std::move(impl)) {}
@@ -225,4 +225,4 @@ void Reference::set(mlir::Location loc, mlir::ValueRange indices,
                     mlir::Value value) {
   impl->set(loc, indices, value);
 }
-} // namespace marco::codegen::lowering
+} // namespace marco::codegen::lowering::bmodelica

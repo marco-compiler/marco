@@ -1,6 +1,6 @@
 #include "marco/Frontend/FrontendActions.h"
 #include "marco/Codegen/Conversion/Passes.h"
-#include "marco/Codegen/Lowering/Bridge.h"
+#include "marco/Codegen/Lowering/BaseModelica/Bridge.h"
 #include "marco/Codegen/Verifier.h"
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "marco/Dialect/BaseModelica/Transforms/AllInterfaces.h"
@@ -653,7 +653,7 @@ bool CodeGenAction::generateMLIR() {
     }
 
     // Convert the AST to MLIR.
-    marco::codegen::lowering::Bridge bridge(getMLIRContext());
+    marco::codegen::lowering::bmodelica::Bridge bridge(getMLIRContext());
     if (!bridge.lower(*ast->cast<ast::bmodelica::Root>())) {
       return false;
     }

@@ -1,6 +1,6 @@
-#include "marco/Codegen/Lowering/VariablesSymbolTable.h"
+#include "marco/Codegen/Lowering/BaseModelica/VariablesSymbolTable.h"
 
-namespace marco::codegen::lowering {
+namespace marco::codegen::lowering::bmodelica {
 VariablesSymbolTable::VariablesScope::VariablesScope(VariablesSymbolTable &ht)
     : scope(ht.references) {};
 
@@ -34,4 +34,4 @@ VariablesSymbolTable::getVariables(bool onlyVisible) const {
 
   return result;
 }
-} // namespace marco::codegen::lowering
+} // namespace marco::codegen::lowering::bmodelica

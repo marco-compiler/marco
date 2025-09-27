@@ -1,10 +1,10 @@
-#include "marco/Codegen/Lowering/OperationLowerer.h"
+#include "marco/Codegen/Lowering/BaseModelica/OperationLowerer.h"
 
 using namespace ::marco;
 using namespace ::marco::codegen::lowering;
 using namespace ::mlir::bmodelica;
 
-namespace marco::codegen::lowering {
+namespace marco::codegen::lowering::bmodelica {
 OperationLowerer::OperationLowerer(BridgeInterface *bridge) : Lowerer(bridge) {}
 
 std::optional<Results>
@@ -523,4 +523,4 @@ OperationLowerer::range(const ast::bmodelica::Operation &operation) {
 
   return Reference::ssa(builder(), result);
 }
-} // namespace marco::codegen::lowering
+} // namespace marco::codegen::lowering::bmodelica

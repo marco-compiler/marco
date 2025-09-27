@@ -1,10 +1,10 @@
-#include "marco/Codegen/Lowering/ForStatementLowerer.h"
+#include "marco/Codegen/Lowering/BaseModelica/ForStatementLowerer.h"
 
 using namespace ::marco;
 using namespace ::marco::codegen;
 using namespace ::mlir::bmodelica;
 
-namespace marco::codegen::lowering {
+namespace marco::codegen::lowering::bmodelica {
 ForStatementLowerer::ForStatementLowerer(BridgeInterface *bridge)
     : Lowerer(bridge) {}
 
@@ -148,4 +148,4 @@ bool ForStatementLowerer::lower(const ast::bmodelica::ForStatement &statement) {
 
   return true;
 }
-} // namespace marco::codegen::lowering
+} // namespace marco::codegen::lowering::bmodelica

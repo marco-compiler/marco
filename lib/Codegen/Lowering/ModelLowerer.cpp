@@ -1,10 +1,10 @@
-#include "marco/Codegen/Lowering/ModelLowerer.h"
+#include "marco/Codegen/Lowering/BaseModelica/ModelLowerer.h"
 
 using namespace ::marco;
 using namespace ::marco::codegen;
 using namespace ::mlir::bmodelica;
 
-namespace marco::codegen::lowering {
+namespace marco::codegen::lowering::bmodelica {
 ModelLowerer::ModelLowerer(BridgeInterface *bridge) : Lowerer(bridge) {}
 
 void ModelLowerer::declare(const ast::bmodelica::Model &model) {
@@ -269,4 +269,4 @@ bool ModelLowerer::lowerVariableAttributes(
 
   return true;
 }
-} // namespace marco::codegen::lowering
+} // namespace marco::codegen::lowering::bmodelica

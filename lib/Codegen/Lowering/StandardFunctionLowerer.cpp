@@ -1,10 +1,10 @@
-#include "marco/Codegen/Lowering/StandardFunctionLowerer.h"
+#include "marco/Codegen/Lowering/BaseModelica/StandardFunctionLowerer.h"
 
 using namespace ::marco;
 using namespace ::marco::codegen;
 using namespace ::mlir::bmodelica;
 
-namespace marco::codegen::lowering {
+namespace marco::codegen::lowering::bmodelica {
 StandardFunctionLowerer::StandardFunctionLowerer(BridgeInterface *bridge)
     : Lowerer(bridge) {}
 
@@ -446,4 +446,4 @@ bool StandardFunctionLowerer::createImplicitExternalFunctionCall(
 
   return true;
 }
-} // namespace marco::codegen::lowering
+} // namespace marco::codegen::lowering::bmodelica

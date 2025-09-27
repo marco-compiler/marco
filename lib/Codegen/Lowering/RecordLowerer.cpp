@@ -1,10 +1,10 @@
-#include "marco/Codegen/Lowering/RecordLowerer.h"
+#include "marco/Codegen/Lowering/BaseModelica/RecordLowerer.h"
 
 using namespace ::marco;
 using namespace ::marco::codegen;
 using namespace ::mlir::bmodelica;
 
-namespace marco::codegen::lowering {
+namespace marco::codegen::lowering::bmodelica {
 RecordLowerer::RecordLowerer(BridgeInterface *bridge) : Lowerer(bridge) {}
 
 void RecordLowerer::declare(const ast::bmodelica::Record &record) {
@@ -124,4 +124,4 @@ bool RecordLowerer::lower(const ast::bmodelica::Record &record) {
 
   return true;
 }
-} // namespace marco::codegen::lowering
+} // namespace marco::codegen::lowering::bmodelica

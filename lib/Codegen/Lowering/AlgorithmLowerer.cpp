@@ -1,10 +1,10 @@
-#include "marco/Codegen/Lowering/AlgorithmLowerer.h"
+#include "marco/Codegen/Lowering/BaseModelica/AlgorithmLowerer.h"
 
 using namespace ::marco;
 using namespace ::marco::codegen;
 using namespace ::mlir::bmodelica;
 
-namespace marco::codegen::lowering {
+namespace marco::codegen::lowering::bmodelica {
 AlgorithmLowerer::AlgorithmLowerer(BridgeInterface *bridge) : Lowerer(bridge) {}
 
 bool AlgorithmLowerer::lower(const ast::bmodelica::Algorithm &algorithm) {
@@ -31,4 +31,4 @@ bool AlgorithmLowerer::lower(const ast::bmodelica::Algorithm &algorithm) {
   builder().setInsertionPointAfter(algorithmOp);
   return true;
 }
-} // namespace marco::codegen::lowering
+} // namespace marco::codegen::lowering::bmodelica

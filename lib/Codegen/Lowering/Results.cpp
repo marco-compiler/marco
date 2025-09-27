@@ -1,8 +1,8 @@
-#include "marco/Codegen/Lowering/Results.h"
+#include "marco/Codegen/Lowering/BaseModelica/Results.h"
 
 using namespace ::marco::codegen;
 
-namespace marco::codegen::lowering {
+namespace marco::codegen::lowering::bmodelica {
 Result::Result(Reference reference) : reference(std::move(reference)) {}
 
 mlir::Location Result::getLoc() const { return reference.getLoc(); }
@@ -43,4 +43,4 @@ Results::const_iterator Results::begin() const { return values.begin(); }
 Results::iterator Results::end() { return values.end(); }
 
 Results::const_iterator Results::end() const { return values.end(); }
-} // namespace marco::codegen::lowering
+} // namespace marco::codegen::lowering::bmodelica

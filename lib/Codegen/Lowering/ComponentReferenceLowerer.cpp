@@ -1,10 +1,10 @@
-#include "marco/Codegen/Lowering/ComponentReferenceLowerer.h"
+#include "marco/Codegen/Lowering/BaseModelica/ComponentReferenceLowerer.h"
 
 using namespace ::marco;
 using namespace ::marco::codegen;
 using namespace ::mlir::bmodelica;
 
-namespace marco::codegen::lowering {
+namespace marco::codegen::lowering::bmodelica {
 ComponentReferenceLowerer::ComponentReferenceLowerer(BridgeInterface *bridge)
     : Lowerer(bridge) {}
 
@@ -155,4 +155,4 @@ std::optional<Reference> ComponentReferenceLowerer::lowerSubscripts(
 
   return current;
 }
-} // namespace marco::codegen::lowering
+} // namespace marco::codegen::lowering::bmodelica

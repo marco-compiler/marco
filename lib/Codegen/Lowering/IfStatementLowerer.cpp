@@ -1,10 +1,10 @@
-#include "marco/Codegen/Lowering/IfStatementLowerer.h"
+#include "marco/Codegen/Lowering/BaseModelica/IfStatementLowerer.h"
 
 using namespace ::marco;
 using namespace ::marco::codegen;
 using namespace ::mlir::bmodelica;
 
-namespace marco::codegen::lowering {
+namespace marco::codegen::lowering::bmodelica {
 IfStatementLowerer::IfStatementLowerer(BridgeInterface *bridge)
     : Lowerer(bridge) {}
 
@@ -87,4 +87,4 @@ bool IfStatementLowerer::lower(
   }
   return true;
 }
-} // namespace marco::codegen::lowering
+} // namespace marco::codegen::lowering::bmodelica

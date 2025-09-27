@@ -1,10 +1,10 @@
-#include "marco/Codegen/Lowering/AssignmentStatementLowerer.h"
+#include "marco/Codegen/Lowering/BaseModelica/AssignmentStatementLowerer.h"
 
 using namespace ::marco;
 using namespace ::marco::codegen;
 using namespace ::mlir::bmodelica;
 
-namespace marco::codegen::lowering {
+namespace marco::codegen::lowering::bmodelica {
 AssignmentStatementLowerer::AssignmentStatementLowerer(BridgeInterface *bridge)
     : Lowerer(bridge) {}
 
@@ -94,4 +94,4 @@ bool AssignmentStatementLowerer::lowerAssignmentToComponentReference(
 
   return true;
 }
-} // namespace marco::codegen::lowering
+} // namespace marco::codegen::lowering::bmodelica

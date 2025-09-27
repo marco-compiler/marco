@@ -1,10 +1,10 @@
-#include "marco/Codegen/Lowering/LoweringContext.h"
+#include "marco/Codegen/Lowering/BaseModelica/LoweringContext.h"
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 
 using namespace ::marco;
 using namespace ::marco::codegen;
 
-namespace marco::codegen::lowering {
+namespace marco::codegen::lowering::bmodelica {
 LoweringContext::LookupScopeGuard::LookupScopeGuard(LoweringContext *context)
     : context(context), size(context->lookupScopes.size()) {
   assert(context != nullptr);
@@ -40,4 +40,4 @@ mlir::Operation *LoweringContext::getLookupScope() {
 void LoweringContext::pushLookupScope(mlir::Operation *lookupScope) {
   lookupScopes.push_back(lookupScope);
 }
-} // namespace marco::codegen::lowering
+} // namespace marco::codegen::lowering::bmodelica

@@ -1,12 +1,12 @@
-#include "marco/Codegen/Lowering/Distance/EditDistance.h"
-#include "marco/Codegen/Lowering/Distance/EditDistanceParameters.h"
+#include "marco/Codegen/Lowering/BaseModelica/Distance/EditDistance.h"
+#include "marco/Codegen/Lowering/BaseModelica/Distance/EditDistanceParameters.h"
 #include <string>
 #include <vector>
 
 using namespace ::marco;
 using namespace ::marco::codegen::lowering;
 
-namespace marco::codegen::lowering {
+namespace marco::codegen::lowering::bmodelica {
 unsigned int editDistance(llvm::StringRef actual, llvm::StringRef expected) {
   std::string actualName(actual);
   std::string expectedName(expected);
@@ -85,4 +85,4 @@ unsigned int editDistance(llvm::StringRef actual, llvm::StringRef expected) {
 
   return distances[(n + 1) * (m + 1) - 1];
 }
-} // namespace marco::codegen::lowering
+} // namespace marco::codegen::lowering::bmodelica

@@ -1,8 +1,8 @@
-#include "marco/Codegen/Lowering/Distance/SentenceDistanceCalculator.h"
+#include "marco/Codegen/Lowering/BaseModelica/Distance/SentenceDistanceCalculator.h"
 #include <algorithm>
 #include <cmath>
 
-namespace marco::codegen::lowering {
+namespace marco::codegen::lowering::bmodelica {
 SentenceDistanceCalculator::SentenceDistanceCalculator()
     : wordDistanceCalculator(WordDistanceCalculator()) {}
 
@@ -184,4 +184,4 @@ float SentenceDistanceCalculator::getSimilarity(llvm::StringRef sentence1,
   // Compute the similarity of the word vectors.
   return getWordVecSimilarity(words1, words2);
 }
-} // namespace marco::codegen::lowering
+} // namespace marco::codegen::lowering::bmodelica

@@ -1,10 +1,10 @@
-#include "marco/Codegen/Lowering/StatementLowerer.h"
+#include "marco/Codegen/Lowering/BaseModelica/StatementLowerer.h"
 
 using namespace ::marco;
 using namespace ::marco::codegen;
 using namespace ::mlir::bmodelica;
 
-namespace marco::codegen::lowering {
+namespace marco::codegen::lowering::bmodelica {
 StatementLowerer::StatementLowerer(BridgeInterface *bridge) : Lowerer(bridge) {}
 
 bool StatementLowerer::lower(const ast::bmodelica::Statement &statement) {
@@ -42,4 +42,4 @@ bool StatementLowerer::lower(const ast::bmodelica::Statement &statement) {
 
   llvm_unreachable("Unknown statement type");
 }
-} // namespace marco::codegen::lowering
+} // namespace marco::codegen::lowering::bmodelica

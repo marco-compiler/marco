@@ -1,11 +1,11 @@
-#include "marco/Codegen/Lowering/CallLowerer.h"
+#include "marco/Codegen/Lowering/BaseModelica/CallLowerer.h"
 #include "llvm/ADT/StringSwitch.h"
 
 using namespace ::marco;
 using namespace ::marco::codegen;
 using namespace ::mlir::bmodelica;
 
-namespace marco::codegen::lowering {
+namespace marco::codegen::lowering::bmodelica {
 CallLowerer::CallLowerer(BridgeInterface *bridge) : Lowerer(bridge) {}
 
 std::optional<Results> CallLowerer::lower(const ast::bmodelica::Call &call) {
@@ -2301,4 +2301,4 @@ std::optional<Results> CallLowerer::reduction(const ast::bmodelica::Call &call,
   builder().create<YieldOp>(result.getLoc(), result);
   return Reference::ssa(builder(), reductionOp.getResult());
 }
-} // namespace marco::codegen::lowering
+} // namespace marco::codegen::lowering::bmodelica

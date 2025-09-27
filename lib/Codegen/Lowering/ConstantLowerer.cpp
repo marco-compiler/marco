@@ -1,10 +1,10 @@
-#include "marco/Codegen/Lowering/ConstantLowerer.h"
+#include "marco/Codegen/Lowering/BaseModelica/ConstantLowerer.h"
 
 using namespace ::marco;
 using namespace ::marco::codegen;
 using namespace ::mlir::bmodelica;
 
-namespace marco::codegen::lowering {
+namespace marco::codegen::lowering::bmodelica {
 ConstantLowerer::ConstantLowerer(BridgeInterface *bridge) : Lowerer(bridge) {}
 
 std::optional<Results>
@@ -31,4 +31,4 @@ mlir::TypedAttr ConstantLowerer::operator()(std::string value) {
   llvm_unreachable("Unsupported constant type");
   return nullptr;
 }
-} // namespace marco::codegen::lowering
+} // namespace marco::codegen::lowering::bmodelica

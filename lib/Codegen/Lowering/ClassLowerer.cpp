@@ -1,11 +1,11 @@
-#include "marco/Codegen/Lowering/ClassLowerer.h"
-#include "marco/Codegen/Lowering/ClassDependencyGraph.h"
+#include "marco/Codegen/Lowering/BaseModelica/ClassLowerer.h"
+#include "marco/Codegen/Lowering/BaseModelica/ClassDependencyGraph.h"
 
 using namespace ::marco;
 using namespace ::marco::codegen;
 using namespace ::mlir::bmodelica;
 
-namespace marco::codegen::lowering {
+namespace marco::codegen::lowering::bmodelica {
 ClassLowerer::ClassLowerer(BridgeInterface *bridge) : Lowerer(bridge) {}
 
 void ClassLowerer::declare(const ast::bmodelica::Class &cls) {
@@ -317,4 +317,4 @@ bool ClassLowerer::lowerVariableDimensionConstraints(
 
   return true;
 }
-} // namespace marco::codegen::lowering
+} // namespace marco::codegen::lowering::bmodelica

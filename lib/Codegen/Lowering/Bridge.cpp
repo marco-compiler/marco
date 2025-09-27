@@ -1,36 +1,36 @@
-#include "marco/Codegen/Lowering/Bridge.h"
-#include "marco/Codegen/Lowering/AlgorithmLowerer.h"
-#include "marco/Codegen/Lowering/ArrayGeneratorLowerer.h"
-#include "marco/Codegen/Lowering/AssignmentStatementLowerer.h"
-#include "marco/Codegen/Lowering/BreakStatementLowerer.h"
-#include "marco/Codegen/Lowering/BridgeInterface.h"
-#include "marco/Codegen/Lowering/CallLowerer.h"
-#include "marco/Codegen/Lowering/CallStatementLowerer.h"
-#include "marco/Codegen/Lowering/ClassLowerer.h"
-#include "marco/Codegen/Lowering/ComponentReferenceLowerer.h"
-#include "marco/Codegen/Lowering/ConstantLowerer.h"
-#include "marco/Codegen/Lowering/EqualityEquationLowerer.h"
-#include "marco/Codegen/Lowering/EquationLowerer.h"
-#include "marco/Codegen/Lowering/EquationSectionLowerer.h"
-#include "marco/Codegen/Lowering/ExpressionLowerer.h"
-#include "marco/Codegen/Lowering/ForEquationLowerer.h"
-#include "marco/Codegen/Lowering/ForStatementLowerer.h"
-#include "marco/Codegen/Lowering/IfEquationLowerer.h"
-#include "marco/Codegen/Lowering/IfStatementLowerer.h"
-#include "marco/Codegen/Lowering/LoweringContext.h"
-#include "marco/Codegen/Lowering/ModelLowerer.h"
-#include "marco/Codegen/Lowering/OperationLowerer.h"
-#include "marco/Codegen/Lowering/PackageLowerer.h"
-#include "marco/Codegen/Lowering/PartialDerFunctionLowerer.h"
-#include "marco/Codegen/Lowering/RecordLowerer.h"
-#include "marco/Codegen/Lowering/ReturnStatementLowerer.h"
-#include "marco/Codegen/Lowering/StandardFunctionLowerer.h"
-#include "marco/Codegen/Lowering/StatementLowerer.h"
-#include "marco/Codegen/Lowering/SubscriptLowerer.h"
-#include "marco/Codegen/Lowering/TupleLowerer.h"
-#include "marco/Codegen/Lowering/WhenEquationLowerer.h"
-#include "marco/Codegen/Lowering/WhenStatementLowerer.h"
-#include "marco/Codegen/Lowering/WhileStatementLowerer.h"
+#include "marco/Codegen/Lowering/BaseModelica/Bridge.h"
+#include "marco/Codegen/Lowering/BaseModelica/AlgorithmLowerer.h"
+#include "marco/Codegen/Lowering/BaseModelica/ArrayGeneratorLowerer.h"
+#include "marco/Codegen/Lowering/BaseModelica/AssignmentStatementLowerer.h"
+#include "marco/Codegen/Lowering/BaseModelica/BreakStatementLowerer.h"
+#include "marco/Codegen/Lowering/BaseModelica/BridgeInterface.h"
+#include "marco/Codegen/Lowering/BaseModelica/CallLowerer.h"
+#include "marco/Codegen/Lowering/BaseModelica/CallStatementLowerer.h"
+#include "marco/Codegen/Lowering/BaseModelica/ClassLowerer.h"
+#include "marco/Codegen/Lowering/BaseModelica/ComponentReferenceLowerer.h"
+#include "marco/Codegen/Lowering/BaseModelica/ConstantLowerer.h"
+#include "marco/Codegen/Lowering/BaseModelica/EqualityEquationLowerer.h"
+#include "marco/Codegen/Lowering/BaseModelica/EquationLowerer.h"
+#include "marco/Codegen/Lowering/BaseModelica/EquationSectionLowerer.h"
+#include "marco/Codegen/Lowering/BaseModelica/ExpressionLowerer.h"
+#include "marco/Codegen/Lowering/BaseModelica/ForEquationLowerer.h"
+#include "marco/Codegen/Lowering/BaseModelica/ForStatementLowerer.h"
+#include "marco/Codegen/Lowering/BaseModelica/IfEquationLowerer.h"
+#include "marco/Codegen/Lowering/BaseModelica/IfStatementLowerer.h"
+#include "marco/Codegen/Lowering/BaseModelica/LoweringContext.h"
+#include "marco/Codegen/Lowering/BaseModelica/ModelLowerer.h"
+#include "marco/Codegen/Lowering/BaseModelica/OperationLowerer.h"
+#include "marco/Codegen/Lowering/BaseModelica/PackageLowerer.h"
+#include "marco/Codegen/Lowering/BaseModelica/PartialDerFunctionLowerer.h"
+#include "marco/Codegen/Lowering/BaseModelica/RecordLowerer.h"
+#include "marco/Codegen/Lowering/BaseModelica/ReturnStatementLowerer.h"
+#include "marco/Codegen/Lowering/BaseModelica/StandardFunctionLowerer.h"
+#include "marco/Codegen/Lowering/BaseModelica/StatementLowerer.h"
+#include "marco/Codegen/Lowering/BaseModelica/SubscriptLowerer.h"
+#include "marco/Codegen/Lowering/BaseModelica/TupleLowerer.h"
+#include "marco/Codegen/Lowering/BaseModelica/WhenEquationLowerer.h"
+#include "marco/Codegen/Lowering/BaseModelica/WhenStatementLowerer.h"
+#include "marco/Codegen/Lowering/BaseModelica/WhileStatementLowerer.h"
 #include <memory>
 
 using namespace ::marco;
@@ -38,7 +38,7 @@ using namespace ::marco::ast::bmodelica;
 using namespace ::marco::codegen;
 using namespace ::mlir::bmodelica;
 
-namespace marco::codegen::lowering {
+namespace marco::codegen::lowering::bmodelica {
 BridgeInterface::~BridgeInterface() = default;
 
 class Bridge::Impl : public BridgeInterface {
@@ -563,4 +563,4 @@ bool Bridge::lower(const Root &root) { return impl->convert(root); }
 std::unique_ptr<mlir::ModuleOp> &Bridge::getMLIRModule() {
   return impl->getMLIRModule();
 }
-} // namespace marco::codegen::lowering
+} // namespace marco::codegen::lowering::bmodelica

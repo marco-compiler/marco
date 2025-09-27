@@ -1,9 +1,9 @@
-#include "marco/Codegen/Lowering/Distance/EditDistance.h"
-#include "marco/Codegen/Lowering/Distance/EditDistanceParameters.h"
+#include "marco/Codegen/Lowering/BaseModelica/Distance/EditDistance.h"
+#include "marco/Codegen/Lowering/BaseModelica/Distance/EditDistanceParameters.h"
 #include "gtest/gtest.h"
 
 using namespace ::marco;
-using namespace ::marco::codegen::lowering;
+using namespace ::marco::codegen::lowering::bmodelica;
 
 TEST(ParserError, deletion) {
   std::string actual = "var";

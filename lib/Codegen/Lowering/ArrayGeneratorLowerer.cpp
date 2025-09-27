@@ -1,10 +1,10 @@
-#include "marco/Codegen/Lowering/ArrayGeneratorLowerer.h"
+#include "marco/Codegen/Lowering/BaseModelica/ArrayGeneratorLowerer.h"
 
 using namespace ::marco;
 using namespace ::marco::codegen;
 using namespace ::mlir::bmodelica;
 
-namespace marco::codegen::lowering {
+namespace marco::codegen::lowering::bmodelica {
 ArrayGeneratorLowerer::ArrayGeneratorLowerer(BridgeInterface *bridge)
     : Lowerer(bridge) {}
 
@@ -230,4 +230,4 @@ ArrayGeneratorLowerer::lower(const ast::bmodelica::ArrayForGenerator &array) {
 
   return Reference::tensor(builder(), result);
 }
-} // namespace marco::codegen::lowering
+} // namespace marco::codegen::lowering::bmodelica

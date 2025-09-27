@@ -1,8 +1,8 @@
-#include "marco/Codegen/Lowering/ClassDependencyGraph.h"
+#include "marco/Codegen/Lowering/BaseModelica/ClassDependencyGraph.h"
 #include "llvm/ADT/PostOrderIterator.h"
 #include "llvm/ADT/SCCIterator.h"
 
-namespace marco::codegen::lowering {
+namespace marco::codegen::lowering::bmodelica {
 ClassDependencyGraph::Node::Node() : graph(nullptr) {}
 
 ClassDependencyGraph::Node::Node(const ClassDependencyGraph *graph,
@@ -115,4 +115,4 @@ llvm::SmallVector<ClassPath> ClassDependencyGraph::reversePostOrder() const {
   std::reverse(result.begin(), result.end());
   return result;
 }
-} // namespace marco::codegen::lowering
+} // namespace marco::codegen::lowering::bmodelica
