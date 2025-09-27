@@ -1,7 +1,7 @@
 #ifndef MARCO_VARIABLEFILTER_TOKEN_H
 #define MARCO_VARIABLEFILTER_TOKEN_H
 
-#include "marco/Parser/Location.h"
+#include "marco/Lexer/Location.h"
 #include <string>
 #include <variant>
 

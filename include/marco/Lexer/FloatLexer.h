@@ -1,10 +1,10 @@
-#ifndef MARCO_PARSER_FLOATLEXER_H
-#define MARCO_PARSER_FLOATLEXER_H
+#ifndef MARCO_LEXER_FLOATLEXER_H
+#define MARCO_LEXER_FLOATLEXER_H
 
-#include "marco/Parser/IntegerLexer.h"
+#include "marco/Lexer/IntegerLexer.h"
 #include <cmath>
 
-namespace marco {
+namespace marco::lexer {
 /// Used to build floats in the form upper.lower * (base ^ exponent) as
 /// described by the Modelica specification.
 template <unsigned int Base>
@@ -85,6 +85,6 @@ private:
   bool leadingZero = true;
   int fractionalLeadingZeros = 0;
 };
-} // namespace marco
+} // namespace marco::lexer
 
-#endif // MARCO_PARSER_FLOATLEXER_H
+#endif // MARCO_LEXER_FLOATLEXER_H

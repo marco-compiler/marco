@@ -2,8 +2,8 @@
 #define MARCO_PARSER_BASEMODELICA_PARSER_H
 
 #include "marco/AST/BaseModelica/AST.h"
+#include "marco/Lexer/Location.h"
 #include "marco/Parser/BaseModelica/StateMachine.h"
-#include "marco/Parser/Location.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/SourceManager.h"
 #include "llvm/ADT/SmallVector.h"
@@ -299,7 +299,7 @@ private:
 private:
   clang::DiagnosticsEngine *diagnosticsEngine;
   clang::SourceManager *sourceManager;
-  Lexer<StateMachine> lexer;
+  lexer::Lexer<StateMachine> lexer;
   Token token{TokenKind::Begin};
   llvm::SmallVector<Token, 2> lookahead{2, Token(TokenKind::Begin)};
 };

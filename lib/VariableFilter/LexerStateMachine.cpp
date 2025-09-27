@@ -168,7 +168,7 @@ LexerStateMachine::scan<LexerStateMachine::State::Normal>() {
 
   if (isDigit(current)) {
     state = State::ParsingNum;
-    numberLexer = IntegerLexer<10>();
+    numberLexer = lexer::IntegerLexer<10>();
     return scan<State::ParsingNum>();
   }
 

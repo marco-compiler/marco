@@ -1,4 +1,4 @@
-#include "marco/Parser/Location.h"
+#include "marco/Lexer/Location.h"
 
 using namespace ::marco;
 

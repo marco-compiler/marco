@@ -1,8 +1,9 @@
-#include "marco/Parser/Lexer.h"
+#include "marco/Lexer/Lexer.h"
 #include "marco/Parser/BaseModelica/StateMachine.h"
 #include "gtest/gtest.h"
 
 using namespace ::marco;
+using namespace ::marco::lexer;
 using namespace ::marco::parser::bmodelica;
 
 TEST(ModelicaLexer, defaults) {

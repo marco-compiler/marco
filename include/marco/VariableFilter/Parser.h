@@ -1,9 +1,9 @@
 #ifndef MARCO_VARIABLEFILTER_PARSER_H
 #define MARCO_VARIABLEFILTER_PARSER_H
 
-#include "AST.h"
-#include "marco/Parser/Lexer.h"
-#include "marco/Parser/Location.h"
+#include "marco/Lexer/Lexer.h"
+#include "marco/Lexer/Location.h"
+#include "marco/VariableFilter/AST.h"
 #include "marco/VariableFilter/LexerStateMachine.h"
 #include "marco/VariableFilter/VariableFilter.h"
 #include "clang/Basic/Diagnostic.h"
@@ -78,7 +78,7 @@ private:
   VariableFilter *vf;
   clang::DiagnosticsEngine *diagnosticsEngine;
   clang::SourceManager *sourceManager;
-  Lexer<LexerStateMachine> lexer;
+  lexer::Lexer<LexerStateMachine> lexer;
   Token token{TokenKind::Begin};
   llvm::SmallVector<Token, 1> lookahead{1, Token(TokenKind::Begin)};
 };

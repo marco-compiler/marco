@@ -1,10 +1,10 @@
 #ifndef MARCO_VARIABLEFILTER_LEXERSTATEMACHINE_H
 #define MARCO_VARIABLEFILTER_LEXERSTATEMACHINE_H
 
-#include "Token.h"
-#include "marco/Parser/IntegerLexer.h"
-#include "marco/Parser/Lexer.h"
-#include "marco/Parser/Location.h"
+#include "marco/Lexer/IntegerLexer.h"
+#include "marco/Lexer/Lexer.h"
+#include "marco/Lexer/Location.h"
+#include "marco/VariableFilter/Token.h"
 #include "llvm/ADT/StringMap.h"
 #include <map>
 #include <memory>
@@ -93,7 +93,7 @@ private:
   char next;
 
   std::string identifier;
-  IntegerLexer<10> numberLexer;
+  lexer::IntegerLexer<10> numberLexer;
   std::string regex;
 
   SourcePosition currentPosition;

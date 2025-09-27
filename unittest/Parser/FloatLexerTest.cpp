@@ -1,7 +1,7 @@
-#include "marco/Parser/FloatLexer.h"
+#include "marco/Lexer/FloatLexer.h"
 #include "gtest/gtest.h"
 
-using namespace ::marco;
+using namespace ::marco::lexer;
 
 TEST(FloatLexerTest, defaultShouldBeZero) {
   FloatLexer<10> lex;

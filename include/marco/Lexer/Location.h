@@ -1,5 +1,5 @@
-#ifndef MARCO_PARSER_LOCATION_H
-#define MARCO_PARSER_LOCATION_H
+#ifndef MARCO_LEXER_LOCATION_H
+#define MARCO_LEXER_LOCATION_H
 
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/MemoryBuffer.h"
@@ -52,4 +52,4 @@ public:
 };
 } // namespace marco
 
-#endif // MARCO_PARSER_LOCATION_H
+#endif // MARCO_LEXER_LOCATION_H

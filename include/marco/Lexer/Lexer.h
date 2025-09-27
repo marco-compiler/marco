@@ -1,12 +1,12 @@
-#ifndef MARCO_PARSER_LEXER_H
-#define MARCO_PARSER_LEXER_H
+#ifndef MARCO_LEXER_LEXER_H
+#define MARCO_LEXER_LEXER_H
 
-#include "marco/Parser/Location.h"
+#include "marco/Lexer/Location.h"
 #include "llvm/ADT/StringRef.h"
 #include <functional>
 #include <memory>
 
-namespace marco {
+namespace marco::lexer {
 namespace detail {
 /// Iterator over lexer, the iterator is an input iterator
 /// so if it is advanced it will modify the state of the lexer
@@ -46,14 +46,12 @@ private:
 };
 } // namespace detail
 
-namespace lexer {
 template <typename Token>
 struct TokenTraits {
   // static Token getEOFToken();
 
   using Id = typename Token::UnknownTokenTypeError;
 };
-} // namespace lexer
 
 template <typename StateMachine>
 class Lexer : public StateMachine {
@@ -104,6 +102,6 @@ private:
   std::function<char()> getNext;
   char lastChar;
 };
-} // namespace marco
+} // namespace marco::lexer
 
-#endif // MARCO_PARSER_LEXER_H
+#endif // MARCO_LEXER_LEXER_H

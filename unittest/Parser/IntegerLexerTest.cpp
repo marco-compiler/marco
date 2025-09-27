@@ -1,7 +1,7 @@
-#include "marco/Parser/IntegerLexer.h"
+#include "marco/Lexer/IntegerLexer.h"
 #include "gtest/gtest.h"
 
-using namespace ::marco;
+using namespace ::marco::lexer;
 
 TEST(IntegerLexer, defaultShouldBeZero) {
   IntegerLexer<10> lex;

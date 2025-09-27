@@ -12,7 +12,9 @@ marco_add_library(variableFilter
     ${SOURCES}
 
     LINK_LIBS
-    marco::parser
+    marco::Lexer
+    clangBasic
+    clangCodeGen
 
     LINK_COMPONENTS
     Core

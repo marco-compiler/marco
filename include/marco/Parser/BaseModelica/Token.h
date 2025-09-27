@@ -1,7 +1,7 @@
 #ifndef MARCO_PARSER_BASEMODELICA_TOKEN_H
 #define MARCO_PARSER_BASEMODELICA_TOKEN_H
 
-#include "marco/Parser/Location.h"
+#include "marco/Lexer/Location.h"
 #include "llvm/ADT/StringRef.h"
 #include <iostream>
 #include <string>

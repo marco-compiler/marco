@@ -1,10 +1,10 @@
 #ifndef MARCO_PARSER_BASEMODELICA_MODELICASTATEMACHINE_H
 #define MARCO_PARSER_BASEMODELICA_MODELICASTATEMACHINE_H
 
+#include "marco/Lexer/FloatLexer.h"
+#include "marco/Lexer/Lexer.h"
+#include "marco/Lexer/Location.h"
 #include "marco/Parser/BaseModelica/Token.h"
-#include "marco/Parser/FloatLexer.h"
-#include "marco/Parser/Lexer.h"
-#include "marco/Parser/Location.h"
 #include "llvm/ADT/StringMap.h"
 #include <memory>
 #include <string>
@@ -120,7 +120,7 @@ private:
 
   std::string identifier;
   std::string stringValue;
-  FloatLexer<10> numberLexer;
+  lexer::FloatLexer<10> numberLexer;
   std::string error;
 
   SourcePosition currentPosition;

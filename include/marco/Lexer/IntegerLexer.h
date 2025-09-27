@@ -1,9 +1,9 @@
-#ifndef MARCO_PARSER_INTEGERLEXER_H
-#define MARCO_PARSER_INTEGERLEXER_H
+#ifndef MARCO_LEXER_INTEGERLEXER_H
+#define MARCO_LEXER_INTEGERLEXER_H
 
 #include <cstdint>
 
-namespace marco {
+namespace marco::lexer {
 /// An integer lexer is a object that can be feed with
 /// integers a1, a2 ... aN and will build the integer
 /// (a1*base^N) + (a2*base^N-1) ... + (aN*base^1);
@@ -30,6 +30,6 @@ public:
 private:
   int64_t value;
 };
-} // namespace marco
+} // namespace marco::lexer
 
-#endif // MARCO_PARSER_INTEGERLEXER_H
+#endif // MARCO_LEXER_INTEGERLEXER_H

@@ -28,7 +28,7 @@ marco_add_library(frontend
 
     LINK_LIBS
     marco::ASTBaseModelica
-    marco::parser
+    marco::ParserBaseModelica
     marco::codegen
     marco::IO
     marco::Lowering
