@@ -22,7 +22,7 @@ class BaseModelica_Attr<string name,
 def BaseModelica_BooleanAttr
     : BaseModelica_Attr<"Boolean", [TypedAttrInterface]>
 {
-    let summary = "Modelica Boolean attribute";
+    let summary = "Base Modelica Boolean attribute";
 
     let description = [{
         Attribute representing a Boolean-typed value.
@@ -49,7 +49,7 @@ def BaseModelica_BooleanAttr
 def BaseModelica_IntegerAttr
     : BaseModelica_Attr<"Integer", [TypedAttrInterface]>
 {
-    let summary = "Modelica Integer attribute";
+    let summary = "Base Modelica Integer attribute";
 
     let description = [{
         Attribute representing an Integer-typed value.
@@ -76,7 +76,7 @@ def BaseModelica_IntegerAttr
 def BaseModelica_RealAttr
     : BaseModelica_Attr<"Real", [TypedAttrInterface]>
 {
-    let summary = "Modelica Real attribute";
+    let summary = "Base Modelica Real attribute";
 
     let description = [{
         Attribute representing a Real-typed value.
@@ -103,7 +103,7 @@ def BaseModelica_RealAttr
 def BaseModelica_DenseBooleanElementsAttr
     : BaseModelica_Attr<"DenseBooleanElements", [TypedAttrInterface]>
 {
-    let summary = "Modelica dense Bool elements attribute";
+    let summary = "Base Modelica dense Bool elements attribute";
 
     let description = [{
         Attribute representing a Boolean-typed array value.
@@ -127,7 +127,7 @@ def BaseModelica_DenseBooleanElementsAttr
 def BaseModelica_DenseIntegerElementsAttr
     : BaseModelica_Attr<"DenseIntegerElements", [TypedAttrInterface]>
 {
-    let summary = "Modelica dense Integer elements attribute";
+    let summary = "Base Modelica dense Integer elements attribute";
 
     let description = [{
         Attribute representing a Integer-typed array value.
@@ -151,7 +151,7 @@ def BaseModelica_DenseIntegerElementsAttr
 def BaseModelica_DenseRealElementsAttr
     : BaseModelica_Attr<"DenseRealElements", [TypedAttrInterface]>
 {
-    let summary = "Modelica dense Real elements attribute";
+    let summary = "Base Modelica dense Real elements attribute";
 
     let description = [{
         Attribute representing a Real-typed array value.

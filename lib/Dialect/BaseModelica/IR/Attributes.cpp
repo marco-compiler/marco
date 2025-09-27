@@ -93,7 +93,7 @@ mlir::Attribute getAttr(mlir::Type type, int64_t value) {
     return mlir::FloatAttr::get(type, static_cast<double>(value));
   }
 
-  llvm_unreachable("Unknown Modelica type");
+  llvm_unreachable("Unknown Base Modelica type");
   return {};
 }
 

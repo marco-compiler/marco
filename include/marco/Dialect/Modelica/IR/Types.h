@@ -8,6 +8,4 @@
 #define GET_TYPEDEF_CLASSES
 #include "marco/Dialect/Modelica/IR/ModelicaTypes.h.inc"
 
-namespace mlir::modelica {} // namespace mlir::modelica
-
 #endif // MARCO_DIALECT_MODELICA_IR_TYPES_H

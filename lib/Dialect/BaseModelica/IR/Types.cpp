@@ -16,7 +16,7 @@ using namespace ::mlir::bmodelica::detail;
 #include "marco/Dialect/BaseModelica/IR/BaseModelicaTypes.cpp.inc"
 
 //===---------------------------------------------------------------------===//
-// ModelicaDialect
+// Dialect
 //===---------------------------------------------------------------------===//
 
 namespace mlir::bmodelica {
@@ -66,6 +66,10 @@ std::optional<uint64_t> getTypeSizeInBits(mlir::DataLayoutEntryListRef params) {
   return std::nullopt;
 }
 } // namespace
+
+//===---------------------------------------------------------------------===//
+// Types
+//===---------------------------------------------------------------------===//
 
 namespace mlir::bmodelica {
 //===---------------------------------------------------------------------===//

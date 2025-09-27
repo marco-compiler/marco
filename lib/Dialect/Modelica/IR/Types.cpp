@@ -15,7 +15,7 @@ using namespace ::mlir::modelica;
 #include "marco/Dialect/Modelica/IR/ModelicaTypes.cpp.inc"
 
 //===---------------------------------------------------------------------===//
-// Modelica Dialect
+// Dialect
 //===---------------------------------------------------------------------===//
 
 namespace mlir::modelica {
@@ -23,12 +23,11 @@ void ModelicaDialect::registerTypes() {
   addTypes<
 #define GET_TYPEDEF_LIST
 #include "marco/Dialect/Modelica/IR/ModelicaTypes.cpp.inc"
+
       >();
 }
 } // namespace mlir::modelica
 
 //===---------------------------------------------------------------------===//
-// Modelica Types
+// Types
 //===---------------------------------------------------------------------===//
-
-namespace mlir::modelica {} // namespace mlir::modelica

@@ -30,7 +30,7 @@ def BooleanType : BaseModelica_Type<"Boolean",
     let mnemonic = "bool";
 
     let description = [{
-        Type representing Modelica's Boolean.
+        Type representing Base Modelica's Boolean.
     }];
 }
 
@@ -43,7 +43,7 @@ def IntegerType : BaseModelica_Type<"Integer",
     let mnemonic = "int";
 
     let description = [{
-        Type representing Modelica's Integer.
+        Type representing Base Modelica's Integer.
     }];
 }
 
@@ -56,7 +56,7 @@ def RealType : BaseModelica_Type<"Real",
     let mnemonic = "real";
 
     let description = [{
-        Type representing Modelica's Real.
+        Type representing Base Modelica's Real.
     }];
 }
 
