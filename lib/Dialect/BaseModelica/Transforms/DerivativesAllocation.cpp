@@ -479,14 +479,18 @@ resolveVariable(ModelOp modelOp,
 
 namespace {
 class DerOpRemovePattern : public mlir::OpRewritePattern<DerOp> {
+  mlir::SymbolTableCollection &symbolTableCollection;
+  std::mutex &symbolTableMutex;
+  const DerivativesMap &derivativesMap;
+
 public:
   DerOpRemovePattern(mlir::MLIRContext *context,
                      mlir::SymbolTableCollection &symbolTableCollection,
                      std::mutex &symbolTableMutex,
                      const DerivativesMap &derivativesMap)
       : mlir::OpRewritePattern<DerOp>(context),
-        symbolTableCollection(&symbolTableCollection),
-        symbolTableMutex(&symbolTableMutex), derivativesMap(&derivativesMap) {}
+        symbolTableCollection(symbolTableCollection),
+        symbolTableMutex(symbolTableMutex), derivativesMap(derivativesMap) {}
 
   mlir::LogicalResult
   matchAndRewrite(DerOp op, mlir::PatternRewriter &rewriter) const override {
@@ -501,7 +505,7 @@ public:
     }
 
     mlir::SymbolRefAttr variableName = getSymbolRefFromPath(symbols);
-    auto derivativeName = derivativesMap->getDerivative(variableName);
+    auto derivativeName = derivativesMap.getDerivative(variableName);
 
     if (!derivativeName) {
       return mlir::failure();
@@ -529,14 +533,9 @@ public:
 private:
   VariableOp resolveVariable(ModelOp modelOp,
                              mlir::SymbolRefAttr variable) const {
-    std::lock_guard<std::mutex> lock(*symbolTableMutex);
-    return ::resolveVariable(modelOp, *symbolTableCollection, variable);
+    std::lock_guard<std::mutex> lock(symbolTableMutex);
+    return ::resolveVariable(modelOp, symbolTableCollection, variable);
   }
-
-private:
-  mlir::SymbolTableCollection *symbolTableCollection;
-  std::mutex *symbolTableMutex;
-  const DerivativesMap *derivativesMap;
 };
 } // namespace
 
