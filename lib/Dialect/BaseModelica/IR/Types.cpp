@@ -543,6 +543,11 @@ VariableType VariableType::wrap(mlir::Type type,
                              arrayType.getMemorySpace());
   }
 
+  if (auto tensorType = mlir::dyn_cast<mlir::TensorType>(type)) {
+    return VariableType::get(tensorType.getShape(), tensorType.getElementType(),
+                             variabilityProperty, ioProperty);
+  }
+
   return VariableType::get({}, type, variabilityProperty, ioProperty);
 }
 
