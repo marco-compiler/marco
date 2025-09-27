@@ -1,7 +1,7 @@
 #ifndef MARCO_CODEGEN_LOWERING_RECORDLOWERER_H
 #define MARCO_CODEGEN_LOWERING_RECORDLOWERER_H
 
-#include "marco/AST/AST.h"
+#include "marco/AST/BaseModelica/AST.h"
 #include "marco/Codegen/Lowering/BridgeInterface.h"
 #include "marco/Codegen/Lowering/Lowerer.h"
 
@@ -10,11 +10,12 @@ class RecordLowerer : public Lowerer {
 public:
   explicit RecordLowerer(BridgeInterface *bridge);
 
-  void declare(const ast::Record &record) override;
+  void declare(const ast::bmodelica::Record &record) override;
 
-  [[nodiscard]] bool declareVariables(const ast::Record &record) override;
+  [[nodiscard]] bool
+  declareVariables(const ast::bmodelica::Record &record) override;
 
-  [[nodiscard]] bool lower(const ast::Record &record) override;
+  [[nodiscard]] bool lower(const ast::bmodelica::Record &record) override;
 
 protected:
   using Lowerer::declare;

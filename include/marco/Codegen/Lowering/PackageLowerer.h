@@ -1,7 +1,7 @@
 #ifndef MARCO_CODEGEN_LOWERING_PACKAGELOWERER_H
 #define MARCO_CODEGEN_LOWERING_PACKAGELOWERER_H
 
-#include "marco/AST/AST.h"
+#include "marco/AST/BaseModelica/AST.h"
 #include "marco/Codegen/Lowering/BridgeInterface.h"
 #include "marco/Codegen/Lowering/Lowerer.h"
 
@@ -10,11 +10,12 @@ class PackageLowerer : public Lowerer {
 public:
   explicit PackageLowerer(BridgeInterface *bridge);
 
-  void declare(const ast::Package &package) override;
+  void declare(const ast::bmodelica::Package &package) override;
 
-  [[nodiscard]] bool declareVariables(const ast::Package &package) override;
+  [[nodiscard]] bool
+  declareVariables(const ast::bmodelica::Package &package) override;
 
-  [[nodiscard]] bool lower(const ast::Package &package) override;
+  [[nodiscard]] bool lower(const ast::bmodelica::Package &package) override;
 
 protected:
   using Lowerer::declare;

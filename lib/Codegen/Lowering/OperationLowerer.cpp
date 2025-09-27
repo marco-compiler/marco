@@ -8,77 +8,77 @@ namespace marco::codegen::lowering {
 OperationLowerer::OperationLowerer(BridgeInterface *bridge) : Lowerer(bridge) {}
 
 std::optional<Results>
-OperationLowerer::lower(const ast::Operation &operation) {
-  auto lowererFn =
-      [](ast::OperationKind kind) -> OperationLowerer::LoweringFunction {
+OperationLowerer::lower(const ast::bmodelica::Operation &operation) {
+  auto lowererFn = [](ast::bmodelica::OperationKind kind)
+      -> OperationLowerer::LoweringFunction {
     switch (kind) {
-    case ast::OperationKind::negate:
+    case ast::bmodelica::OperationKind::negate:
       return &OperationLowerer::negate;
 
-    case ast::OperationKind::add:
+    case ast::bmodelica::OperationKind::add:
       return &OperationLowerer::add;
 
-    case ast::OperationKind::addEW:
+    case ast::bmodelica::OperationKind::addEW:
       return &OperationLowerer::addEW;
 
-    case ast::OperationKind::subtract:
+    case ast::bmodelica::OperationKind::subtract:
       return &OperationLowerer::subtract;
 
-    case ast::OperationKind::subtractEW:
+    case ast::bmodelica::OperationKind::subtractEW:
       return &OperationLowerer::subtractEW;
 
-    case ast::OperationKind::multiply:
+    case ast::bmodelica::OperationKind::multiply:
       return &OperationLowerer::multiply;
 
-    case ast::OperationKind::multiplyEW:
+    case ast::bmodelica::OperationKind::multiplyEW:
       return &OperationLowerer::multiplyEW;
 
-    case ast::OperationKind::divide:
+    case ast::bmodelica::OperationKind::divide:
       return &OperationLowerer::divide;
 
-    case ast::OperationKind::divideEW:
+    case ast::bmodelica::OperationKind::divideEW:
       return &OperationLowerer::divideEW;
 
-    case ast::OperationKind::ifelse:
+    case ast::bmodelica::OperationKind::ifelse:
       return &OperationLowerer::ifElse;
 
-    case ast::OperationKind::greater:
+    case ast::bmodelica::OperationKind::greater:
       return &OperationLowerer::greater;
 
-    case ast::OperationKind::greaterEqual:
+    case ast::bmodelica::OperationKind::greaterEqual:
       return &OperationLowerer::greaterOrEqual;
 
-    case ast::OperationKind::equal:
+    case ast::bmodelica::OperationKind::equal:
       return &OperationLowerer::equal;
 
-    case ast::OperationKind::different:
+    case ast::bmodelica::OperationKind::different:
       return &OperationLowerer::notEqual;
 
-    case ast::OperationKind::lessEqual:
+    case ast::bmodelica::OperationKind::lessEqual:
       return &OperationLowerer::lessOrEqual;
 
-    case ast::OperationKind::less:
+    case ast::bmodelica::OperationKind::less:
       return &OperationLowerer::less;
 
-    case ast::OperationKind::land:
+    case ast::bmodelica::OperationKind::land:
       return &OperationLowerer::logicalAnd;
 
-    case ast::OperationKind::lnot:
+    case ast::bmodelica::OperationKind::lnot:
       return &OperationLowerer::logicalNot;
 
-    case ast::OperationKind::lor:
+    case ast::bmodelica::OperationKind::lor:
       return &OperationLowerer::logicalOr;
 
-    case ast::OperationKind::subscription:
+    case ast::bmodelica::OperationKind::subscription:
       return &OperationLowerer::subscription;
 
-    case ast::OperationKind::powerOf:
+    case ast::bmodelica::OperationKind::powerOf:
       return &OperationLowerer::powerOf;
 
-    case ast::OperationKind::powerOfEW:
+    case ast::bmodelica::OperationKind::powerOfEW:
       return &OperationLowerer::powerOfEW;
 
-    case ast::OperationKind::range:
+    case ast::bmodelica::OperationKind::range:
       return &OperationLowerer::range;
 
     default:
@@ -92,7 +92,7 @@ OperationLowerer::lower(const ast::Operation &operation) {
 }
 
 std::optional<mlir::Value>
-OperationLowerer::lowerArg(const ast::Expression &expression) {
+OperationLowerer::lowerArg(const ast::bmodelica::Expression &expression) {
   mlir::Location location = loc(expression.getLocation());
   auto loweredExpression = lower(expression);
   if (!loweredExpression) {
@@ -103,7 +103,7 @@ OperationLowerer::lowerArg(const ast::Expression &expression) {
   return results[0].get(location);
 }
 
-bool OperationLowerer::lowerArgs(const ast::Operation &operation,
+bool OperationLowerer::lowerArgs(const ast::bmodelica::Operation &operation,
                                  llvm::SmallVectorImpl<mlir::Value> &args) {
   for (size_t i = 0, e = operation.getNumOfArguments(); i < e; ++i) {
     auto arg = lowerArg(*operation.getArgument(i));
@@ -116,7 +116,7 @@ bool OperationLowerer::lowerArgs(const ast::Operation &operation,
 }
 
 std::optional<Results>
-OperationLowerer::negate(const ast::Operation &operation) {
+OperationLowerer::negate(const ast::bmodelica::Operation &operation) {
   mlir::Location location = loc(operation.getLocation());
 
   llvm::SmallVector<mlir::Value, 1> args;
@@ -129,7 +129,8 @@ OperationLowerer::negate(const ast::Operation &operation) {
   return Reference::ssa(builder(), result);
 }
 
-std::optional<Results> OperationLowerer::add(const ast::Operation &operation) {
+std::optional<Results>
+OperationLowerer::add(const ast::bmodelica::Operation &operation) {
   mlir::Location location = loc(operation.getLocation());
 
   llvm::SmallVector<mlir::Value, 2> args;
@@ -156,7 +157,7 @@ std::optional<Results> OperationLowerer::add(const ast::Operation &operation) {
 }
 
 std::optional<Results>
-OperationLowerer::addEW(const ast::Operation &operation) {
+OperationLowerer::addEW(const ast::bmodelica::Operation &operation) {
   mlir::Location location = loc(operation.getLocation());
 
   llvm::SmallVector<mlir::Value, 2> args;
@@ -170,7 +171,7 @@ OperationLowerer::addEW(const ast::Operation &operation) {
 }
 
 std::optional<Results>
-OperationLowerer::subtract(const ast::Operation &operation) {
+OperationLowerer::subtract(const ast::bmodelica::Operation &operation) {
   mlir::Location location = loc(operation.getLocation());
 
   llvm::SmallVector<mlir::Value, 2> args;
@@ -184,7 +185,7 @@ OperationLowerer::subtract(const ast::Operation &operation) {
 }
 
 std::optional<Results>
-OperationLowerer::subtractEW(const ast::Operation &operation) {
+OperationLowerer::subtractEW(const ast::bmodelica::Operation &operation) {
   mlir::Location location = loc(operation.getLocation());
 
   llvm::SmallVector<mlir::Value, 2> args;
@@ -198,7 +199,7 @@ OperationLowerer::subtractEW(const ast::Operation &operation) {
 }
 
 std::optional<Results>
-OperationLowerer::multiply(const ast::Operation &operation) {
+OperationLowerer::multiply(const ast::bmodelica::Operation &operation) {
   mlir::Location location = loc(operation.getLocation());
 
   llvm::SmallVector<mlir::Value, 2> args;
@@ -226,7 +227,7 @@ OperationLowerer::multiply(const ast::Operation &operation) {
 }
 
 std::optional<Results>
-OperationLowerer::multiplyEW(const ast::Operation &operation) {
+OperationLowerer::multiplyEW(const ast::bmodelica::Operation &operation) {
   mlir::Location location = loc(operation.getLocation());
 
   llvm::SmallVector<mlir::Value, 2> args;
@@ -240,7 +241,7 @@ OperationLowerer::multiplyEW(const ast::Operation &operation) {
 }
 
 std::optional<Results>
-OperationLowerer::divide(const ast::Operation &operation) {
+OperationLowerer::divide(const ast::bmodelica::Operation &operation) {
   mlir::Location location = loc(operation.getLocation());
 
   llvm::SmallVector<mlir::Value, 2> args;
@@ -254,7 +255,7 @@ OperationLowerer::divide(const ast::Operation &operation) {
 }
 
 std::optional<Results>
-OperationLowerer::divideEW(const ast::Operation &operation) {
+OperationLowerer::divideEW(const ast::bmodelica::Operation &operation) {
   mlir::Location location = loc(operation.getLocation());
 
   llvm::SmallVector<mlir::Value, 2> args;
@@ -268,7 +269,7 @@ OperationLowerer::divideEW(const ast::Operation &operation) {
 }
 
 std::optional<Results>
-OperationLowerer::ifElse(const ast::Operation &operation) {
+OperationLowerer::ifElse(const ast::bmodelica::Operation &operation) {
   mlir::Location location = loc(operation.getLocation());
 
   std::optional<mlir::Value> condition = lowerArg(*operation.getArgument(0));
@@ -322,7 +323,7 @@ OperationLowerer::ifElse(const ast::Operation &operation) {
 }
 
 std::optional<Results>
-OperationLowerer::greater(const ast::Operation &operation) {
+OperationLowerer::greater(const ast::bmodelica::Operation &operation) {
   mlir::Location location = loc(operation.getLocation());
 
   llvm::SmallVector<mlir::Value, 2> args;
@@ -336,7 +337,7 @@ OperationLowerer::greater(const ast::Operation &operation) {
 }
 
 std::optional<Results>
-OperationLowerer::greaterOrEqual(const ast::Operation &operation) {
+OperationLowerer::greaterOrEqual(const ast::bmodelica::Operation &operation) {
   mlir::Location location = loc(operation.getLocation());
 
   llvm::SmallVector<mlir::Value, 2> args;
@@ -350,7 +351,7 @@ OperationLowerer::greaterOrEqual(const ast::Operation &operation) {
 }
 
 std::optional<Results>
-OperationLowerer::equal(const ast::Operation &operation) {
+OperationLowerer::equal(const ast::bmodelica::Operation &operation) {
   mlir::Location location = loc(operation.getLocation());
 
   llvm::SmallVector<mlir::Value, 2> args;
@@ -364,7 +365,7 @@ OperationLowerer::equal(const ast::Operation &operation) {
 }
 
 std::optional<Results>
-OperationLowerer::notEqual(const ast::Operation &operation) {
+OperationLowerer::notEqual(const ast::bmodelica::Operation &operation) {
   mlir::Location location = loc(operation.getLocation());
 
   llvm::SmallVector<mlir::Value, 2> args;
@@ -378,7 +379,7 @@ OperationLowerer::notEqual(const ast::Operation &operation) {
 }
 
 std::optional<Results>
-OperationLowerer::lessOrEqual(const ast::Operation &operation) {
+OperationLowerer::lessOrEqual(const ast::bmodelica::Operation &operation) {
   mlir::Location location = loc(operation.getLocation());
 
   llvm::SmallVector<mlir::Value, 2> args;
@@ -391,7 +392,8 @@ OperationLowerer::lessOrEqual(const ast::Operation &operation) {
   return Reference::ssa(builder(), result);
 }
 
-std::optional<Results> OperationLowerer::less(const ast::Operation &operation) {
+std::optional<Results>
+OperationLowerer::less(const ast::bmodelica::Operation &operation) {
   mlir::Location location = loc(operation.getLocation());
 
   llvm::SmallVector<mlir::Value, 2> args;
@@ -405,7 +407,7 @@ std::optional<Results> OperationLowerer::less(const ast::Operation &operation) {
 }
 
 std::optional<Results>
-OperationLowerer::logicalAnd(const ast::Operation &operation) {
+OperationLowerer::logicalAnd(const ast::bmodelica::Operation &operation) {
   mlir::Location location = loc(operation.getLocation());
 
   llvm::SmallVector<mlir::Value, 2> args;
@@ -419,7 +421,7 @@ OperationLowerer::logicalAnd(const ast::Operation &operation) {
 }
 
 std::optional<Results>
-OperationLowerer::logicalNot(const ast::Operation &operation) {
+OperationLowerer::logicalNot(const ast::bmodelica::Operation &operation) {
   mlir::Location location = loc(operation.getLocation());
 
   llvm::SmallVector<mlir::Value, 2> args;
@@ -433,7 +435,7 @@ OperationLowerer::logicalNot(const ast::Operation &operation) {
 }
 
 std::optional<Results>
-OperationLowerer::logicalOr(const ast::Operation &operation) {
+OperationLowerer::logicalOr(const ast::bmodelica::Operation &operation) {
   mlir::Location location = loc(operation.getLocation());
 
   llvm::SmallVector<mlir::Value, 2> args;
@@ -447,7 +449,7 @@ OperationLowerer::logicalOr(const ast::Operation &operation) {
 }
 
 std::optional<Results>
-OperationLowerer::subscription(const ast::Operation &operation) {
+OperationLowerer::subscription(const ast::bmodelica::Operation &operation) {
   mlir::Location location = loc(operation.getLocation());
   llvm::SmallVector<mlir::Value, 4> args;
 
@@ -470,7 +472,7 @@ OperationLowerer::subscription(const ast::Operation &operation) {
 }
 
 std::optional<Results>
-OperationLowerer::powerOf(const ast::Operation &operation) {
+OperationLowerer::powerOf(const ast::bmodelica::Operation &operation) {
   mlir::Location location = loc(operation.getLocation());
 
   llvm::SmallVector<mlir::Value, 2> args;
@@ -484,7 +486,7 @@ OperationLowerer::powerOf(const ast::Operation &operation) {
 }
 
 std::optional<Results>
-OperationLowerer::powerOfEW(const ast::Operation &operation) {
+OperationLowerer::powerOfEW(const ast::bmodelica::Operation &operation) {
   mlir::Location location = loc(operation.getLocation());
 
   llvm::SmallVector<mlir::Value, 2> args;
@@ -498,7 +500,7 @@ OperationLowerer::powerOfEW(const ast::Operation &operation) {
 }
 
 std::optional<Results>
-OperationLowerer::range(const ast::Operation &operation) {
+OperationLowerer::range(const ast::bmodelica::Operation &operation) {
   mlir::Location location = loc(operation.getLocation());
 
   llvm::SmallVector<mlir::Value, 3> args;

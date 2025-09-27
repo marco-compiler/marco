@@ -8,7 +8,8 @@ namespace marco::codegen::lowering {
 CallStatementLowerer::CallStatementLowerer(BridgeInterface *bridge)
     : Lowerer(bridge) {}
 
-bool CallStatementLowerer::lower(const ast::CallStatement &statement) {
+bool CallStatementLowerer::lower(
+    const ast::bmodelica::CallStatement &statement) {
   return static_cast<bool>(lower(*statement.getCall()));
 }
 } // namespace marco::codegen::lowering

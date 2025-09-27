@@ -1,7 +1,7 @@
 #ifndef MARCO_CODEGEN_LOWERING_CONSTANTLOWERER_H
 #define MARCO_CODEGEN_LOWERING_CONSTANTLOWERER_H
 
-#include "marco/AST/AST.h"
+#include "marco/AST/BaseModelica/AST.h"
 #include "marco/Codegen/Lowering/BridgeInterface.h"
 #include "marco/Codegen/Lowering/Lowerer.h"
 #include <string>
@@ -11,7 +11,8 @@ class ConstantLowerer : public Lowerer {
 public:
   explicit ConstantLowerer(BridgeInterface *bridge);
 
-  std::optional<Results> lower(const ast::Constant &constant) override;
+  std::optional<Results>
+  lower(const ast::bmodelica::Constant &constant) override;
 
   mlir::TypedAttr operator()(bool value);
   mlir::TypedAttr operator()(int64_t value);

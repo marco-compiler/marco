@@ -7,7 +7,7 @@ using namespace ::mlir::bmodelica;
 namespace marco::codegen::lowering {
 PackageLowerer::PackageLowerer(BridgeInterface *bridge) : Lowerer(bridge) {}
 
-void PackageLowerer::declare(const ast::Package &package) {
+void PackageLowerer::declare(const ast::bmodelica::Package &package) {
   mlir::Location location = loc(package.getLocation());
 
   // Create the package operation.
@@ -18,11 +18,11 @@ void PackageLowerer::declare(const ast::Package &package) {
 
   // Declare the inner classes.
   for (const auto &innerClassNode : package.getInnerClasses()) {
-    declare(*innerClassNode->cast<ast::Class>());
+    declare(*innerClassNode->cast<ast::bmodelica::Class>());
   }
 }
 
-bool PackageLowerer::declareVariables(const ast::Package &package) {
+bool PackageLowerer::declareVariables(const ast::bmodelica::Package &package) {
   mlir::OpBuilder::InsertionGuard guard(builder());
   LookupScopeGuard lookupScopeGuard(&getContext());
 
@@ -33,14 +33,14 @@ bool PackageLowerer::declareVariables(const ast::Package &package) {
 
   // Declare the variables.
   for (const auto &variable : package.getVariables()) {
-    if (!declare(*variable->cast<ast::Member>())) {
+    if (!declare(*variable->cast<ast::bmodelica::Member>())) {
       return false;
     }
   }
 
   // Declare the variables of inner classes.
   for (const auto &innerClassNode : package.getInnerClasses()) {
-    if (!declareVariables(*innerClassNode->cast<ast::Class>())) {
+    if (!declareVariables(*innerClassNode->cast<ast::bmodelica::Class>())) {
       return false;
     }
   }
@@ -48,7 +48,7 @@ bool PackageLowerer::declareVariables(const ast::Package &package) {
   return true;
 }
 
-bool PackageLowerer::lower(const ast::Package &package) {
+bool PackageLowerer::lower(const ast::bmodelica::Package &package) {
   mlir::OpBuilder::InsertionGuard guard(builder());
 
   VariablesSymbolTable::VariablesScope varScope(getVariablesSymbolTable());
@@ -75,14 +75,14 @@ bool PackageLowerer::lower(const ast::Package &package) {
   }
 
   // Create the algorithms.
-  llvm::SmallVector<const ast::Algorithm *> initialAlgorithms;
-  llvm::SmallVector<const ast::Algorithm *> algorithms;
+  llvm::SmallVector<const ast::bmodelica::Algorithm *> initialAlgorithms;
+  llvm::SmallVector<const ast::bmodelica::Algorithm *> algorithms;
 
   for (const auto &algorithm : package.getAlgorithms()) {
-    if (algorithm->cast<ast::Algorithm>()->isInitial()) {
-      initialAlgorithms.push_back(algorithm->cast<ast::Algorithm>());
+    if (algorithm->cast<ast::bmodelica::Algorithm>()->isInitial()) {
+      initialAlgorithms.push_back(algorithm->cast<ast::bmodelica::Algorithm>());
     } else {
-      algorithms.push_back(algorithm->cast<ast::Algorithm>());
+      algorithms.push_back(algorithm->cast<ast::bmodelica::Algorithm>());
     }
   }
 
@@ -116,7 +116,7 @@ bool PackageLowerer::lower(const ast::Package &package) {
 
   // Lower the inner classes.
   for (const auto &innerClassNode : package.getInnerClasses()) {
-    if (!lower(*innerClassNode->cast<ast::Class>())) {
+    if (!lower(*innerClassNode->cast<ast::bmodelica::Class>())) {
       return false;
     }
   }

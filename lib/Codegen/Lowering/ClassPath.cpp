@@ -38,13 +38,17 @@ bool ClassPath::operator<(const ClassPath &other) const {
   return false;
 }
 
-llvm::ArrayRef<const ast::Class *> ClassPath::get() const { return path; }
+llvm::ArrayRef<const ast::bmodelica::Class *> ClassPath::get() const {
+  return path;
+}
 
 size_t ClassPath::size() const { return path.size(); }
 
-void ClassPath::append(const ast::Class &cls) { path.push_back(&cls); }
+void ClassPath::append(const ast::bmodelica::Class &cls) {
+  path.push_back(&cls);
+}
 
-const ast::Class &ClassPath::getLeaf() const {
+const ast::bmodelica::Class &ClassPath::getLeaf() const {
   assert(!path.empty());
   return *path.back();
 }

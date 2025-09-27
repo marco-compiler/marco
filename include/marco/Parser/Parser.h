@@ -1,7 +1,7 @@
 #ifndef MARCO_PARSER_PARSER_H
 #define MARCO_PARSER_PARSER_H
 
-#include "marco/AST/AST.h"
+#include "marco/AST/BaseModelica/AST.h"
 #include "marco/Parser/Location.h"
 #include "marco/Parser/ModelicaStateMachine.h"
 #include "clang/Basic/Diagnostic.h"
@@ -53,7 +53,7 @@ public:
          clang::SourceManager &sourceManager,
          std::shared_ptr<SourceFile> source);
 
-  ParseResult<std::unique_ptr<ast::ASTNode>> parseRoot();
+  ParseResult<std::unique_ptr<ast::bmodelica::ASTNode>> parseRoot();
 
   /// Parse a boolean value.
   WrappedParseResult<bool> parseBoolValue();
@@ -71,177 +71,186 @@ public:
   WrappedParseResult<std::string> parseIdentifier();
 
   /// Parse the 'class-definition' symbol.
-  ParseResult<std::unique_ptr<ast::ASTNode>> parseClassDefinition();
+  ParseResult<std::unique_ptr<ast::bmodelica::ASTNode>> parseClassDefinition();
 
   /// Parse the 'external-function-call' symbol.
-  ParseResult<std::unique_ptr<ast::ASTNode>> parseExternalFunctionCall();
+  ParseResult<std::unique_ptr<ast::bmodelica::ASTNode>>
+  parseExternalFunctionCall();
 
   /// Parse the 'modification' symbol.
-  ParseResult<std::unique_ptr<ast::ASTNode>> parseModification();
+  ParseResult<std::unique_ptr<ast::bmodelica::ASTNode>> parseModification();
 
   /// Parse the 'class-modification' symbol.
-  ParseResult<std::unique_ptr<ast::ASTNode>> parseClassModification();
+  ParseResult<std::unique_ptr<ast::bmodelica::ASTNode>>
+  parseClassModification();
 
   /// Parse the 'argument-list' symbol.
-  WrappedParseResult<std::vector<std::unique_ptr<ast::ASTNode>>>
+  WrappedParseResult<std::vector<std::unique_ptr<ast::bmodelica::ASTNode>>>
   parseArgumentList();
 
   /// Parse the 'argument' symbol.
-  ParseResult<std::unique_ptr<ast::ASTNode>> parseArgument();
+  ParseResult<std::unique_ptr<ast::bmodelica::ASTNode>> parseArgument();
 
   /// Parse the 'element-modification' symbol.
-  ParseResult<std::unique_ptr<ast::ASTNode>>
+  ParseResult<std::unique_ptr<ast::bmodelica::ASTNode>>
   parseElementModification(bool each, bool final);
 
   /// Parse the 'element-redeclaration' symbol.
-  ParseResult<std::unique_ptr<ast::ASTNode>> parseElementRedeclaration();
+  ParseResult<std::unique_ptr<ast::bmodelica::ASTNode>>
+  parseElementRedeclaration();
 
   /// Parse the 'element-replaceable' symbol.
-  ParseResult<std::unique_ptr<ast::ASTNode>>
+  ParseResult<std::unique_ptr<ast::bmodelica::ASTNode>>
   parseElementReplaceable(bool each, bool final);
 
   /// Parse the 'algorithm-section' symbol.
-  ParseResult<std::unique_ptr<ast::ASTNode>> parseAlgorithmSection();
+  ParseResult<std::unique_ptr<ast::bmodelica::ASTNode>> parseAlgorithmSection();
 
   /// Parse the 'equation-section' symbol.
-  ParseResult<std::unique_ptr<ast::ASTNode>> parseEquationSection();
+  ParseResult<std::unique_ptr<ast::bmodelica::ASTNode>> parseEquationSection();
 
   /// Parse the 'equation' symbol.
-  ParseResult<std::unique_ptr<ast::ASTNode>> parseEquation();
+  ParseResult<std::unique_ptr<ast::bmodelica::ASTNode>> parseEquation();
 
   /// Parse the 'statement' symbol.
-  ParseResult<std::unique_ptr<ast::ASTNode>> parseStatement();
+  ParseResult<std::unique_ptr<ast::bmodelica::ASTNode>> parseStatement();
 
   /// Parse the 'if-equation' symbol.
-  ParseResult<std::unique_ptr<ast::ASTNode>> parseIfEquation();
+  ParseResult<std::unique_ptr<ast::bmodelica::ASTNode>> parseIfEquation();
 
   /// Parse the 'if-statement' symbol.
-  ParseResult<std::unique_ptr<ast::ASTNode>> parseIfStatement();
+  ParseResult<std::unique_ptr<ast::bmodelica::ASTNode>> parseIfStatement();
 
   /// Parse the 'for-equation' symbol.
-  ParseResult<std::unique_ptr<ast::ASTNode>> parseForEquation();
+  ParseResult<std::unique_ptr<ast::bmodelica::ASTNode>> parseForEquation();
 
   /// Parse the 'for-statement' symbol.
-  ParseResult<std::unique_ptr<ast::ASTNode>> parseForStatement();
+  ParseResult<std::unique_ptr<ast::bmodelica::ASTNode>> parseForStatement();
 
   /// Parse the 'for-indices' symbol.
-  WrappedParseResult<std::vector<std::unique_ptr<ast::ASTNode>>>
+  WrappedParseResult<std::vector<std::unique_ptr<ast::bmodelica::ASTNode>>>
   parseForIndices();
 
   /// Parse the 'for-index' symbol.
-  ParseResult<std::unique_ptr<ast::ASTNode>> parseForIndex();
+  ParseResult<std::unique_ptr<ast::bmodelica::ASTNode>> parseForIndex();
 
   /// Parse the 'while-statement' symbol.
-  ParseResult<std::unique_ptr<ast::ASTNode>> parseWhileStatement();
+  ParseResult<std::unique_ptr<ast::bmodelica::ASTNode>> parseWhileStatement();
 
   /// Parse the 'when-equation' symbol.
-  ParseResult<std::unique_ptr<ast::ASTNode>> parseWhenEquation();
+  ParseResult<std::unique_ptr<ast::bmodelica::ASTNode>> parseWhenEquation();
 
   /// Parse the 'when-statement' symbol.
-  ParseResult<std::unique_ptr<ast::ASTNode>> parseWhenStatement();
+  ParseResult<std::unique_ptr<ast::bmodelica::ASTNode>> parseWhenStatement();
 
   /// Parse the 'expression' symbol.
-  ParseResult<std::unique_ptr<ast::ASTNode>> parseExpression();
+  ParseResult<std::unique_ptr<ast::bmodelica::ASTNode>> parseExpression();
 
   /// Parse the 'simple-expression' symbol.
-  ParseResult<std::unique_ptr<ast::ASTNode>> parseSimpleExpression();
+  ParseResult<std::unique_ptr<ast::bmodelica::ASTNode>> parseSimpleExpression();
 
   /// Parse the 'logical-expression' symbol.
-  ParseResult<std::unique_ptr<ast::ASTNode>> parseLogicalExpression();
+  ParseResult<std::unique_ptr<ast::bmodelica::ASTNode>>
+  parseLogicalExpression();
 
   /// Parse the 'logical-term' symbol.
-  ParseResult<std::unique_ptr<ast::ASTNode>> parseLogicalTerm();
+  ParseResult<std::unique_ptr<ast::bmodelica::ASTNode>> parseLogicalTerm();
 
   /// Parse the 'logical-factor' symbol.
-  ParseResult<std::unique_ptr<ast::ASTNode>> parseLogicalFactor();
+  ParseResult<std::unique_ptr<ast::bmodelica::ASTNode>> parseLogicalFactor();
 
   /// Parse the 'relation' symbol.
-  ParseResult<std::unique_ptr<ast::ASTNode>> parseRelation();
+  ParseResult<std::unique_ptr<ast::bmodelica::ASTNode>> parseRelation();
 
   /// Parse the 'relational-operator' symbol.
-  WrappedParseResult<ast::OperationKind> parseRelationalOperator();
+  WrappedParseResult<ast::bmodelica::OperationKind> parseRelationalOperator();
 
   /// Parse the 'arithmetic-expression' symbol.
-  ParseResult<std::unique_ptr<ast::ASTNode>> parseArithmeticExpression();
+  ParseResult<std::unique_ptr<ast::bmodelica::ASTNode>>
+  parseArithmeticExpression();
 
   /// Parse the 'add-operator' symbol.
-  WrappedParseResult<ast::OperationKind> parseAddOperator();
+  WrappedParseResult<ast::bmodelica::OperationKind> parseAddOperator();
 
   /// Parse the 'term' symbol.
-  ParseResult<std::unique_ptr<ast::ASTNode>> parseTerm();
+  ParseResult<std::unique_ptr<ast::bmodelica::ASTNode>> parseTerm();
 
   /// Parse the 'mul-operator' symbol.
-  WrappedParseResult<ast::OperationKind> parseMulOperator();
+  WrappedParseResult<ast::bmodelica::OperationKind> parseMulOperator();
 
   /// Parse the 'factor' symbol.
-  ParseResult<std::unique_ptr<ast::ASTNode>> parseFactor();
+  ParseResult<std::unique_ptr<ast::bmodelica::ASTNode>> parseFactor();
 
   /// Parse the 'primary' symbol.
-  ParseResult<std::unique_ptr<ast::ASTNode>> parsePrimary();
+  ParseResult<std::unique_ptr<ast::bmodelica::ASTNode>> parsePrimary();
 
   /// Parse the 'component-reference' symbol.
-  ParseResult<std::unique_ptr<ast::ASTNode>> parseComponentReference();
+  ParseResult<std::unique_ptr<ast::bmodelica::ASTNode>>
+  parseComponentReference();
 
-  ParseResult<std::unique_ptr<ast::ASTNode>> parseComponentReferenceEntry();
+  ParseResult<std::unique_ptr<ast::bmodelica::ASTNode>>
+  parseComponentReferenceEntry();
 
   /// Parse the 'function-call-args' symbol.
-  WrappedParseResult<std::vector<std::unique_ptr<ast::ASTNode>>>
+  WrappedParseResult<std::vector<std::unique_ptr<ast::bmodelica::ASTNode>>>
   parseFunctionCallArgs();
 
   /// Parse the 'function-arguments' symbol.
-  WrappedParseResult<std::vector<std::unique_ptr<ast::ASTNode>>>
+  WrappedParseResult<std::vector<std::unique_ptr<ast::bmodelica::ASTNode>>>
   parseFunctionArguments();
 
   /// Parse the 'function-arguments-non-first' symbol.
-  WrappedParseResult<std::vector<std::unique_ptr<ast::ASTNode>>>
+  WrappedParseResult<std::vector<std::unique_ptr<ast::bmodelica::ASTNode>>>
   parseFunctionArgumentsNonFirst();
 
   /// Parse the 'array-arguments' symbol.
-  ParseResult<std::pair<std::vector<std::unique_ptr<ast::ASTNode>>,
-                        std::vector<std::unique_ptr<ast::ASTNode>>>>
+  ParseResult<std::pair<std::vector<std::unique_ptr<ast::bmodelica::ASTNode>>,
+                        std::vector<std::unique_ptr<ast::bmodelica::ASTNode>>>>
   parseArrayArguments();
 
   /// Parse the 'array-arguments-non-first' symbol.
-  WrappedParseResult<std::vector<std::unique_ptr<ast::ASTNode>>>
+  WrappedParseResult<std::vector<std::unique_ptr<ast::bmodelica::ASTNode>>>
   parseArrayArgumentsNonFirst();
 
   /// Parse the 'named-arguments' symbol.
-  WrappedParseResult<std::vector<std::unique_ptr<ast::ASTNode>>>
+  WrappedParseResult<std::vector<std::unique_ptr<ast::bmodelica::ASTNode>>>
   parseNamedArguments();
 
   /// Parse the 'named-argument' symbol.
-  ParseResult<std::unique_ptr<ast::ASTNode>> parseNamedArgument();
+  ParseResult<std::unique_ptr<ast::bmodelica::ASTNode>> parseNamedArgument();
 
   /// Parse the 'function-argument' symbol.
-  ParseResult<std::unique_ptr<ast::ASTNode>> parseFunctionArgument();
+  ParseResult<std::unique_ptr<ast::bmodelica::ASTNode>> parseFunctionArgument();
 
   /// Parse the 'output-expression-list' symbol.
-  WrappedParseResult<std::vector<std::unique_ptr<ast::ASTNode>>>
+  WrappedParseResult<std::vector<std::unique_ptr<ast::bmodelica::ASTNode>>>
   parseOutputExpressionList();
 
   /// Parse the 'array-subscripts' symbol.
-  WrappedParseResult<std::vector<std::unique_ptr<ast::ASTNode>>>
+  WrappedParseResult<std::vector<std::unique_ptr<ast::bmodelica::ASTNode>>>
   parseArraySubscripts();
 
   /// Parse the 'subscript' symbol.
-  ParseResult<std::unique_ptr<ast::ASTNode>> parseSubscript();
+  ParseResult<std::unique_ptr<ast::bmodelica::ASTNode>> parseSubscript();
 
   /// Parse the 'annotation' symbol.
-  ParseResult<std::unique_ptr<ast::ASTNode>> parseAnnotation();
+  ParseResult<std::unique_ptr<ast::bmodelica::ASTNode>> parseAnnotation();
 
 private:
-  std::optional<std::vector<std::unique_ptr<ast::ASTNode>>>
+  std::optional<std::vector<std::unique_ptr<ast::bmodelica::ASTNode>>>
   parseElementList(bool publicSection);
 
-  std::optional<std::unique_ptr<ast::ASTNode>> parseElement(bool publicSection);
+  std::optional<std::unique_ptr<ast::bmodelica::ASTNode>>
+  parseElement(bool publicSection);
 
-  std::optional<std::unique_ptr<ast::ASTNode>> parseTypePrefix();
+  std::optional<std::unique_ptr<ast::bmodelica::ASTNode>> parseTypePrefix();
 
-  std::optional<std::unique_ptr<ast::ASTNode>> parseVariableType();
+  std::optional<std::unique_ptr<ast::bmodelica::ASTNode>> parseVariableType();
 
-  std::optional<std::unique_ptr<ast::ASTNode>> parseArrayDimension();
+  std::optional<std::unique_ptr<ast::bmodelica::ASTNode>> parseArrayDimension();
 
-  std::optional<std::unique_ptr<ast::ASTNode>> parseTermModification();
+  std::optional<std::unique_ptr<ast::bmodelica::ASTNode>>
+  parseTermModification();
 
 private:
   /// Move to the next token.

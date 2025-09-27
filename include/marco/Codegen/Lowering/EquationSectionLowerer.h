@@ -1,7 +1,7 @@
 #ifndef MARCO_CODEGEN_LOWERING_EQUATIONSECTIONLOWERER_H
 #define MARCO_CODEGEN_LOWERING_EQUATIONSECTIONLOWERER_H
 
-#include "marco/AST/AST.h"
+#include "marco/AST/BaseModelica/AST.h"
 #include "marco/Codegen/Lowering/BridgeInterface.h"
 #include "marco/Codegen/Lowering/Lowerer.h"
 
@@ -11,7 +11,7 @@ public:
   explicit EquationSectionLowerer(BridgeInterface *bridge);
 
   [[nodiscard]] bool
-  lower(const ast::EquationSection &equationSection) override;
+  lower(const ast::bmodelica::EquationSection &equationSection) override;
 
 protected:
   using Lowerer::lower;

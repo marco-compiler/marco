@@ -1,7 +1,7 @@
 #ifndef MARCO_CODEGEN_LOWERING_COMPONENTREFERENCELOWERER_H
 #define MARCO_CODEGEN_LOWERING_COMPONENTREFERENCELOWERER_H
 
-#include "marco/AST/AST.h"
+#include "marco/AST/BaseModelica/AST.h"
 #include "marco/Codegen/Lowering/BridgeInterface.h"
 #include "marco/Codegen/Lowering/Lowerer.h"
 
@@ -11,11 +11,12 @@ public:
   explicit ComponentReferenceLowerer(BridgeInterface *bridge);
 
   std::optional<Results>
-  lower(const ast::ComponentReference &componentReference) override;
+  lower(const ast::bmodelica::ComponentReference &componentReference) override;
 
 private:
   std::optional<Reference>
-  lowerSubscripts(Reference current, const ast::ComponentReferenceEntry &entry,
+  lowerSubscripts(Reference current,
+                  const ast::bmodelica::ComponentReferenceEntry &entry,
                   bool isFirst, bool isLast);
 
 protected:

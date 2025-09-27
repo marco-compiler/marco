@@ -8,7 +8,8 @@ namespace marco::codegen::lowering {
 StandardFunctionLowerer::StandardFunctionLowerer(BridgeInterface *bridge)
     : Lowerer(bridge) {}
 
-void StandardFunctionLowerer::declare(const ast::StandardFunction &function) {
+void StandardFunctionLowerer::declare(
+    const ast::bmodelica::StandardFunction &function) {
   mlir::Location location = loc(function.getLocation());
 
   // Create the record operation.
@@ -20,12 +21,12 @@ void StandardFunctionLowerer::declare(const ast::StandardFunction &function) {
 
   // Declare the inner classes.
   for (const auto &innerClassNode : function.getInnerClasses()) {
-    declare(*innerClassNode->cast<ast::Class>());
+    declare(*innerClassNode->cast<ast::bmodelica::Class>());
   }
 }
 
 bool StandardFunctionLowerer::declareVariables(
-    const ast::StandardFunction &function) {
+    const ast::bmodelica::StandardFunction &function) {
   mlir::OpBuilder::InsertionGuard guard(builder());
   LookupScopeGuard lookupScopeGuard(&getContext());
 
@@ -36,14 +37,14 @@ bool StandardFunctionLowerer::declareVariables(
 
   // Declare the variables.
   for (const auto &variable : function.getVariables()) {
-    if (!declare(*variable->cast<ast::Member>())) {
+    if (!declare(*variable->cast<ast::bmodelica::Member>())) {
       return false;
     }
   }
 
   // Declare the variables of inner classes.
   for (const auto &innerClassNode : function.getInnerClasses()) {
-    if (!declareVariables(*innerClassNode->cast<ast::Class>())) {
+    if (!declareVariables(*innerClassNode->cast<ast::bmodelica::Class>())) {
       return false;
     }
   }
@@ -51,7 +52,8 @@ bool StandardFunctionLowerer::declareVariables(
   return true;
 }
 
-bool StandardFunctionLowerer::lower(const ast::StandardFunction &function) {
+bool StandardFunctionLowerer::lower(
+    const ast::bmodelica::StandardFunction &function) {
   mlir::OpBuilder::InsertionGuard guard(builder());
 
   VariablesSymbolTable::VariablesScope varScope(getVariablesSymbolTable());
@@ -155,7 +157,7 @@ bool StandardFunctionLowerer::lower(const ast::StandardFunction &function) {
 
   // Create the default values for variables.
   for (const auto &variable : function.getVariables()) {
-    if (!lowerVariableDefaultValue(*variable->cast<ast::Member>())) {
+    if (!lowerVariableDefaultValue(*variable->cast<ast::bmodelica::Member>())) {
       return false;
     }
   }
@@ -167,7 +169,7 @@ bool StandardFunctionLowerer::lower(const ast::StandardFunction &function) {
 
   // Create the algorithms.
   for (const auto &algorithm : function.getAlgorithms()) {
-    if (!lower(*algorithm->cast<ast::Algorithm>())) {
+    if (!lower(*algorithm->cast<ast::bmodelica::Algorithm>())) {
       return false;
     }
   }
@@ -216,7 +218,7 @@ bool StandardFunctionLowerer::lower(const ast::StandardFunction &function) {
 
   // Lower the inner classes.
   for (const auto &innerClassNode : function.getInnerClasses()) {
-    if (!lower(*innerClassNode->cast<ast::Class>())) {
+    if (!lower(*innerClassNode->cast<ast::bmodelica::Class>())) {
       return false;
     }
   }
@@ -225,12 +227,12 @@ bool StandardFunctionLowerer::lower(const ast::StandardFunction &function) {
 }
 
 bool StandardFunctionLowerer::lowerVariableDefaultValue(
-    const ast::Member &variable) {
+    const ast::bmodelica::Member &variable) {
   if (!variable.hasExpression()) {
     return true;
   }
 
-  const ast::Expression *expression = variable.getExpression();
+  const ast::bmodelica::Expression *expression = variable.getExpression();
 
   mlir::Location expressionLoc = loc(expression->getLocation());
 
@@ -251,13 +253,14 @@ bool StandardFunctionLowerer::lowerVariableDefaultValue(
 }
 
 bool StandardFunctionLowerer::isRecordConstructor(
-    const ast::StandardFunction &function) {
+    const ast::bmodelica::StandardFunction &function) {
   return function.getName().contains("'constructor'");
 }
 
 bool StandardFunctionLowerer::lowerExternalFunctionCall(
     llvm::StringRef language,
-    const ast::ExternalFunctionCall &externalFunctionCall, FunctionOp funcOp) {
+    const ast::bmodelica::ExternalFunctionCall &externalFunctionCall,
+    FunctionOp funcOp) {
   mlir::SymbolTable symbolTable(funcOp);
 
   auto algorithmOp =
@@ -271,8 +274,9 @@ bool StandardFunctionLowerer::lowerExternalFunctionCall(
     // needed for the result of the external function call.
     builder().setInsertionPointToStart(&algorithmOp.getBodyRegion().front());
 
-    auto loweredDestination = lower(*externalFunctionCall.getDestination()
-                                         ->cast<ast::ComponentReference>());
+    auto loweredDestination =
+        lower(*externalFunctionCall.getDestination()
+                   ->cast<ast::bmodelica::ComponentReference>());
 
     if (!loweredDestination) {
       return false;
@@ -290,11 +294,13 @@ bool StandardFunctionLowerer::lowerExternalFunctionCall(
   builder().setInsertionPointToStart(&algorithmOp.getBodyRegion().front());
   llvm::SmallVector<mlir::Value> callArgs;
 
-  llvm::SmallVector<std::pair<ast::ComponentReference *, mlir::Value>>
+  llvm::SmallVector<
+      std::pair<ast::bmodelica::ComponentReference *, mlir::Value>>
       temporaryArrays;
 
   for (const auto &arg : externalFunctionCall.getArguments()) {
-    if (auto componentReference = arg->dyn_cast<ast::ComponentReference>()) {
+    if (auto componentReference =
+            arg->dyn_cast<ast::bmodelica::ComponentReference>()) {
       // Special handling for protected and output variables, which can be
       // modified by the external function.
       auto variableOp = symbolTable.lookup<VariableOp>(
@@ -310,7 +316,7 @@ bool StandardFunctionLowerer::lowerExternalFunctionCall(
 
       if (!variableOp.isInput() && variableOp.getVariableType().isScalar()) {
         // Extract the previous value and store it into temporary memory.
-        auto loweredArg = lower(*arg->cast<ast::Expression>());
+        auto loweredArg = lower(*arg->cast<ast::bmodelica::Expression>());
 
         if (!loweredArg) {
           return false;
@@ -331,7 +337,7 @@ bool StandardFunctionLowerer::lowerExternalFunctionCall(
     }
 
     // Read-only argument.
-    auto loweredArg = lower(*arg->cast<ast::Expression>());
+    auto loweredArg = lower(*arg->cast<ast::bmodelica::Expression>());
 
     if (!loweredArg) {
       return false;
@@ -370,7 +376,8 @@ bool StandardFunctionLowerer::lowerExternalFunctionCall(
   if (externalFunctionCall.hasDestination()) {
     return this->lowerAssignmentToComponentReference(
         loc(externalFunctionCall.getLocation()),
-        *externalFunctionCall.getDestination()->cast<ast::ComponentReference>(),
+        *externalFunctionCall.getDestination()
+             ->cast<ast::bmodelica::ComponentReference>(),
         callOp.getResult(0));
   }
 
@@ -378,7 +385,7 @@ bool StandardFunctionLowerer::lowerExternalFunctionCall(
 }
 
 bool StandardFunctionLowerer::createImplicitExternalFunctionCall(
-    const ast::Function &function) {
+    const ast::bmodelica::Function &function) {
   auto algorithmOp = builder().create<AlgorithmOp>(loc(function.getLocation()));
 
   builder().createBlock(&algorithmOp.getBodyRegion());
@@ -389,7 +396,7 @@ bool StandardFunctionLowerer::createImplicitExternalFunctionCall(
   builder().setInsertionPointToStart(&algorithmOp.getBodyRegion().front());
 
   for (const auto &variable : function.getVariables()) {
-    if (variable->cast<ast::Member>()->isOutput()) {
+    if (variable->cast<ast::bmodelica::Member>()->isOutput()) {
       if (!expectedResultTypes.empty()) {
         // Multiple output variables are not supported for implicit external
         // function calls.
@@ -401,7 +408,7 @@ bool StandardFunctionLowerer::createImplicitExternalFunctionCall(
       }
 
       expectedResultTypes.push_back(
-          lookupVariable(variable->cast<ast::Member>()->getName())
+          lookupVariable(variable->cast<ast::bmodelica::Member>()->getName())
               ->get(loc(variable->getLocation()))
               .getType());
     }
@@ -414,11 +421,12 @@ bool StandardFunctionLowerer::createImplicitExternalFunctionCall(
   llvm::SmallVector<mlir::Value> callArgs;
 
   for (const auto &variable : function.getVariables()) {
-    if (variable->cast<ast::Member>()->isOutput()) {
+    if (variable->cast<ast::bmodelica::Member>()->isOutput()) {
       continue;
     }
 
-    auto variableRef = lookupVariable(variable->cast<ast::Member>()->getName());
+    auto variableRef =
+        lookupVariable(variable->cast<ast::bmodelica::Member>()->getName());
     callArgs.push_back(variableRef->get(variableRef->getLoc()));
   }
 
@@ -430,8 +438,8 @@ bool StandardFunctionLowerer::createImplicitExternalFunctionCall(
   ;
 
   for (const auto &variable : function.getVariables()) {
-    if (variable->cast<ast::Member>()->isOutput()) {
-      lookupVariable(variable->cast<ast::Member>()->getName())
+    if (variable->cast<ast::bmodelica::Member>()->isOutput()) {
+      lookupVariable(variable->cast<ast::bmodelica::Member>()->getName())
           ->set(loc(variable->getLocation()), {}, callOp.getResult(0));
     }
   }

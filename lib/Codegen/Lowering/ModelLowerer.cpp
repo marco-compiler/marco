@@ -7,7 +7,7 @@ using namespace ::mlir::bmodelica;
 namespace marco::codegen::lowering {
 ModelLowerer::ModelLowerer(BridgeInterface *bridge) : Lowerer(bridge) {}
 
-void ModelLowerer::declare(const ast::Model &model) {
+void ModelLowerer::declare(const ast::bmodelica::Model &model) {
   mlir::Location location = loc(model.getLocation());
 
   // Create the model operation.
@@ -19,11 +19,11 @@ void ModelLowerer::declare(const ast::Model &model) {
 
   // Declare the inner classes.
   for (const auto &innerClassNode : model.getInnerClasses()) {
-    declare(*innerClassNode->cast<ast::Class>());
+    declare(*innerClassNode->cast<ast::bmodelica::Class>());
   }
 }
 
-bool ModelLowerer::declareVariables(const ast::Model &model) {
+bool ModelLowerer::declareVariables(const ast::bmodelica::Model &model) {
   mlir::OpBuilder::InsertionGuard guard(builder());
   LookupScopeGuard lookupScopeGuard(&getContext());
 
@@ -34,14 +34,14 @@ bool ModelLowerer::declareVariables(const ast::Model &model) {
 
   // Declare the variables.
   for (const auto &variable : model.getVariables()) {
-    if (!declare(*variable->cast<ast::Member>())) {
+    if (!declare(*variable->cast<ast::bmodelica::Member>())) {
       return false;
     }
   }
 
   // Declare the variables of inner classes.
   for (const auto &innerClassNode : model.getInnerClasses()) {
-    if (!declareVariables(*innerClassNode->cast<ast::Class>())) {
+    if (!declareVariables(*innerClassNode->cast<ast::bmodelica::Class>())) {
       return false;
     }
   }
@@ -49,7 +49,7 @@ bool ModelLowerer::declareVariables(const ast::Model &model) {
   return true;
 }
 
-bool ModelLowerer::lower(const ast::Model &model) {
+bool ModelLowerer::lower(const ast::bmodelica::Model &model) {
   mlir::OpBuilder::InsertionGuard guard(builder());
 
   VariablesSymbolTable::VariablesScope varScope(getVariablesSymbolTable());
@@ -72,7 +72,8 @@ bool ModelLowerer::lower(const ast::Model &model) {
 
   // Create the binding equations.
   for (const auto &variableNode : model.getVariables()) {
-    const ast::Member *variable = variableNode->cast<ast::Member>();
+    const ast::bmodelica::Member *variable =
+        variableNode->cast<ast::bmodelica::Member>();
 
     if (variable->hasModification()) {
       if (const auto *modification = variable->getModification();
@@ -86,7 +87,8 @@ bool ModelLowerer::lower(const ast::Model &model) {
 
   // Lower the attributes of the variables.
   for (const auto &variableNode : model.getVariables()) {
-    const ast::Member *variable = variableNode->cast<ast::Member>();
+    const ast::bmodelica::Member *variable =
+        variableNode->cast<ast::bmodelica::Member>();
     if (!lowerVariableAttributes(modelOp, *variable)) {
       return false;
     }
@@ -98,14 +100,14 @@ bool ModelLowerer::lower(const ast::Model &model) {
   }
 
   // Create the algorithms.
-  llvm::SmallVector<const ast::Algorithm *> initialAlgorithms;
-  llvm::SmallVector<const ast::Algorithm *> algorithms;
+  llvm::SmallVector<const ast::bmodelica::Algorithm *> initialAlgorithms;
+  llvm::SmallVector<const ast::bmodelica::Algorithm *> algorithms;
 
   for (const auto &algorithm : model.getAlgorithms()) {
-    if (algorithm->cast<ast::Algorithm>()->isInitial()) {
-      initialAlgorithms.push_back(algorithm->cast<ast::Algorithm>());
+    if (algorithm->cast<ast::bmodelica::Algorithm>()->isInitial()) {
+      initialAlgorithms.push_back(algorithm->cast<ast::bmodelica::Algorithm>());
     } else {
-      algorithms.push_back(algorithm->cast<ast::Algorithm>());
+      algorithms.push_back(algorithm->cast<ast::bmodelica::Algorithm>());
     }
   }
 
@@ -139,7 +141,7 @@ bool ModelLowerer::lower(const ast::Model &model) {
 
   // Lower the inner classes.
   for (const auto &innerClassNode : model.getInnerClasses()) {
-    if (!lower(*innerClassNode->cast<ast::Class>())) {
+    if (!lower(*innerClassNode->cast<ast::bmodelica::Class>())) {
       return false;
     }
   }
@@ -147,19 +149,19 @@ bool ModelLowerer::lower(const ast::Model &model) {
   return true;
 }
 
-bool ModelLowerer::lowerVariableAttributes(ModelOp modelOp,
-                                           const ast::Member &variable) {
+bool ModelLowerer::lowerVariableAttributes(
+    ModelOp modelOp, const ast::bmodelica::Member &variable) {
   if (!variable.hasModification()) {
     return true;
   }
 
-  const ast::Modification *modification = variable.getModification();
+  const ast::bmodelica::Modification *modification = variable.getModification();
 
   if (!modification->hasClassModification()) {
     return true;
   }
 
-  const ast::ClassModification *classModification =
+  const ast::bmodelica::ClassModification *classModification =
       modification->getClassModification();
 
   if (classModification) {
@@ -183,7 +185,7 @@ bool ModelLowerer::lowerVariableAttributes(ModelOp modelOp,
 
 bool ModelLowerer::lowerVariableAttributes(
     ModelOp modelOp, llvm::SmallVectorImpl<VariableOp> &components,
-    const ast::ClassModification &classModification) {
+    const ast::bmodelica::ClassModification &classModification) {
   assert(!components.empty());
 
   if (classModification.hasStartExpression()) {
@@ -224,10 +226,10 @@ bool ModelLowerer::lowerVariableAttributes(
       components.push_back(recordComponent);
 
       for (const auto &argumentNode : classModification.getArguments()) {
-        const auto *argument = argumentNode->cast<ast::Argument>();
+        const auto *argument = argumentNode->cast<ast::bmodelica::Argument>();
 
         const auto *elementModification =
-            argument->dyn_cast<ast::ElementModification>();
+            argument->dyn_cast<ast::bmodelica::ElementModification>();
 
         if (!elementModification) {
           continue;
@@ -241,14 +243,14 @@ bool ModelLowerer::lowerVariableAttributes(
           continue;
         }
 
-        const ast::Modification *modification =
+        const ast::bmodelica::Modification *modification =
             elementModification->getModification();
 
         if (!modification->hasClassModification()) {
           continue;
         }
 
-        const ast::ClassModification *innerClassModification =
+        const ast::bmodelica::ClassModification *innerClassModification =
             modification->getClassModification();
 
         if (!innerClassModification) {

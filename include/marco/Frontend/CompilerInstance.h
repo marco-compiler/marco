@@ -1,7 +1,7 @@
 #ifndef MARCO_FRONTEND_COMPILERINSTANCE_H
 #define MARCO_FRONTEND_COMPILERINSTANCE_H
 
-#include "marco/AST/AST.h"
+#include "marco/AST/BaseModelica/AST.h"
 #include "marco/Frontend/CompilerInvocation.h"
 #include "marco/Frontend/FrontendAction.h"
 #include "marco/Frontend/SimulationOptions.h"

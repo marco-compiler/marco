@@ -8,7 +8,7 @@ marco_add_library(parser
     ${SOURCES}
 
     LINK_LIBS
-    PUBLIC marco::ast
+    PUBLIC marco::ASTBaseModelica
 
     LINK_COMPONENTS
     Core

@@ -9,17 +9,20 @@ PartialDerFunctionLowerer::PartialDerFunctionLowerer(BridgeInterface *bridge)
     : Lowerer(bridge) {}
 
 void PartialDerFunctionLowerer::declare(
-    const ast::PartialDerFunction &function) {
+    const ast::bmodelica::PartialDerFunction &function) {
   mlir::Location location = loc(function.getLocation());
 
   std::string derivedFunctionName =
-      function.getDerivedFunction()->cast<ast::ComponentReference>()->getName();
+      function.getDerivedFunction()
+          ->cast<ast::bmodelica::ComponentReference>()
+          ->getName();
 
   llvm::SmallVector<mlir::Attribute, 3> independentVariables;
 
   for (const auto &independentVariable : function.getIndependentVariables()) {
     auto independentVariableName =
-        independentVariable->cast<ast::ComponentReference>()->getName();
+        independentVariable->cast<ast::bmodelica::ComponentReference>()
+            ->getName();
 
     independentVariables.push_back(
         builder().getStringAttr(independentVariableName));
@@ -32,12 +35,13 @@ void PartialDerFunctionLowerer::declare(
 }
 
 bool PartialDerFunctionLowerer::declareVariables(
-    const ast::PartialDerFunction &function) {
+    const ast::bmodelica::PartialDerFunction &function) {
   // Nothing to do.
   return true;
 }
 
-bool PartialDerFunctionLowerer::lower(const ast::PartialDerFunction &function) {
+bool PartialDerFunctionLowerer::lower(
+    const ast::bmodelica::PartialDerFunction &function) {
   // Nothing to do.
   return true;
 }

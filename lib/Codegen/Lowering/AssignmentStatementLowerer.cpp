@@ -9,7 +9,7 @@ AssignmentStatementLowerer::AssignmentStatementLowerer(BridgeInterface *bridge)
     : Lowerer(bridge) {}
 
 bool AssignmentStatementLowerer::lower(
-    const ast::AssignmentStatement &statement) {
+    const ast::bmodelica::AssignmentStatement &statement) {
   mlir::Location statementLoc = loc(statement.getLocation());
   const auto *destinations = statement.getDestinations();
 
@@ -24,7 +24,8 @@ bool AssignmentStatementLowerer::lower(
 
   for (size_t i = 0, e = values->size(); i < e; ++i) {
     const auto *destinationRef =
-        destinations->getExpression(i)->cast<ast::ComponentReference>();
+        destinations->getExpression(i)
+            ->cast<ast::bmodelica::ComponentReference>();
 
     if (!lowerAssignmentToComponentReference(statementLoc, *destinationRef,
                                              (*values)[i].get(valuesLoc))) {
@@ -36,8 +37,8 @@ bool AssignmentStatementLowerer::lower(
 }
 
 bool AssignmentStatementLowerer::lowerAssignmentToComponentReference(
-    mlir::Location assignmentLoc, const ast::ComponentReference &destination,
-    mlir::Value value) {
+    mlir::Location assignmentLoc,
+    const ast::bmodelica::ComponentReference &destination, mlir::Value value) {
   size_t pathLength = destination.getPathLength();
 
   llvm::SmallVector<mlir::Attribute> path;
@@ -45,7 +46,7 @@ bool AssignmentStatementLowerer::lowerAssignmentToComponentReference(
   llvm::SmallVector<int64_t> subscriptsAmounts;
 
   for (size_t pathIndex = 0; pathIndex < pathLength; ++pathIndex) {
-    const ast::ComponentReferenceEntry *refEntry =
+    const ast::bmodelica::ComponentReferenceEntry *refEntry =
         destination.getElement(pathIndex);
 
     path.push_back(mlir::FlatSymbolRefAttr::get(builder().getContext(),

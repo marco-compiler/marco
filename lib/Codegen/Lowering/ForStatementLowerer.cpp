@@ -8,7 +8,7 @@ namespace marco::codegen::lowering {
 ForStatementLowerer::ForStatementLowerer(BridgeInterface *bridge)
     : Lowerer(bridge) {}
 
-bool ForStatementLowerer::lower(const ast::ForStatement &statement) {
+bool ForStatementLowerer::lower(const ast::bmodelica::ForStatement &statement) {
   VariablesSymbolTable::VariablesScope varScope(getVariablesSymbolTable());
   mlir::Location location = loc(statement.getLocation());
 
@@ -16,20 +16,28 @@ bool ForStatementLowerer::lower(const ast::ForStatement &statement) {
 
   for (size_t forIndexCount = 0; forIndexCount < numOfForIndices;
        ++forIndexCount) {
-    const ast::ForIndex *forIndex = statement.getForIndex(forIndexCount);
+    const ast::bmodelica::ForIndex *forIndex =
+        statement.getForIndex(forIndexCount);
+
     assert(forIndex->hasExpression());
-    const ast::Expression *forIndexExpression = forIndex->getExpression();
-    assert(forIndexExpression->isa<ast::Operation>());
 
-    const auto *forIndexRange = forIndexExpression->cast<ast::Operation>();
+    const ast::bmodelica::Expression *forIndexExpression =
+        forIndex->getExpression();
 
-    assert(forIndexRange->getOperationKind() == ast::OperationKind::range);
+    assert(forIndexExpression->isa<ast::bmodelica::Operation>());
+
+    const auto *forIndexRange =
+        forIndexExpression->cast<ast::bmodelica::Operation>();
+
+    assert(forIndexRange->getOperationKind() ==
+           ast::bmodelica::OperationKind::range);
 
     mlir::Value inductionVar = builder().create<AllocaOp>(
         location, ArrayType::get({}, builder().getIndexType()),
         mlir::ValueRange());
 
-    const ast::Expression *lowerBoundExp = forIndexRange->getArgument(0);
+    const ast::bmodelica::Expression *lowerBoundExp =
+        forIndexRange->getArgument(0);
     mlir::Location lowerBoundLoc = loc(lowerBoundExp->getLocation());
     auto loweredLowerBoundExp = lower(*lowerBoundExp);
     if (!loweredLowerBoundExp) {
@@ -63,7 +71,8 @@ bool ForStatementLowerer::lower(const ast::ForStatement &statement) {
       mlir::Value inductionValue =
           builder().create<LoadOp>(location, inductionVar);
 
-      const ast::Expression *upperBoundExp = forIndexRange->getArgument(1);
+      const ast::bmodelica::Expression *upperBoundExp =
+          forIndexRange->getArgument(1);
       mlir::Location upperBoundLoc = loc(upperBoundExp->getLocation());
       auto loweredUpperBoundExp = lower(*upperBoundExp);
       if (!loweredUpperBoundExp) {

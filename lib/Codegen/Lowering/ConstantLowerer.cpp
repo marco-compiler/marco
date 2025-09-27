@@ -7,7 +7,8 @@ using namespace ::mlir::bmodelica;
 namespace marco::codegen::lowering {
 ConstantLowerer::ConstantLowerer(BridgeInterface *bridge) : Lowerer(bridge) {}
 
-std::optional<Results> ConstantLowerer::lower(const ast::Constant &constant) {
+std::optional<Results>
+ConstantLowerer::lower(const ast::bmodelica::Constant &constant) {
   mlir::Location location = loc(constant.getLocation());
   mlir::TypedAttr attribute = constant.visit(*this);
   auto result = builder().create<ConstantOp>(location, attribute);

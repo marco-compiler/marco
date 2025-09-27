@@ -5,7 +5,7 @@
 #include "gtest/gtest.h"
 
 using namespace ::marco;
-using namespace ::marco::ast;
+using namespace ::marco::ast::bmodelica;
 using namespace ::marco::parser;
 
 std::unique_ptr<clang::DiagnosticsEngine>

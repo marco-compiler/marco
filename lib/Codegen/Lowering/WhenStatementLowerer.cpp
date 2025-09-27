@@ -8,7 +8,8 @@ namespace marco::codegen::lowering {
 WhenStatementLowerer::WhenStatementLowerer(BridgeInterface *bridge)
     : Lowerer(bridge) {}
 
-bool WhenStatementLowerer::lower(const ast::WhenStatement &statement) {
+bool WhenStatementLowerer::lower(
+    const ast::bmodelica::WhenStatement &statement) {
   llvm_unreachable("When statement is not implemented yet");
   return false;
 }

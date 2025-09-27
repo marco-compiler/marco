@@ -7,7 +7,7 @@ using namespace ::mlir::bmodelica;
 namespace marco::codegen::lowering {
 AlgorithmLowerer::AlgorithmLowerer(BridgeInterface *bridge) : Lowerer(bridge) {}
 
-bool AlgorithmLowerer::lower(const ast::Algorithm &algorithm) {
+bool AlgorithmLowerer::lower(const ast::bmodelica::Algorithm &algorithm) {
   if (algorithm.empty()) {
     return true;
   }

@@ -8,7 +8,7 @@ namespace marco::codegen::lowering {
 SubscriptLowerer::SubscriptLowerer(BridgeInterface *bridge) : Lowerer(bridge) {}
 
 std::optional<Results>
-SubscriptLowerer::lower(const ast::Subscript &subscript) {
+SubscriptLowerer::lower(const ast::bmodelica::Subscript &subscript) {
   mlir::Location location = loc(subscript.getLocation());
 
   if (subscript.isUnbounded()) {

@@ -50,7 +50,7 @@ marco_add_library(Lowering
     ${SOURCES}
 
     LINK_LIBS PUBLIC
-    marco::ast
+    marco::ASTBaseModelica
     marco::modeling
     marco::variableFilter
     marco::Distance

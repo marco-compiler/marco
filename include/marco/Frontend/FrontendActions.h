@@ -1,7 +1,7 @@
 #ifndef MARCO_FRONTEND_FRONTENDACTIONS_H
 #define MARCO_FRONTEND_FRONTENDACTIONS_H
 
-#include "marco/AST/AST.h"
+#include "marco/AST/BaseModelica/AST.h"
 #include "marco/Frontend/DiagnosticHandler.h"
 #include "marco/Frontend/FrontendAction.h"
 #include "marco/IO/InputFile.h"
@@ -66,7 +66,7 @@ private:
   ASTActionKind action;
 
 protected:
-  std::unique_ptr<ast::ASTNode> ast;
+  std::unique_ptr<ast::bmodelica::ASTNode> ast;
 };
 
 class EmitASTAction : public ASTAction {

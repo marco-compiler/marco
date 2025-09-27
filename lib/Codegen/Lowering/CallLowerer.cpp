@@ -8,9 +8,9 @@ using namespace ::mlir::bmodelica;
 namespace marco::codegen::lowering {
 CallLowerer::CallLowerer(BridgeInterface *bridge) : Lowerer(bridge) {}
 
-std::optional<Results> CallLowerer::lower(const ast::Call &call) {
-  const ast::ComponentReference *callee =
-      call.getCallee()->cast<ast::ComponentReference>();
+std::optional<Results> CallLowerer::lower(const ast::bmodelica::Call &call) {
+  const ast::bmodelica::ComponentReference *callee =
+      call.getCallee()->cast<ast::bmodelica::ComponentReference>();
 
   std::optional<mlir::Operation *> calleeOp = resolveCallee(*callee);
 
@@ -113,7 +113,7 @@ std::optional<Results> CallLowerer::lower(const ast::Call &call) {
 }
 
 std::optional<mlir::Operation *>
-CallLowerer::resolveCallee(const ast::ComponentReference &callee) {
+CallLowerer::resolveCallee(const ast::bmodelica::ComponentReference &callee) {
   size_t pathLength = callee.getPathLength();
   assert(callee.getPathLength() > 0);
 
@@ -139,7 +139,7 @@ CallLowerer::resolveCallee(const ast::ComponentReference &callee) {
 }
 
 std::optional<mlir::Value>
-CallLowerer::lowerArg(const ast::Expression &expression) {
+CallLowerer::lowerArg(const ast::bmodelica::Expression &expression) {
   mlir::Location location = loc(expression.getLocation());
   auto loweredExpression = lower(expression);
   if (!loweredExpression) {
@@ -182,13 +182,14 @@ void CallLowerer::getCustomFunctionInputVariables(
 }
 
 bool CallLowerer::lowerCustomFunctionArgs(
-    const ast::Call &call, llvm::ArrayRef<VariableOp> calleeInputs,
+    const ast::bmodelica::Call &call, llvm::ArrayRef<VariableOp> calleeInputs,
     llvm::SmallVectorImpl<std::string> &argNames,
     llvm::SmallVectorImpl<mlir::Value> &argValues) {
   size_t numOfArgs = call.getNumOfArguments();
 
   if (numOfArgs != 0) {
-    if (call.getArgument(0)->dyn_cast<ast::ReductionFunctionArgument>()) {
+    if (call.getArgument(0)
+            ->dyn_cast<ast::bmodelica::ReductionFunctionArgument>()) {
       assert(call.getNumOfArguments() == 1);
       llvm_unreachable("ReductionOp has not been implemented yet");
       return false;
@@ -198,7 +199,7 @@ bool CallLowerer::lowerCustomFunctionArgs(
   bool existsNamedArgument = false;
 
   for (size_t i = 0; i < numOfArgs && !existsNamedArgument; ++i) {
-    if (call.getArgument(i)->isa<ast::NamedFunctionArgument>()) {
+    if (call.getArgument(i)->isa<ast::bmodelica::NamedFunctionArgument>()) {
       existsNamedArgument = true;
     }
   }
@@ -207,9 +208,10 @@ bool CallLowerer::lowerCustomFunctionArgs(
 
   // Process the unnamed arguments.
   while (argIndex < numOfArgs &&
-         !call.getArgument(argIndex)->isa<ast::NamedFunctionArgument>()) {
-    auto arg =
-        call.getArgument(argIndex)->cast<ast::ExpressionFunctionArgument>();
+         !call.getArgument(argIndex)
+              ->isa<ast::bmodelica::NamedFunctionArgument>()) {
+    auto arg = call.getArgument(argIndex)
+                   ->cast<ast::bmodelica::ExpressionFunctionArgument>();
 
     auto argValue = lowerArg(*arg->getExpression());
     if (!argValue) {
@@ -227,11 +229,13 @@ bool CallLowerer::lowerCustomFunctionArgs(
 
   // Process the named arguments.
   while (argIndex < numOfArgs) {
-    auto arg = call.getArgument(argIndex)->cast<ast::NamedFunctionArgument>();
+    auto arg = call.getArgument(argIndex)
+                   ->cast<ast::bmodelica::NamedFunctionArgument>();
 
-    auto argValue = lowerArg(*arg->getValue()
-                                  ->cast<ast::ExpressionFunctionArgument>()
-                                  ->getExpression());
+    auto argValue =
+        lowerArg(*arg->getValue()
+                      ->cast<ast::bmodelica::ExpressionFunctionArgument>()
+                      ->getExpression());
     if (!argValue) {
       return false;
     }
@@ -255,19 +259,19 @@ void CallLowerer::getRecordConstructorInputVariables(
 }
 
 bool CallLowerer::lowerRecordConstructorArgs(
-    const ast::Call &call,
+    const ast::bmodelica::Call &call,
     llvm::ArrayRef<mlir::bmodelica::VariableOp> calleeInputs,
     llvm::SmallVectorImpl<std::string> &argNames,
     llvm::SmallVectorImpl<mlir::Value> &argValues) {
   assert(llvm::none_of(call.getArguments(), [](const auto &arg) {
-    return arg->template isa<ast::ReductionFunctionArgument>();
+    return arg->template isa<ast::bmodelica::ReductionFunctionArgument>();
   }));
 
   size_t numOfArgs = call.getNumOfArguments();
   bool existsNamedArgument = false;
 
   for (size_t i = 0; i < numOfArgs && !existsNamedArgument; ++i) {
-    if (call.getArgument(i)->isa<ast::NamedFunctionArgument>()) {
+    if (call.getArgument(i)->isa<ast::bmodelica::NamedFunctionArgument>()) {
       existsNamedArgument = true;
     }
   }
@@ -276,9 +280,10 @@ bool CallLowerer::lowerRecordConstructorArgs(
 
   // Process the unnamed arguments.
   while (argIndex < numOfArgs &&
-         !call.getArgument(argIndex)->isa<ast::NamedFunctionArgument>()) {
-    auto arg =
-        call.getArgument(argIndex)->cast<ast::ExpressionFunctionArgument>();
+         !call.getArgument(argIndex)
+              ->isa<ast::bmodelica::NamedFunctionArgument>()) {
+    auto arg = call.getArgument(argIndex)
+                   ->cast<ast::bmodelica::ExpressionFunctionArgument>();
 
     auto argValue = lowerArg(*arg->getExpression());
     if (!argValue) {
@@ -296,11 +301,13 @@ bool CallLowerer::lowerRecordConstructorArgs(
 
   // Process the named arguments.
   while (argIndex < numOfArgs) {
-    auto arg = call.getArgument(argIndex)->cast<ast::NamedFunctionArgument>();
+    auto arg = call.getArgument(argIndex)
+                   ->cast<ast::bmodelica::NamedFunctionArgument>();
 
-    auto argValue = lowerArg(*arg->getValue()
-                                  ->cast<ast::ExpressionFunctionArgument>()
-                                  ->getExpression());
+    auto argValue =
+        lowerArg(*arg->getValue()
+                      ->cast<ast::bmodelica::ExpressionFunctionArgument>()
+                      ->getExpression());
     if (!argValue) {
       return false;
     }
@@ -314,15 +321,17 @@ bool CallLowerer::lowerRecordConstructorArgs(
 }
 
 bool CallLowerer::lowerBuiltInFunctionArgs(
-    const ast::Call &call, llvm::SmallVectorImpl<mlir::Value> &args) {
+    const ast::bmodelica::Call &call,
+    llvm::SmallVectorImpl<mlir::Value> &args) {
   assert(llvm::none_of(call.getArguments(), [](const auto &arg) {
-    return arg->template isa<ast::ReductionFunctionArgument>() ||
-           arg->template isa<ast::NamedFunctionArgument>();
+    return arg->template isa<ast::bmodelica::ReductionFunctionArgument>() ||
+           arg->template isa<ast::bmodelica::NamedFunctionArgument>();
   }));
 
   for (size_t i = 0, e = call.getNumOfArguments(); i < e; ++i) {
     auto arg = lowerBuiltInFunctionArg(
-        *call.getArgument(i)->cast<ast::ExpressionFunctionArgument>());
+        *call.getArgument(i)
+             ->cast<ast::bmodelica::ExpressionFunctionArgument>());
     if (!arg) {
       return false;
     }
@@ -332,9 +341,9 @@ bool CallLowerer::lowerBuiltInFunctionArgs(
   return true;
 }
 
-std::optional<mlir::Value>
-CallLowerer::lowerBuiltInFunctionArg(const ast::FunctionArgument &arg) {
-  auto *expressionArg = arg.cast<ast::ExpressionFunctionArgument>();
+std::optional<mlir::Value> CallLowerer::lowerBuiltInFunctionArg(
+    const ast::bmodelica::FunctionArgument &arg) {
+  auto *expressionArg = arg.cast<ast::bmodelica::ExpressionFunctionArgument>();
   return lowerArg(*expressionArg->getExpression());
 }
 
@@ -510,7 +519,7 @@ bool CallLowerer::getVectorizedResultTypes(
 }
 
 bool CallLowerer::isBuiltInFunction(
-    const ast::ComponentReference &functionName) const {
+    const ast::bmodelica::ComponentReference &functionName) const {
   if (functionName.getPathLength() != 1) {
     return false;
   }
@@ -562,9 +571,9 @@ bool CallLowerer::isBuiltInFunction(
 }
 
 std::optional<Results>
-CallLowerer::dispatchBuiltInFunctionCall(const ast::Call &call) {
+CallLowerer::dispatchBuiltInFunctionCall(const ast::bmodelica::Call &call) {
   auto callee = call.getCallee()
-                    ->cast<ast::ComponentReference>()
+                    ->cast<ast::bmodelica::ComponentReference>()
                     ->getElement(0)
                     ->getName();
 
@@ -747,8 +756,10 @@ void CallLowerer::emitErrorNumArgumentsRange(llvm::StringRef function,
   mlir::emitError(loc(location)) << errorString;
 }
 
-std::optional<Results> CallLowerer::abs(const ast::Call &call) {
-  assert(call.getCallee()->cast<ast::ComponentReference>()->getName() == "abs");
+std::optional<Results> CallLowerer::abs(const ast::bmodelica::Call &call) {
+  assert(
+      call.getCallee()->cast<ast::bmodelica::ComponentReference>()->getName() ==
+      "abs");
 
   constexpr unsigned int expectedNumArgs = 1;
   if (call.getNumOfArguments() != expectedNumArgs) {
@@ -784,9 +795,10 @@ std::optional<Results> CallLowerer::abs(const ast::Call &call) {
   return Reference::ssa(builder(), result);
 }
 
-std::optional<Results> CallLowerer::acos(const ast::Call &call) {
-  assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-         "acos");
+std::optional<Results> CallLowerer::acos(const ast::bmodelica::Call &call) {
+  assert(
+      call.getCallee()->cast<ast::bmodelica::ComponentReference>()->getName() ==
+      "acos");
 
   constexpr unsigned int expectedNumArgs = 1;
   if (call.getNumOfArguments() != expectedNumArgs) {
@@ -822,9 +834,10 @@ std::optional<Results> CallLowerer::acos(const ast::Call &call) {
   return Reference::ssa(builder(), result);
 }
 
-std::optional<Results> CallLowerer::asin(const ast::Call &call) {
-  assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-         "asin");
+std::optional<Results> CallLowerer::asin(const ast::bmodelica::Call &call) {
+  assert(
+      call.getCallee()->cast<ast::bmodelica::ComponentReference>()->getName() ==
+      "asin");
 
   constexpr unsigned int expectedNumArgs = 1;
   if (call.getNumOfArguments() != expectedNumArgs) {
@@ -860,9 +873,10 @@ std::optional<Results> CallLowerer::asin(const ast::Call &call) {
   return Reference::ssa(builder(), result);
 }
 
-std::optional<Results> CallLowerer::atan(const ast::Call &call) {
-  assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-         "atan");
+std::optional<Results> CallLowerer::atan(const ast::bmodelica::Call &call) {
+  assert(
+      call.getCallee()->cast<ast::bmodelica::ComponentReference>()->getName() ==
+      "atan");
 
   constexpr unsigned int expectedNumArgs = 1;
   if (call.getNumOfArguments() != expectedNumArgs) {
@@ -898,9 +912,10 @@ std::optional<Results> CallLowerer::atan(const ast::Call &call) {
   return Reference::ssa(builder(), result);
 }
 
-std::optional<Results> CallLowerer::atan2(const ast::Call &call) {
-  assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-         "atan2");
+std::optional<Results> CallLowerer::atan2(const ast::bmodelica::Call &call) {
+  assert(
+      call.getCallee()->cast<ast::bmodelica::ComponentReference>()->getName() ==
+      "atan2");
 
   constexpr unsigned int expectedNumArgs = 2;
   if (call.getNumOfArguments() != expectedNumArgs) {
@@ -936,9 +951,10 @@ std::optional<Results> CallLowerer::atan2(const ast::Call &call) {
   return Reference::ssa(builder(), result);
 }
 
-std::optional<Results> CallLowerer::ceil(const ast::Call &call) {
-  assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-         "ceil");
+std::optional<Results> CallLowerer::ceil(const ast::bmodelica::Call &call) {
+  assert(
+      call.getCallee()->cast<ast::bmodelica::ComponentReference>()->getName() ==
+      "ceil");
 
   constexpr unsigned int expectedNumArgs = 1;
   if (call.getNumOfArguments() != expectedNumArgs) {
@@ -974,8 +990,10 @@ std::optional<Results> CallLowerer::ceil(const ast::Call &call) {
   return Reference::ssa(builder(), result);
 }
 
-std::optional<Results> CallLowerer::cos(const ast::Call &call) {
-  assert(call.getCallee()->cast<ast::ComponentReference>()->getName() == "cos");
+std::optional<Results> CallLowerer::cos(const ast::bmodelica::Call &call) {
+  assert(
+      call.getCallee()->cast<ast::bmodelica::ComponentReference>()->getName() ==
+      "cos");
 
   constexpr unsigned int expectedNumArgs = 1;
   if (call.getNumOfArguments() != expectedNumArgs) {
@@ -1011,9 +1029,10 @@ std::optional<Results> CallLowerer::cos(const ast::Call &call) {
   return Reference::ssa(builder(), result);
 }
 
-std::optional<Results> CallLowerer::cosh(const ast::Call &call) {
-  assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-         "cosh");
+std::optional<Results> CallLowerer::cosh(const ast::bmodelica::Call &call) {
+  assert(
+      call.getCallee()->cast<ast::bmodelica::ComponentReference>()->getName() ==
+      "cosh");
 
   constexpr unsigned int expectedNumArgs = 1;
   if (call.getNumOfArguments() != expectedNumArgs) {
@@ -1049,8 +1068,10 @@ std::optional<Results> CallLowerer::cosh(const ast::Call &call) {
   return Reference::ssa(builder(), result);
 }
 
-std::optional<Results> CallLowerer::der(const ast::Call &call) {
-  assert(call.getCallee()->cast<ast::ComponentReference>()->getName() == "der");
+std::optional<Results> CallLowerer::der(const ast::bmodelica::Call &call) {
+  assert(
+      call.getCallee()->cast<ast::bmodelica::ComponentReference>()->getName() ==
+      "der");
 
   constexpr unsigned int expectedNumArgs = 1;
   if (call.getNumOfArguments() != expectedNumArgs) {
@@ -1086,9 +1107,10 @@ std::optional<Results> CallLowerer::der(const ast::Call &call) {
   return Reference::ssa(builder(), result);
 }
 
-std::optional<Results> CallLowerer::diagonal(const ast::Call &call) {
-  assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-         "diagonal");
+std::optional<Results> CallLowerer::diagonal(const ast::bmodelica::Call &call) {
+  assert(
+      call.getCallee()->cast<ast::bmodelica::ComponentReference>()->getName() ==
+      "diagonal");
 
   constexpr unsigned int expectedNumArgs = 1;
   if (call.getNumOfArguments() != expectedNumArgs) {
@@ -1113,8 +1135,10 @@ std::optional<Results> CallLowerer::diagonal(const ast::Call &call) {
   return Reference::ssa(builder(), result);
 }
 
-std::optional<Results> CallLowerer::div(const ast::Call &call) {
-  assert(call.getCallee()->cast<ast::ComponentReference>()->getName() == "div");
+std::optional<Results> CallLowerer::div(const ast::bmodelica::Call &call) {
+  assert(
+      call.getCallee()->cast<ast::bmodelica::ComponentReference>()->getName() ==
+      "div");
 
   constexpr unsigned int expectedNumArgs = 2;
   if (call.getNumOfArguments() != expectedNumArgs) {
@@ -1141,8 +1165,10 @@ std::optional<Results> CallLowerer::div(const ast::Call &call) {
   return Reference::ssa(builder(), result);
 }
 
-std::optional<Results> CallLowerer::exp(const ast::Call &call) {
-  assert(call.getCallee()->cast<ast::ComponentReference>()->getName() == "exp");
+std::optional<Results> CallLowerer::exp(const ast::bmodelica::Call &call) {
+  assert(
+      call.getCallee()->cast<ast::bmodelica::ComponentReference>()->getName() ==
+      "exp");
 
   constexpr unsigned int expectedNumArgs = 1;
   if (call.getNumOfArguments() != expectedNumArgs) {
@@ -1178,9 +1204,10 @@ std::optional<Results> CallLowerer::exp(const ast::Call &call) {
   return Reference::ssa(builder(), result);
 }
 
-std::optional<Results> CallLowerer::fill(const ast::Call &call) {
-  assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-         "fill");
+std::optional<Results> CallLowerer::fill(const ast::bmodelica::Call &call) {
+  assert(
+      call.getCallee()->cast<ast::bmodelica::ComponentReference>()->getName() ==
+      "fill");
 
   constexpr unsigned int minExpectedNumArgs = 1;
   if (call.getNumOfArguments() < minExpectedNumArgs) {
@@ -1189,11 +1216,12 @@ std::optional<Results> CallLowerer::fill(const ast::Call &call) {
     return std::nullopt;
   }
 
-  assert(call.getArgument(0)->isa<ast::ExpressionFunctionArgument>());
+  assert(
+      call.getArgument(0)->isa<ast::bmodelica::ExpressionFunctionArgument>());
 
   std::optional<mlir::Value> value =
       lowerArg(*call.getArgument(0)
-                    ->cast<ast::ExpressionFunctionArgument>()
+                    ->cast<ast::bmodelica::ExpressionFunctionArgument>()
                     ->getExpression());
   if (!value) {
     return std::nullopt;
@@ -1202,14 +1230,16 @@ std::optional<Results> CallLowerer::fill(const ast::Call &call) {
   llvm::SmallVector<int64_t, 1> shape;
 
   for (size_t i = 1, e = call.getNumOfArguments(); i < e; ++i) {
-    assert(call.getArgument(i)->isa<ast::ExpressionFunctionArgument>());
+    assert(
+        call.getArgument(i)->isa<ast::bmodelica::ExpressionFunctionArgument>());
 
-    const ast::Expression *arg = call.getArgument(i)
-                                     ->cast<ast::ExpressionFunctionArgument>()
-                                     ->getExpression();
+    const ast::bmodelica::Expression *arg =
+        call.getArgument(i)
+            ->cast<ast::bmodelica::ExpressionFunctionArgument>()
+            ->getExpression();
 
-    assert(arg->isa<ast::Constant>());
-    shape.push_back(arg->cast<ast::Constant>()->as<int64_t>());
+    assert(arg->isa<ast::bmodelica::Constant>());
+    shape.push_back(arg->cast<ast::bmodelica::Constant>()->as<int64_t>());
   }
 
   auto resultType = mlir::RankedTensorType::get(shape, value->getType());
@@ -1220,9 +1250,10 @@ std::optional<Results> CallLowerer::fill(const ast::Call &call) {
   return Reference::ssa(builder(), result);
 }
 
-std::optional<Results> CallLowerer::floor(const ast::Call &call) {
-  assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-         "floor");
+std::optional<Results> CallLowerer::floor(const ast::bmodelica::Call &call) {
+  assert(
+      call.getCallee()->cast<ast::bmodelica::ComponentReference>()->getName() ==
+      "floor");
 
   constexpr unsigned int expectedNumArgs = 1;
   if (call.getNumOfArguments() != expectedNumArgs) {
@@ -1258,9 +1289,10 @@ std::optional<Results> CallLowerer::floor(const ast::Call &call) {
   return Reference::ssa(builder(), result);
 }
 
-std::optional<Results> CallLowerer::identity(const ast::Call &call) {
-  assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-         "identity");
+std::optional<Results> CallLowerer::identity(const ast::bmodelica::Call &call) {
+  assert(
+      call.getCallee()->cast<ast::bmodelica::ComponentReference>()->getName() ==
+      "identity");
 
   constexpr unsigned int expectedNumArgs = 1;
   if (call.getNumOfArguments() != expectedNumArgs) {
@@ -1285,9 +1317,10 @@ std::optional<Results> CallLowerer::identity(const ast::Call &call) {
   return Reference::ssa(builder(), result);
 }
 
-std::optional<Results> CallLowerer::integer(const ast::Call &call) {
-  assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-         "integer");
+std::optional<Results> CallLowerer::integer(const ast::bmodelica::Call &call) {
+  assert(
+      call.getCallee()->cast<ast::bmodelica::ComponentReference>()->getName() ==
+      "integer");
 
   constexpr unsigned int expectedNumArgs = 1;
   if (call.getNumOfArguments() != expectedNumArgs) {
@@ -1322,9 +1355,10 @@ std::optional<Results> CallLowerer::integer(const ast::Call &call) {
   return Reference::ssa(builder(), result);
 }
 
-std::optional<Results> CallLowerer::linspace(const ast::Call &call) {
-  assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-         "linspace");
+std::optional<Results> CallLowerer::linspace(const ast::bmodelica::Call &call) {
+  assert(
+      call.getCallee()->cast<ast::bmodelica::ComponentReference>()->getName() ==
+      "linspace");
 
   constexpr unsigned int expectedNumArgs = 3;
   if (call.getNumOfArguments() != expectedNumArgs) {
@@ -1347,8 +1381,10 @@ std::optional<Results> CallLowerer::linspace(const ast::Call &call) {
   return Reference::ssa(builder(), result);
 }
 
-std::optional<Results> CallLowerer::log(const ast::Call &call) {
-  assert(call.getCallee()->cast<ast::ComponentReference>()->getName() == "log");
+std::optional<Results> CallLowerer::log(const ast::bmodelica::Call &call) {
+  assert(
+      call.getCallee()->cast<ast::bmodelica::ComponentReference>()->getName() ==
+      "log");
 
   constexpr unsigned int expectedNumArgs = 1;
   if (call.getNumOfArguments() != expectedNumArgs) {
@@ -1384,9 +1420,10 @@ std::optional<Results> CallLowerer::log(const ast::Call &call) {
   return Reference::ssa(builder(), result);
 }
 
-std::optional<Results> CallLowerer::log10(const ast::Call &call) {
-  assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-         "log10");
+std::optional<Results> CallLowerer::log10(const ast::bmodelica::Call &call) {
+  assert(
+      call.getCallee()->cast<ast::bmodelica::ComponentReference>()->getName() ==
+      "log10");
 
   constexpr unsigned int expectedNumArgs = 1;
   if (call.getNumOfArguments() != expectedNumArgs) {
@@ -1422,8 +1459,10 @@ std::optional<Results> CallLowerer::log10(const ast::Call &call) {
   return Reference::ssa(builder(), result);
 }
 
-std::optional<Results> CallLowerer::max(const ast::Call &call) {
-  assert(call.getCallee()->cast<ast::ComponentReference>()->getName() == "max");
+std::optional<Results> CallLowerer::max(const ast::bmodelica::Call &call) {
+  assert(
+      call.getCallee()->cast<ast::bmodelica::ComponentReference>()->getName() ==
+      "max");
 
   size_t numOfArguments = call.getNumOfArguments();
   constexpr unsigned int minExpectedNumArgs = 1;
@@ -1437,7 +1476,7 @@ std::optional<Results> CallLowerer::max(const ast::Call &call) {
   }
 
   if (numOfArguments == 1) {
-    if (call.getArgument(0)->isa<ast::ReductionFunctionArgument>()) {
+    if (call.getArgument(0)->isa<ast::bmodelica::ReductionFunctionArgument>()) {
       return maxReduction(call);
     }
 
@@ -1447,7 +1486,7 @@ std::optional<Results> CallLowerer::max(const ast::Call &call) {
   return maxScalars(call);
 }
 
-std::optional<Results> CallLowerer::maxArray(const ast::Call &call) {
+std::optional<Results> CallLowerer::maxArray(const ast::bmodelica::Call &call) {
   assert(call.getNumOfArguments() == 1);
 
   llvm::SmallVector<mlir::Value, 1> args;
@@ -1464,11 +1503,13 @@ std::optional<Results> CallLowerer::maxArray(const ast::Call &call) {
   return Reference::ssa(builder(), result);
 }
 
-std::optional<Results> CallLowerer::maxReduction(const ast::Call &call) {
+std::optional<Results>
+CallLowerer::maxReduction(const ast::bmodelica::Call &call) {
   return reduction(call, "max");
 }
 
-std::optional<Results> CallLowerer::maxScalars(const ast::Call &call) {
+std::optional<Results>
+CallLowerer::maxScalars(const ast::bmodelica::Call &call) {
   constexpr unsigned int expectedNumArgs = 2;
   if (call.getNumOfArguments() != expectedNumArgs) {
     emitErrorNumArguments("max", call.getLocation(), call.getNumOfArguments(),
@@ -1486,8 +1527,10 @@ std::optional<Results> CallLowerer::maxScalars(const ast::Call &call) {
   return Reference::ssa(builder(), result);
 }
 
-std::optional<Results> CallLowerer::min(const ast::Call &call) {
-  assert(call.getCallee()->cast<ast::ComponentReference>()->getName() == "min");
+std::optional<Results> CallLowerer::min(const ast::bmodelica::Call &call) {
+  assert(
+      call.getCallee()->cast<ast::bmodelica::ComponentReference>()->getName() ==
+      "min");
 
   size_t numOfArguments = call.getNumOfArguments();
   constexpr unsigned int minExpectedNumArgs = 1;
@@ -1501,7 +1544,7 @@ std::optional<Results> CallLowerer::min(const ast::Call &call) {
   }
 
   if (numOfArguments == 1) {
-    if (call.getArgument(0)->isa<ast::ReductionFunctionArgument>()) {
+    if (call.getArgument(0)->isa<ast::bmodelica::ReductionFunctionArgument>()) {
       return minReduction(call);
     }
 
@@ -1511,7 +1554,7 @@ std::optional<Results> CallLowerer::min(const ast::Call &call) {
   return minScalars(call);
 }
 
-std::optional<Results> CallLowerer::minArray(const ast::Call &call) {
+std::optional<Results> CallLowerer::minArray(const ast::bmodelica::Call &call) {
   assert(call.getNumOfArguments() == 1);
 
   llvm::SmallVector<mlir::Value, 1> args;
@@ -1528,11 +1571,13 @@ std::optional<Results> CallLowerer::minArray(const ast::Call &call) {
   return Reference::ssa(builder(), result);
 }
 
-std::optional<Results> CallLowerer::minReduction(const ast::Call &call) {
+std::optional<Results>
+CallLowerer::minReduction(const ast::bmodelica::Call &call) {
   return reduction(call, "min");
 }
 
-std::optional<Results> CallLowerer::minScalars(const ast::Call &call) {
+std::optional<Results>
+CallLowerer::minScalars(const ast::bmodelica::Call &call) {
   constexpr unsigned int expectedNumArgs = 2;
   if (call.getNumOfArguments() != expectedNumArgs) {
     emitErrorNumArguments("min", call.getLocation(), call.getNumOfArguments(),
@@ -1550,8 +1595,10 @@ std::optional<Results> CallLowerer::minScalars(const ast::Call &call) {
   return Reference::ssa(builder(), result);
 }
 
-std::optional<Results> CallLowerer::mod(const ast::Call &call) {
-  assert(call.getCallee()->cast<ast::ComponentReference>()->getName() == "mod");
+std::optional<Results> CallLowerer::mod(const ast::bmodelica::Call &call) {
+  assert(
+      call.getCallee()->cast<ast::bmodelica::ComponentReference>()->getName() ==
+      "mod");
 
   constexpr unsigned int expectedNumArgs = 2;
   if (call.getNumOfArguments() != expectedNumArgs) {
@@ -1578,9 +1625,10 @@ std::optional<Results> CallLowerer::mod(const ast::Call &call) {
   return Reference::ssa(builder(), result);
 }
 
-std::optional<Results> CallLowerer::ndims(const ast::Call &call) {
-  assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-         "ndims");
+std::optional<Results> CallLowerer::ndims(const ast::bmodelica::Call &call) {
+  assert(
+      call.getCallee()->cast<ast::bmodelica::ComponentReference>()->getName() ==
+      "ndims");
 
   constexpr unsigned int expectedNumArgs = 1;
   if (call.getNumOfArguments() != expectedNumArgs) {
@@ -1602,9 +1650,10 @@ std::optional<Results> CallLowerer::ndims(const ast::Call &call) {
   return Reference::ssa(builder(), result);
 }
 
-std::optional<Results> CallLowerer::ones(const ast::Call &call) {
-  assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-         "ones");
+std::optional<Results> CallLowerer::ones(const ast::bmodelica::Call &call) {
+  assert(
+      call.getCallee()->cast<ast::bmodelica::ComponentReference>()->getName() ==
+      "ones");
 
   constexpr unsigned int minExpectedNumArgs = 1;
   if (call.getNumOfArguments() < minExpectedNumArgs) {
@@ -1629,9 +1678,10 @@ std::optional<Results> CallLowerer::ones(const ast::Call &call) {
   return Reference::ssa(builder(), result);
 }
 
-std::optional<Results> CallLowerer::product(const ast::Call &call) {
-  assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-         "product");
+std::optional<Results> CallLowerer::product(const ast::bmodelica::Call &call) {
+  assert(
+      call.getCallee()->cast<ast::bmodelica::ComponentReference>()->getName() ==
+      "product");
 
   constexpr unsigned int expectedNumArgs = 1;
   if (call.getNumOfArguments() != expectedNumArgs) {
@@ -1640,14 +1690,15 @@ std::optional<Results> CallLowerer::product(const ast::Call &call) {
     return std::nullopt;
   }
 
-  if (call.getArgument(0)->isa<ast::ReductionFunctionArgument>()) {
+  if (call.getArgument(0)->isa<ast::bmodelica::ReductionFunctionArgument>()) {
     return productReduction(call);
   }
 
   return productArray(call);
 }
 
-std::optional<Results> CallLowerer::productArray(const ast::Call &call) {
+std::optional<Results>
+CallLowerer::productArray(const ast::bmodelica::Call &call) {
   constexpr unsigned int expectedNumArgs = 1;
   if (call.getNumOfArguments() != expectedNumArgs) {
     emitErrorNumArguments("product", call.getLocation(),
@@ -1669,12 +1720,15 @@ std::optional<Results> CallLowerer::productArray(const ast::Call &call) {
   return Reference::ssa(builder(), result);
 }
 
-std::optional<Results> CallLowerer::productReduction(const ast::Call &call) {
+std::optional<Results>
+CallLowerer::productReduction(const ast::bmodelica::Call &call) {
   return reduction(call, "mul");
 }
 
-std::optional<Results> CallLowerer::rem(const ast::Call &call) {
-  assert(call.getCallee()->cast<ast::ComponentReference>()->getName() == "rem");
+std::optional<Results> CallLowerer::rem(const ast::bmodelica::Call &call) {
+  assert(
+      call.getCallee()->cast<ast::bmodelica::ComponentReference>()->getName() ==
+      "rem");
 
   constexpr unsigned int expectedNumArgs = 2;
   if (call.getNumOfArguments() != expectedNumArgs) {
@@ -1701,9 +1755,10 @@ std::optional<Results> CallLowerer::rem(const ast::Call &call) {
   return Reference::ssa(builder(), result);
 }
 
-std::optional<Results> CallLowerer::sign(const ast::Call &call) {
-  assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-         "sign");
+std::optional<Results> CallLowerer::sign(const ast::bmodelica::Call &call) {
+  assert(
+      call.getCallee()->cast<ast::bmodelica::ComponentReference>()->getName() ==
+      "sign");
 
   constexpr unsigned int expectedNumArgs = 1;
   if (call.getNumOfArguments() != expectedNumArgs) {
@@ -1725,8 +1780,10 @@ std::optional<Results> CallLowerer::sign(const ast::Call &call) {
   return Reference::ssa(builder(), result);
 }
 
-std::optional<Results> CallLowerer::sin(const ast::Call &call) {
-  assert(call.getCallee()->cast<ast::ComponentReference>()->getName() == "sin");
+std::optional<Results> CallLowerer::sin(const ast::bmodelica::Call &call) {
+  assert(
+      call.getCallee()->cast<ast::bmodelica::ComponentReference>()->getName() ==
+      "sin");
 
   constexpr unsigned int expectedNumArgs = 1;
   if (call.getNumOfArguments() != expectedNumArgs) {
@@ -1762,9 +1819,10 @@ std::optional<Results> CallLowerer::sin(const ast::Call &call) {
   return Reference::ssa(builder(), result);
 }
 
-std::optional<Results> CallLowerer::sinh(const ast::Call &call) {
-  assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-         "sinh");
+std::optional<Results> CallLowerer::sinh(const ast::bmodelica::Call &call) {
+  assert(
+      call.getCallee()->cast<ast::bmodelica::ComponentReference>()->getName() ==
+      "sinh");
 
   constexpr unsigned int expectedNumArgs = 1;
   if (call.getNumOfArguments() != expectedNumArgs) {
@@ -1800,9 +1858,10 @@ std::optional<Results> CallLowerer::sinh(const ast::Call &call) {
   return Reference::ssa(builder(), result);
 }
 
-std::optional<Results> CallLowerer::size(const ast::Call &call) {
-  assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-         "size");
+std::optional<Results> CallLowerer::size(const ast::bmodelica::Call &call) {
+  assert(
+      call.getCallee()->cast<ast::bmodelica::ComponentReference>()->getName() ==
+      "size");
 
   size_t numOfArguments = call.getNumOfArguments();
   constexpr unsigned int minExpectedNumArgs = 1;
@@ -1845,9 +1904,10 @@ std::optional<Results> CallLowerer::size(const ast::Call &call) {
   return Reference::ssa(builder(), result);
 }
 
-std::optional<Results> CallLowerer::sqrt(const ast::Call &call) {
-  assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-         "sqrt");
+std::optional<Results> CallLowerer::sqrt(const ast::bmodelica::Call &call) {
+  assert(
+      call.getCallee()->cast<ast::bmodelica::ComponentReference>()->getName() ==
+      "sqrt");
 
   constexpr unsigned int expectedNumArgs = 1;
   if (call.getNumOfArguments() != expectedNumArgs) {
@@ -1883,8 +1943,10 @@ std::optional<Results> CallLowerer::sqrt(const ast::Call &call) {
   return Reference::ssa(builder(), result);
 }
 
-std::optional<Results> CallLowerer::sum(const ast::Call &call) {
-  assert(call.getCallee()->cast<ast::ComponentReference>()->getName() == "sum");
+std::optional<Results> CallLowerer::sum(const ast::bmodelica::Call &call) {
+  assert(
+      call.getCallee()->cast<ast::bmodelica::ComponentReference>()->getName() ==
+      "sum");
 
   constexpr unsigned int expectedNumArgs = 1;
   if (call.getNumOfArguments() != expectedNumArgs) {
@@ -1893,14 +1955,14 @@ std::optional<Results> CallLowerer::sum(const ast::Call &call) {
     return std::nullopt;
   }
 
-  if (call.getArgument(0)->isa<ast::ReductionFunctionArgument>()) {
+  if (call.getArgument(0)->isa<ast::bmodelica::ReductionFunctionArgument>()) {
     return sumReduction(call);
   }
 
   return sumArray(call);
 }
 
-std::optional<Results> CallLowerer::sumArray(const ast::Call &call) {
+std::optional<Results> CallLowerer::sumArray(const ast::bmodelica::Call &call) {
   constexpr unsigned int expectedNumArgs = 1;
   if (call.getNumOfArguments() != expectedNumArgs) {
     emitErrorNumArguments("sum", call.getLocation(), call.getNumOfArguments(),
@@ -1922,13 +1984,16 @@ std::optional<Results> CallLowerer::sumArray(const ast::Call &call) {
   return Reference::ssa(builder(), result);
 }
 
-std::optional<Results> CallLowerer::sumReduction(const ast::Call &call) {
+std::optional<Results>
+CallLowerer::sumReduction(const ast::bmodelica::Call &call) {
   return reduction(call, "add");
 }
 
-std::optional<Results> CallLowerer::symmetric(const ast::Call &call) {
-  assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-         "symmetric");
+std::optional<Results>
+CallLowerer::symmetric(const ast::bmodelica::Call &call) {
+  assert(
+      call.getCallee()->cast<ast::bmodelica::ComponentReference>()->getName() ==
+      "symmetric");
 
   constexpr unsigned int expectedNumArgs = 1;
   if (call.getNumOfArguments() != expectedNumArgs) {
@@ -1950,8 +2015,10 @@ std::optional<Results> CallLowerer::symmetric(const ast::Call &call) {
   return Reference::ssa(builder(), result);
 }
 
-std::optional<Results> CallLowerer::tan(const ast::Call &call) {
-  assert(call.getCallee()->cast<ast::ComponentReference>()->getName() == "tan");
+std::optional<Results> CallLowerer::tan(const ast::bmodelica::Call &call) {
+  assert(
+      call.getCallee()->cast<ast::bmodelica::ComponentReference>()->getName() ==
+      "tan");
 
   constexpr unsigned int expectedNumArgs = 1;
   if (call.getNumOfArguments() != expectedNumArgs) {
@@ -1987,9 +2054,10 @@ std::optional<Results> CallLowerer::tan(const ast::Call &call) {
   return Reference::ssa(builder(), result);
 }
 
-std::optional<Results> CallLowerer::tanh(const ast::Call &call) {
-  assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-         "tanh");
+std::optional<Results> CallLowerer::tanh(const ast::bmodelica::Call &call) {
+  assert(
+      call.getCallee()->cast<ast::bmodelica::ComponentReference>()->getName() ==
+      "tanh");
 
   constexpr unsigned int expectedNumArgs = 1;
   if (call.getNumOfArguments() != expectedNumArgs) {
@@ -2025,9 +2093,11 @@ std::optional<Results> CallLowerer::tanh(const ast::Call &call) {
   return Reference::ssa(builder(), result);
 }
 
-std::optional<Results> CallLowerer::transpose(const ast::Call &call) {
-  assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-         "transpose");
+std::optional<Results>
+CallLowerer::transpose(const ast::bmodelica::Call &call) {
+  assert(
+      call.getCallee()->cast<ast::bmodelica::ComponentReference>()->getName() ==
+      "transpose");
 
   constexpr unsigned int expectedNumArgs = 1;
   if (call.getNumOfArguments() != expectedNumArgs) {
@@ -2055,9 +2125,10 @@ std::optional<Results> CallLowerer::transpose(const ast::Call &call) {
   return Reference::ssa(builder(), result);
 }
 
-std::optional<Results> CallLowerer::zeros(const ast::Call &call) {
-  assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-         "zeros");
+std::optional<Results> CallLowerer::zeros(const ast::bmodelica::Call &call) {
+  assert(
+      call.getCallee()->cast<ast::bmodelica::ComponentReference>()->getName() ==
+      "zeros");
 
   constexpr unsigned int minExpectedNumArgs = 1;
   if (call.getNumOfArguments() < minExpectedNumArgs) {
@@ -2082,9 +2153,11 @@ std::optional<Results> CallLowerer::zeros(const ast::Call &call) {
   return Reference::ssa(builder(), result);
 }
 
-std::optional<Results> CallLowerer::builtinAssert(const ast::Call &call) {
-  assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-         "assert");
+std::optional<Results>
+CallLowerer::builtinAssert(const ast::bmodelica::Call &call) {
+  assert(
+      call.getCallee()->cast<ast::bmodelica::ComponentReference>()->getName() ==
+      "assert");
 
   size_t numOfArguments = call.getNumOfArguments();
   constexpr size_t minExpectedNumArgs = 2;
@@ -2119,23 +2192,24 @@ std::optional<Results> CallLowerer::builtinAssert(const ast::Call &call) {
   AssertionLevel assertionLevel = AssertionLevel::Error;
 
   if (call.getNumOfArguments() == 3) {
-    const ast::FunctionArgument *levelArg = call.getArgument(2);
+    const ast::bmodelica::FunctionArgument *levelArg = call.getArgument(2);
 
     if (const auto *expressionArg =
-            levelArg->dyn_cast<ast::ExpressionFunctionArgument>()) {
+            levelArg->dyn_cast<ast::bmodelica::ExpressionFunctionArgument>()) {
 
-      const auto *expr =
-          expressionArg->getExpression()->cast<ast::ComponentReference>();
+      const auto *expr = expressionArg->getExpression()
+                             ->cast<ast::bmodelica::ComponentReference>();
 
       assertionLevel = parseAssertionLevelFn(expr->getName());
     }
   }
 
   auto *messageArg =
-      call.getArgument(1)->cast<ast::ExpressionFunctionArgument>();
+      call.getArgument(1)->cast<ast::bmodelica::ExpressionFunctionArgument>();
 
-  auto messageStr =
-      messageArg->getExpression()->cast<ast::Constant>()->as<std::string>();
+  auto messageStr = messageArg->getExpression()
+                        ->cast<ast::bmodelica::Constant>()
+                        ->as<std::string>();
 
   // Create the operation.
   auto assertOp = builder().create<AssertOp>(loc(call.getLocation()),
@@ -2146,7 +2220,7 @@ std::optional<Results> CallLowerer::builtinAssert(const ast::Call &call) {
 
   // Lower the condition.
   auto *conditionArg =
-      call.getArgument(0)->cast<ast::ExpressionFunctionArgument>();
+      call.getArgument(0)->cast<ast::bmodelica::ExpressionFunctionArgument>();
 
   std::optional<Results> conditionResults =
       lower(*conditionArg->getExpression());
@@ -2166,14 +2240,14 @@ std::optional<Results> CallLowerer::builtinAssert(const ast::Call &call) {
   return Results();
 }
 
-std::optional<Results> CallLowerer::reduction(const ast::Call &call,
+std::optional<Results> CallLowerer::reduction(const ast::bmodelica::Call &call,
                                               llvm::StringRef action) {
   assert(call.getNumOfArguments() == 1);
 
   mlir::Type resultType = RealType::get(builder().getContext());
 
   auto *reductionArg =
-      call.getArgument(0)->cast<ast::ReductionFunctionArgument>();
+      call.getArgument(0)->cast<ast::bmodelica::ReductionFunctionArgument>();
 
   // Lower the iteration ranges.
   llvm::SmallVector<mlir::Value, 3> iterables;

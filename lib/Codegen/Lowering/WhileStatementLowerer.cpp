@@ -8,7 +8,8 @@ namespace marco::codegen::lowering {
 WhileStatementLowerer::WhileStatementLowerer(BridgeInterface *bridge)
     : Lowerer(bridge) {}
 
-bool WhileStatementLowerer::lower(const ast::WhileStatement &statement) {
+bool WhileStatementLowerer::lower(
+    const ast::bmodelica::WhileStatement &statement) {
   mlir::Location location = loc(statement.getLocation());
 
   // Create the operation.

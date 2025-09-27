@@ -1,7 +1,7 @@
 #include "marco/Parser/Parser.h"
 
 using namespace ::marco;
-using namespace ::marco::ast;
+using namespace ::marco::ast::bmodelica;
 using namespace ::marco::parser;
 
 #define EXPECT(Token)                                                          \
@@ -90,8 +90,8 @@ void Parser::emitUnexpectedIdentifierError(const SourceRange &location,
   diags.Report(convertedLocation, diagID) << found << expected;
 }
 
-ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseRoot() {
-  llvm::SmallVector<std::unique_ptr<ast::ASTNode>, 1> classes;
+ParseResult<std::unique_ptr<ASTNode>> Parser::parseRoot() {
+  llvm::SmallVector<std::unique_ptr<ASTNode>, 1> classes;
 
   while (!lookahead[0].isa<TokenKind::EndOfFile>()) {
     TRY(classDefinition, parseClassDefinition());
@@ -100,7 +100,7 @@ ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseRoot() {
 
   auto root = std::make_unique<Root>(SourceRange::unknown());
   root->setInnerClasses(classes);
-  return static_cast<std::unique_ptr<ast::ASTNode>>(std::move(root));
+  return static_cast<std::unique_ptr<ASTNode>>(std::move(root));
 }
 
 WrappedParseResult<bool> Parser::parseBoolValue() {
@@ -357,7 +357,7 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseClassDefinition() {
   return std::move(result);
 }
 
-ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseExternalFunctionCall() {
+ParseResult<std::unique_ptr<ASTNode>> Parser::parseExternalFunctionCall() {
   SourceRange loc = getLocation();
 
   auto result = std::make_unique<ExternalFunctionCall>(loc);
@@ -385,7 +385,7 @@ ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseExternalFunctionCall() {
   EXPECT(TokenKind::LPar);
 
   // Function arguments.
-  llvm::SmallVector<std::unique_ptr<ast::ASTNode>> args;
+  llvm::SmallVector<std::unique_ptr<ASTNode>> args;
 
   while (!lookahead[0].isa<TokenKind::RPar>()) {
     TRY(arg, parseExpression());
@@ -449,7 +449,7 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseClassModification() {
 
 WrappedParseResult<std::vector<std::unique_ptr<ASTNode>>>
 Parser::parseArgumentList() {
-  std::vector<std::unique_ptr<ast::ASTNode>> arguments;
+  std::vector<std::unique_ptr<ASTNode>> arguments;
 
   do {
     TRY(arg, parseArgument());
@@ -520,7 +520,7 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseAlgorithmSection() {
   EXPECT(TokenKind::Algorithm);
   SourceRange loc = getLocation();
 
-  llvm::SmallVector<std::unique_ptr<ast::ASTNode>, 10> statements;
+  llvm::SmallVector<std::unique_ptr<ASTNode>, 10> statements;
 
   while (!lookahead[0].isa<TokenKind::End>() &&
          !lookahead[0].isa<TokenKind::Public>() &&
@@ -541,12 +541,12 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseAlgorithmSection() {
   return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
 }
 
-ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseEquationSection() {
+ParseResult<std::unique_ptr<ASTNode>> Parser::parseEquationSection() {
   const SourceRange loc = lookahead[0].getLocation();
   const bool initial = accept<TokenKind::Initial>();
   EXPECT(TokenKind::Equation);
 
-  llvm::SmallVector<std::unique_ptr<ast::ASTNode>> equations;
+  llvm::SmallVector<std::unique_ptr<ASTNode>> equations;
 
   while (!lookahead[0].isa<TokenKind::Public>() &&
          !lookahead[0].isa<TokenKind::Protected>() &&
@@ -663,7 +663,7 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseStatement() {
     TRY(functionArguments, parseFunctionArguments());
     EXPECT(TokenKind::RPar);
 
-    auto callee = std::make_unique<ast::ComponentReference>(loc);
+    auto callee = std::make_unique<ComponentReference>(loc);
     loc.end = getLocation().end;
     auto result = std::make_unique<CallStatement>(loc);
 
@@ -688,13 +688,13 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseStatement() {
   return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
 }
 
-ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseIfEquation() {
+ParseResult<std::unique_ptr<ASTNode>> Parser::parseIfEquation() {
   EXPECT(TokenKind::If);
   SourceRange loc = getLocation();
   TRY(ifCondition, parseExpression());
   EXPECT(TokenKind::Then);
 
-  llvm::SmallVector<std::unique_ptr<ast::ASTNode>> ifEquations;
+  llvm::SmallVector<std::unique_ptr<ASTNode>> ifEquations;
 
   while (!lookahead[0].isa<TokenKind::ElseIf>() &&
          !lookahead[0].isa<TokenKind::Else>() &&
@@ -704,9 +704,9 @@ ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseIfEquation() {
     ifEquations.push_back(std::move(*equation));
   }
 
-  llvm::SmallVector<std::unique_ptr<ast::ASTNode>> elseIfConditions;
+  llvm::SmallVector<std::unique_ptr<ASTNode>> elseIfConditions;
 
-  llvm::SmallVector<llvm::SmallVector<std::unique_ptr<ast::ASTNode>>>
+  llvm::SmallVector<llvm::SmallVector<std::unique_ptr<ASTNode>>>
       elseIfEquations;
 
   while (accept<TokenKind::ElseIf>()) {
@@ -714,7 +714,7 @@ ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseIfEquation() {
     EXPECT(TokenKind::Then);
     elseIfConditions.push_back(std::move(*elseIfCondition));
 
-    llvm::SmallVector<std::unique_ptr<ast::ASTNode>> currentEquations;
+    llvm::SmallVector<std::unique_ptr<ASTNode>> currentEquations;
 
     while (!lookahead[0].isa<TokenKind::ElseIf>() &&
            !lookahead[0].isa<TokenKind::Else>() &&
@@ -727,7 +727,7 @@ ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseIfEquation() {
     elseIfEquations.push_back(std::move(currentEquations));
   }
 
-  llvm::SmallVector<std::unique_ptr<ast::ASTNode>> elseEquations;
+  llvm::SmallVector<std::unique_ptr<ASTNode>> elseEquations;
 
   if (accept<TokenKind::Else>()) {
     while (!lookahead[0].isa<TokenKind::End>()) {
@@ -765,7 +765,7 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseIfStatement() {
   EXPECT(TokenKind::Then);
 
   auto statementsBlockLoc = lookahead[0].getLocation();
-  llvm::SmallVector<std::unique_ptr<ast::ASTNode>, 3> ifStatements;
+  llvm::SmallVector<std::unique_ptr<ASTNode>, 3> ifStatements;
 
   while (!lookahead[0].isa<TokenKind::ElseIf>() &&
          !lookahead[0].isa<TokenKind::Else>() &&
@@ -784,8 +784,8 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseIfStatement() {
   result->setIfCondition(std::move(*ifCondition));
   result->setIfBlock(std::move(ifBlock));
 
-  llvm::SmallVector<std::unique_ptr<ast::ASTNode>, 3> elseIfConditions;
-  llvm::SmallVector<std::unique_ptr<ast::ASTNode>, 3> elseIfBlocks;
+  llvm::SmallVector<std::unique_ptr<ASTNode>, 3> elseIfConditions;
+  llvm::SmallVector<std::unique_ptr<ASTNode>, 3> elseIfBlocks;
 
   while (!lookahead[0].isa<TokenKind::Else>() &&
          !lookahead[0].isa<TokenKind::End>()) {
@@ -793,7 +793,7 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseIfStatement() {
     TRY(elseIfCondition, parseExpression());
     elseIfConditions.push_back(std::move(*elseIfCondition));
     EXPECT(TokenKind::Then);
-    llvm::SmallVector<std::unique_ptr<ast::ASTNode>, 3> elseIfStatements;
+    llvm::SmallVector<std::unique_ptr<ASTNode>, 3> elseIfStatements;
     auto elseIfStatementsBlockLoc = lookahead[0].getLocation();
 
     while (!lookahead[0].isa<TokenKind::ElseIf>() &&
@@ -816,7 +816,7 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseIfStatement() {
 
   if (accept<TokenKind::Else>()) {
     auto elseBlockLoc = lookahead[0].getLocation();
-    llvm::SmallVector<std::unique_ptr<ast::ASTNode>, 3> elseStatements;
+    llvm::SmallVector<std::unique_ptr<ASTNode>, 3> elseStatements;
 
     while (!lookahead[0].isa<TokenKind::End>()) {
       TRY(statement, parseStatement());
@@ -839,13 +839,13 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseIfStatement() {
   return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
 }
 
-ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseForEquation() {
+ParseResult<std::unique_ptr<ASTNode>> Parser::parseForEquation() {
   EXPECT(TokenKind::For);
   SourceRange loc = getLocation();
   TRY(forIndices, parseForIndices());
   EXPECT(TokenKind::Loop);
 
-  llvm::SmallVector<std::unique_ptr<ast::ASTNode>, 3> equations;
+  llvm::SmallVector<std::unique_ptr<ASTNode>, 3> equations;
 
   while (!lookahead[0].isa<TokenKind::End>()) {
     TRY(equation, parseEquation());
@@ -869,7 +869,7 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseForStatement() {
   TRY(forIndices, parseForIndices());
   EXPECT(TokenKind::Loop);
 
-  llvm::SmallVector<std::unique_ptr<ast::ASTNode>, 3> statements;
+  llvm::SmallVector<std::unique_ptr<ASTNode>, 3> statements;
 
   while (!lookahead[0].isa<TokenKind::End>()) {
     TRY(statement, parseStatement());
@@ -884,12 +884,12 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseForStatement() {
   auto result = std::make_unique<ForStatement>(loc);
   result->setForIndices(forIndices->getValue());
   result->setStatements(statements);
-  return static_cast<std::unique_ptr<ast::ASTNode>>(std::move(result));
+  return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
 }
 
-WrappedParseResult<std::vector<std::unique_ptr<ast::ASTNode>>>
+WrappedParseResult<std::vector<std::unique_ptr<ASTNode>>>
 Parser::parseForIndices() {
-  std::vector<std::unique_ptr<ast::ASTNode>> result;
+  std::vector<std::unique_ptr<ASTNode>> result;
   SourceRange loc = getLocation();
 
   do {
@@ -902,7 +902,7 @@ Parser::parseForIndices() {
   return ValueWrapper(loc, std::move(result));
 }
 
-ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseForIndex() {
+ParseResult<std::unique_ptr<ASTNode>> Parser::parseForIndex() {
   EXPECT(TokenKind::Identifier);
   SourceRange loc = getLocation();
 
@@ -916,7 +916,7 @@ ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseForIndex() {
   }
 
   result->setLocation(loc);
-  return static_cast<std::unique_ptr<ast::ASTNode>>(std::move(result));
+  return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
 }
 
 ParseResult<std::unique_ptr<ASTNode>> Parser::parseWhileStatement() {
@@ -926,7 +926,7 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseWhileStatement() {
   TRY(condition, parseExpression());
   EXPECT(TokenKind::Loop);
 
-  std::vector<std::unique_ptr<ast::ASTNode>> statements;
+  std::vector<std::unique_ptr<ASTNode>> statements;
 
   while (!lookahead[0].isa<TokenKind::End>()) {
     TRY(statement, parseStatement());
@@ -944,13 +944,13 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseWhileStatement() {
   return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
 }
 
-ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseWhenEquation() {
+ParseResult<std::unique_ptr<ASTNode>> Parser::parseWhenEquation() {
   EXPECT(TokenKind::When);
   SourceRange loc = getLocation();
   TRY(whenCondition, parseExpression());
   EXPECT(TokenKind::Then);
 
-  llvm::SmallVector<std::unique_ptr<ast::ASTNode>> whenEquations;
+  llvm::SmallVector<std::unique_ptr<ASTNode>> whenEquations;
 
   while (!lookahead[0].isa<TokenKind::ElseWhen>() &&
          !lookahead[0].isa<TokenKind::Else>() &&
@@ -960,9 +960,9 @@ ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseWhenEquation() {
     whenEquations.push_back(std::move(*equation));
   }
 
-  llvm::SmallVector<std::unique_ptr<ast::ASTNode>> elseWhenConditions;
+  llvm::SmallVector<std::unique_ptr<ASTNode>> elseWhenConditions;
 
-  llvm::SmallVector<llvm::SmallVector<std::unique_ptr<ast::ASTNode>>>
+  llvm::SmallVector<llvm::SmallVector<std::unique_ptr<ASTNode>>>
       elseWhenEquations;
 
   while (accept<TokenKind::ElseWhen>()) {
@@ -970,7 +970,7 @@ ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseWhenEquation() {
     EXPECT(TokenKind::Then);
     elseWhenConditions.push_back(std::move(*elseWhenCondition));
 
-    llvm::SmallVector<std::unique_ptr<ast::ASTNode>> currentEquations;
+    llvm::SmallVector<std::unique_ptr<ASTNode>> currentEquations;
 
     while (!lookahead[0].isa<TokenKind::ElseWhen>() &&
            !lookahead[0].isa<TokenKind::Else>() &&
@@ -983,7 +983,7 @@ ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseWhenEquation() {
     elseWhenEquations.push_back(std::move(currentEquations));
   }
 
-  llvm::SmallVector<std::unique_ptr<ast::ASTNode>> elseEquations;
+  llvm::SmallVector<std::unique_ptr<ASTNode>> elseEquations;
 
   if (accept<TokenKind::Else>()) {
     while (!lookahead[0].isa<TokenKind::End>()) {
@@ -1020,7 +1020,7 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseWhenStatement() {
   TRY(condition, parseExpression());
   EXPECT(TokenKind::Loop);
 
-  std::vector<std::unique_ptr<ast::ASTNode>> statements;
+  std::vector<std::unique_ptr<ASTNode>> statements;
 
   while (!lookahead[0].isa<TokenKind::End>()) {
     TRY(statement, parseStatement());
@@ -1050,7 +1050,7 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseExpression() {
 
     loc.end = (*falseExpression)->getLocation().end;
 
-    llvm::SmallVector<std::unique_ptr<ast::ASTNode>, 3> args;
+    llvm::SmallVector<std::unique_ptr<ASTNode>, 3> args;
     args.push_back(std::move(*condition));
     args.push_back(std::move(*trueExpression));
     args.push_back(std::move(*falseExpression));
@@ -1069,7 +1069,7 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseSimpleExpression() {
   SourceRange loc = (*l1)->getLocation();
 
   if (accept<TokenKind::Colon>()) {
-    std::vector<std::unique_ptr<ast::ASTNode>> arguments;
+    std::vector<std::unique_ptr<ASTNode>> arguments;
     TRY(l2, parseLogicalExpression());
     loc.end = (*l2)->getLocation().end;
 
@@ -1092,7 +1092,7 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseSimpleExpression() {
 }
 
 ParseResult<std::unique_ptr<ASTNode>> Parser::parseLogicalExpression() {
-  std::vector<std::unique_ptr<ast::ASTNode>> logicalTerms;
+  std::vector<std::unique_ptr<ASTNode>> logicalTerms;
   TRY(logicalTerm, parseLogicalTerm());
 
   if (!lookahead[0].isa<TokenKind::Or>()) {
@@ -1116,7 +1116,7 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseLogicalExpression() {
 }
 
 ParseResult<std::unique_ptr<ASTNode>> Parser::parseLogicalTerm() {
-  std::vector<std::unique_ptr<ast::ASTNode>> logicalFactors;
+  std::vector<std::unique_ptr<ASTNode>> logicalFactors;
   TRY(logicalFactor, parseLogicalFactor());
 
   if (!lookahead[0].isa<TokenKind::And>()) {
@@ -1219,11 +1219,11 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseArithmeticExpression() {
   TRY(term, parseTerm());
   loc.end = (*term)->getLocation().end;
 
-  std::unique_ptr<ast::ASTNode> result = std::move(*term);
+  std::unique_ptr<ASTNode> result = std::move(*term);
 
   if (negative) {
     auto newResult = std::make_unique<Operation>(loc);
-    newResult->setOperationKind(ast::OperationKind::negate);
+    newResult->setOperationKind(OperationKind::negate);
     newResult->setArguments({std::move(result)});
     result = std::move(newResult);
   }
@@ -1236,7 +1236,7 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseArithmeticExpression() {
     TRY(rhs, parseTerm());
     loc.end = (*rhs)->getLocation().end;
 
-    std::vector<std::unique_ptr<ast::ASTNode>> args;
+    std::vector<std::unique_ptr<ASTNode>> args;
     args.push_back(std::move(result));
     args.push_back(std::move(*rhs));
 
@@ -1282,7 +1282,7 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseTerm() {
     TRY(rhs, parseFactor());
     loc.end = (*rhs)->getLocation().end;
 
-    std::vector<std::unique_ptr<ast::ASTNode>> args;
+    std::vector<std::unique_ptr<ASTNode>> args;
     args.push_back(std::move(result));
     args.push_back(std::move(*rhs));
 
@@ -1321,7 +1321,7 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseFactor() {
 
   while (lookahead[0].isa<TokenKind::Pow>() ||
          lookahead[0].isa<TokenKind::PowEW>()) {
-    std::vector<std::unique_ptr<ast::ASTNode>> args;
+    std::vector<std::unique_ptr<ASTNode>> args;
     args.push_back(std::move(result));
 
     if (accept<TokenKind::Pow>()) {
@@ -1330,7 +1330,7 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseFactor() {
       args.push_back(std::move(*rhs));
 
       auto newResult = std::make_unique<Operation>(loc);
-      newResult->setOperationKind(ast::OperationKind::powerOf);
+      newResult->setOperationKind(OperationKind::powerOf);
       newResult->setArguments(args);
       result = std::move(newResult);
       continue;
@@ -1342,7 +1342,7 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseFactor() {
     args.push_back(std::move(*rhs));
 
     auto newResult = std::make_unique<Operation>(loc);
-    newResult->setOperationKind(ast::OperationKind::powerOfEW);
+    newResult->setOperationKind(OperationKind::powerOfEW);
     newResult->setArguments(args);
     result = std::move(newResult);
   }
@@ -1357,21 +1357,21 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parsePrimary() {
     TRY(value, parseIntValue());
     auto result = std::make_unique<Constant>(value->getLocation());
     result->setValue(value->getValue());
-    return static_cast<std::unique_ptr<ast::ASTNode>>(std::move(result));
+    return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
   }
 
   if (lookahead[0].isa<TokenKind::FloatingPoint>()) {
     TRY(value, parseFloatValue());
     auto result = std::make_unique<Constant>(value->getLocation());
     result->setValue(value->getValue());
-    return static_cast<std::unique_ptr<ast::ASTNode>>(std::move(result));
+    return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
   }
 
   if (lookahead[0].isa<TokenKind::String>()) {
     TRY(value, parseString());
     auto result = std::make_unique<Constant>(value->getLocation());
     result->setValue(value->getValue());
-    return static_cast<std::unique_ptr<ast::ASTNode>>(std::move(result));
+    return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
   }
 
   if (lookahead[0].isa<TokenKind::True>() ||
@@ -1379,10 +1379,10 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parsePrimary() {
     TRY(value, parseBoolValue());
     auto result = std::make_unique<Constant>(value->getLocation());
     result->setValue(value->getValue());
-    return static_cast<std::unique_ptr<ast::ASTNode>>(std::move(result));
+    return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
   }
 
-  std::unique_ptr<ast::ASTNode> result;
+  std::unique_ptr<ASTNode> result;
 
   if (accept<TokenKind::LPar>()) {
     TRY(outputExpressionList, parseOutputExpressionList());
@@ -1419,11 +1419,11 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parsePrimary() {
     }
 
   } else if (accept<TokenKind::Der>()) {
-    auto callee = std::make_unique<ast::ComponentReference>(loc);
+    auto callee = std::make_unique<ComponentReference>(loc);
 
     llvm::SmallVector<std::unique_ptr<ASTNode>, 1> path;
-    path.push_back(std::make_unique<ast::ComponentReferenceEntry>(loc));
-    path[0]->cast<ast::ComponentReferenceEntry>()->setName("der");
+    path.push_back(std::make_unique<ComponentReferenceEntry>(loc));
+    path[0]->cast<ComponentReferenceEntry>()->setName("der");
 
     callee->setPath(path);
 
@@ -1462,7 +1462,7 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parsePrimary() {
     TRY(arraySubscripts, parseArraySubscripts());
     loc.end = arraySubscripts.value().getLocation().end;
 
-    std::vector<std::unique_ptr<ast::ASTNode>> args;
+    std::vector<std::unique_ptr<ASTNode>> args;
     args.push_back(std::move(result));
 
     for (auto &subscript : arraySubscripts->getValue()) {
@@ -1502,8 +1502,7 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseComponentReference() {
   return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
 }
 
-ParseResult<std::unique_ptr<ast::ASTNode>>
-Parser::parseComponentReferenceEntry() {
+ParseResult<std::unique_ptr<ASTNode>> Parser::parseComponentReferenceEntry() {
   TRY(name, parseIdentifier());
   SourceRange loc = getLocation();
   loc.end = name->getLocation().end;
@@ -1527,7 +1526,7 @@ Parser::parseFunctionCallArgs() {
   SourceRange loc = lookahead[0].getLocation();
   EXPECT(TokenKind::LPar);
 
-  std::vector<std::unique_ptr<ast::ASTNode>> args;
+  std::vector<std::unique_ptr<ASTNode>> args;
 
   if (!lookahead[0].isa<TokenKind::RPar>()) {
     TRY(functionArguments, parseFunctionArguments());
@@ -1545,7 +1544,7 @@ Parser::parseFunctionCallArgs() {
 
 WrappedParseResult<std::vector<std::unique_ptr<ASTNode>>>
 Parser::parseFunctionArguments() {
-  std::vector<std::unique_ptr<ast::ASTNode>> arguments;
+  std::vector<std::unique_ptr<ASTNode>> arguments;
 
   if (lookahead[0].isa<TokenKind::Identifier>() &&
       lookahead[1].isa<TokenKind::EqualityOperator>()) {
@@ -1601,7 +1600,7 @@ Parser::parseFunctionArgumentsNonFirst() {
     return parseNamedArguments();
   }
 
-  std::vector<std::unique_ptr<ast::ASTNode>> arguments;
+  std::vector<std::unique_ptr<ASTNode>> arguments;
 
   TRY(firstArg, parseFunctionArgument());
   arguments.push_back(std::move(*firstArg));
@@ -1624,8 +1623,8 @@ ParseResult<std::pair<std::vector<std::unique_ptr<ASTNode>>,
                       std::vector<std::unique_ptr<ASTNode>>>>
 Parser::parseArrayArguments() {
   SourceRange loc = lookahead[0].getLocation();
-  std::vector<std::unique_ptr<ast::ASTNode>> arguments;
-  std::vector<std::unique_ptr<ast::ASTNode>> forIndices;
+  std::vector<std::unique_ptr<ASTNode>> arguments;
+  std::vector<std::unique_ptr<ASTNode>> forIndices;
 
   TRY(argument, parseExpression());
   loc.end = (*argument)->getLocation().end;
@@ -1651,7 +1650,7 @@ Parser::parseArrayArguments() {
 
 WrappedParseResult<std::vector<std::unique_ptr<ASTNode>>>
 Parser::parseArrayArgumentsNonFirst() {
-  std::vector<std::unique_ptr<ast::ASTNode>> arguments;
+  std::vector<std::unique_ptr<ASTNode>> arguments;
 
   do {
     TRY(argument, parseExpression());
@@ -1664,9 +1663,9 @@ Parser::parseArrayArgumentsNonFirst() {
   return ValueWrapper(std::move(loc), std::move(arguments));
 }
 
-WrappedParseResult<std::vector<std::unique_ptr<ast::ASTNode>>>
+WrappedParseResult<std::vector<std::unique_ptr<ASTNode>>>
 Parser::parseNamedArguments() {
-  std::vector<std::unique_ptr<ast::ASTNode>> arguments;
+  std::vector<std::unique_ptr<ASTNode>> arguments;
 
   do {
     TRY(argument, parseNamedArgument());
@@ -1679,7 +1678,7 @@ Parser::parseNamedArguments() {
   return ValueWrapper(std::move(loc), std::move(arguments));
 }
 
-ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseNamedArgument() {
+ParseResult<std::unique_ptr<ASTNode>> Parser::parseNamedArgument() {
   EXPECT(TokenKind::Identifier);
   SourceRange loc = getLocation();
   const std::string identifier = getString();
@@ -1695,7 +1694,7 @@ ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseNamedArgument() {
   return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
 }
 
-ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseFunctionArgument() {
+ParseResult<std::unique_ptr<ASTNode>> Parser::parseFunctionArgument() {
   TRY(expression, parseExpression());
 
   auto result = std::make_unique<ExpressionFunctionArgument>(
@@ -1707,7 +1706,7 @@ ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseFunctionArgument() {
 
 WrappedParseResult<std::vector<std::unique_ptr<ASTNode>>>
 Parser::parseOutputExpressionList() {
-  std::vector<std::unique_ptr<ast::ASTNode>> expressions;
+  std::vector<std::unique_ptr<ASTNode>> expressions;
 
   while (!lookahead[0].isa<TokenKind::RPar>()) {
     const SourceRange loc = lookahead[0].getLocation();
@@ -1739,7 +1738,7 @@ Parser::parseArraySubscripts() {
   EXPECT(TokenKind::LSquare);
   SourceRange loc = getLocation();
 
-  std::vector<std::unique_ptr<ast::ASTNode>> subscripts;
+  std::vector<std::unique_ptr<ASTNode>> subscripts;
 
   do {
     TRY(subscript, parseSubscript());
@@ -1780,7 +1779,7 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseAnnotation() {
 
 ParseResult<std::vector<std::unique_ptr<ASTNode>>>
 Parser::parseElementList(bool publicSection) {
-  std::vector<std::unique_ptr<ast::ASTNode>> members;
+  std::vector<std::unique_ptr<ASTNode>> members;
 
   while (!lookahead[0].isa<TokenKind::Public>() &&
          !lookahead[0].isa<TokenKind::Protected>() &&
@@ -1803,14 +1802,13 @@ Parser::parseElementList(bool publicSection) {
   return members;
 }
 
-ParseResult<std::unique_ptr<ast::ASTNode>>
-Parser::parseElement(bool publicSection) {
+ParseResult<std::unique_ptr<ASTNode>> Parser::parseElement(bool publicSection) {
   accept<TokenKind::Final>();
   TRY(typePrefix, parseTypePrefix());
   TRY(type, parseVariableType());
   TRY(name, parseIdentifier());
 
-  std::unique_ptr<ast::ASTNode> modification;
+  std::unique_ptr<ASTNode> modification;
 
   if (lookahead[0].isa<TokenKind::LPar>() ||
       lookahead[0].isa<TokenKind::EqualityOperator>()) {
@@ -1837,10 +1835,10 @@ Parser::parseElement(bool publicSection) {
     result->setModification(std::move(modification));
   }
 
-  return static_cast<std::unique_ptr<ast::ASTNode>>(std::move(result));
+  return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
 }
 
-ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseTypePrefix() {
+ParseResult<std::unique_ptr<ASTNode>> Parser::parseTypePrefix() {
   SourceRange loc = lookahead[0].getLocation();
   VariabilityQualifier variabilityQualifier = VariabilityQualifier::none;
 
@@ -1868,14 +1866,14 @@ ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseTypePrefix() {
     loc.end = getLocation().end;
   }
 
-  auto result = std::make_unique<ast::TypePrefix>(loc);
+  auto result = std::make_unique<TypePrefix>(loc);
   result->setVariabilityQualifier(variabilityQualifier);
   result->setIOQualifier(ioQualifier);
-  return static_cast<std::unique_ptr<ast::ASTNode>>(std::move(result));
+  return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
 }
 
-ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseVariableType() {
-  std::unique_ptr<ast::ASTNode> result;
+ParseResult<std::unique_ptr<ASTNode>> Parser::parseVariableType() {
+  std::unique_ptr<ASTNode> result;
 
   const bool globalLookup = accept<TokenKind::Dot>();
   const std::string name = lookahead[0].getString();
@@ -1884,20 +1882,16 @@ ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseVariableType() {
 
   if (name == "String") {
     result = std::make_unique<BuiltInType>(loc);
-    result->cast<BuiltInType>()->setBuiltInTypeKind(
-        ast::BuiltInType::Kind::String);
+    result->cast<BuiltInType>()->setBuiltInTypeKind(BuiltInType::Kind::String);
   } else if (name == "Boolean") {
     result = std::make_unique<BuiltInType>(loc);
-    result->cast<BuiltInType>()->setBuiltInTypeKind(
-        ast::BuiltInType::Kind::Boolean);
+    result->cast<BuiltInType>()->setBuiltInTypeKind(BuiltInType::Kind::Boolean);
   } else if (name == "Integer") {
     result = std::make_unique<BuiltInType>(loc);
-    result->cast<BuiltInType>()->setBuiltInTypeKind(
-        ast::BuiltInType::Kind::Integer);
+    result->cast<BuiltInType>()->setBuiltInTypeKind(BuiltInType::Kind::Integer);
   } else if (name == "Real") {
     result = std::make_unique<BuiltInType>(loc);
-    result->cast<BuiltInType>()->setBuiltInTypeKind(
-        ast::BuiltInType::Kind::Real);
+    result->cast<BuiltInType>()->setBuiltInTypeKind(BuiltInType::Kind::Real);
   } else {
     llvm::SmallVector<std::string> path;
     path.push_back(name);
@@ -1913,7 +1907,7 @@ ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseVariableType() {
     result->cast<UserDefinedType>()->setPath(path);
   }
 
-  llvm::SmallVector<std::unique_ptr<ast::ASTNode>, 3> dimensions;
+  llvm::SmallVector<std::unique_ptr<ASTNode>, 3> dimensions;
 
   if (accept<TokenKind::LSquare>()) {
     do {
@@ -1928,7 +1922,7 @@ ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseVariableType() {
   return std::move(result);
 }
 
-ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseArrayDimension() {
+ParseResult<std::unique_ptr<ASTNode>> Parser::parseArrayDimension() {
   const SourceRange loc = lookahead[0].getLocation();
   auto result = std::make_unique<ArrayDimension>(loc);
 
@@ -1942,13 +1936,13 @@ ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseArrayDimension() {
     result->setSize(std::move(*expression));
   }
 
-  return static_cast<std::unique_ptr<ast::ASTNode>>(std::move(result));
+  return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
 }
 
-ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseTermModification() {
+ParseResult<std::unique_ptr<ASTNode>> Parser::parseTermModification() {
   EXPECT(TokenKind::LPar);
 
-  std::unique_ptr<ast::ASTNode> expression;
+  std::unique_ptr<ASTNode> expression;
 
   do {
     accept<TokenKind::Each>();

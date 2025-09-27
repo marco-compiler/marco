@@ -1,7 +1,7 @@
 #ifndef MARCO_CODEGEN_LOWERING_LOWERER_H
 #define MARCO_CODEGEN_LOWERING_LOWERER_H
 
-#include "marco/AST/AST.h"
+#include "marco/AST/BaseModelica/AST.h"
 #include "marco/Codegen/Lowering/BridgeInterface.h"
 #include "marco/Codegen/Lowering/LoweringContext.h"
 #include "marco/Codegen/Lowering/Results.h"
@@ -52,15 +52,16 @@ protected:
 
   void pushLookupScope(mlir::Operation *lookupScope);
 
-  mlir::Operation *getClass(const ast::Class &cls);
+  mlir::Operation *getClass(const ast::bmodelica::Class &cls);
 
   mlir::SymbolRefAttr getSymbolRefFromRoot(mlir::Operation *symbol);
 
   mlir::Operation *resolveClassName(llvm::StringRef name,
                                     mlir::Operation *currentScope);
 
-  std::optional<mlir::Operation *> resolveType(const ast::UserDefinedType &type,
-                                               mlir::Operation *lookupScope);
+  std::optional<mlir::Operation *>
+  resolveType(const ast::bmodelica::UserDefinedType &type,
+              mlir::Operation *lookupScope);
 
   mlir::Operation *resolveTypeFromRoot(mlir::SymbolRefAttr name);
 
@@ -91,123 +92,142 @@ protected:
 
   mlir::Operation *getRoot() const override;
 
-  virtual void declare(const ast::Class &node) override;
+  virtual void declare(const ast::bmodelica::Class &node) override;
 
-  virtual void declare(const ast::Model &node) override;
+  virtual void declare(const ast::bmodelica::Model &node) override;
 
-  virtual void declare(const ast::Package &node) override;
+  virtual void declare(const ast::bmodelica::Package &node) override;
 
-  virtual void declare(const ast::PartialDerFunction &node) override;
+  virtual void declare(const ast::bmodelica::PartialDerFunction &node) override;
 
-  virtual void declare(const ast::Record &node) override;
+  virtual void declare(const ast::bmodelica::Record &node) override;
 
-  virtual void declare(const ast::StandardFunction &node) override;
-
-  [[nodiscard]] virtual bool declareVariables(const ast::Class &node) override;
-
-  [[nodiscard]] virtual bool declareVariables(const ast::Model &model) override;
+  virtual void declare(const ast::bmodelica::StandardFunction &node) override;
 
   [[nodiscard]] virtual bool
-  declareVariables(const ast::Package &package) override;
+  declareVariables(const ast::bmodelica::Class &node) override;
 
   [[nodiscard]] virtual bool
-  declareVariables(const ast::PartialDerFunction &function) override;
+  declareVariables(const ast::bmodelica::Model &model) override;
 
   [[nodiscard]] virtual bool
-  declareVariables(const ast::Record &record) override;
+  declareVariables(const ast::bmodelica::Package &package) override;
 
   [[nodiscard]] virtual bool
-  declareVariables(const ast::StandardFunction &function) override;
-
-  [[nodiscard]] virtual bool declare(const ast::Member &node) override;
-
-  [[nodiscard]] virtual bool lower(const ast::Class &node) override;
-
-  [[nodiscard]] virtual bool lower(const ast::Model &node) override;
-
-  [[nodiscard]] virtual bool lower(const ast::Package &node) override;
+  declareVariables(const ast::bmodelica::PartialDerFunction &function) override;
 
   [[nodiscard]] virtual bool
-  lower(const ast::PartialDerFunction &node) override;
-
-  [[nodiscard]] virtual bool lower(const ast::Record &node) override;
-
-  [[nodiscard]] virtual bool lower(const ast::StandardFunction &node) override;
-
-  [[nodiscard]] virtual bool lowerClassBody(const ast::Class &node) override;
+  declareVariables(const ast::bmodelica::Record &record) override;
 
   [[nodiscard]] virtual bool
-  createBindingEquation(const ast::Member &variable,
-                        const ast::Expression &expression) override;
+  declareVariables(const ast::bmodelica::StandardFunction &function) override;
+
+  [[nodiscard]] virtual bool
+  declare(const ast::bmodelica::Member &node) override;
+
+  [[nodiscard]] virtual bool lower(const ast::bmodelica::Class &node) override;
+
+  [[nodiscard]] virtual bool lower(const ast::bmodelica::Model &node) override;
+
+  [[nodiscard]] virtual bool
+  lower(const ast::bmodelica::Package &node) override;
+
+  [[nodiscard]] virtual bool
+  lower(const ast::bmodelica::PartialDerFunction &node) override;
+
+  [[nodiscard]] virtual bool lower(const ast::bmodelica::Record &node) override;
+
+  [[nodiscard]] virtual bool
+  lower(const ast::bmodelica::StandardFunction &node) override;
+
+  [[nodiscard]] virtual bool
+  lowerClassBody(const ast::bmodelica::Class &node) override;
+
+  [[nodiscard]] virtual bool
+  createBindingEquation(const ast::bmodelica::Member &variable,
+                        const ast::bmodelica::Expression &expression) override;
 
   [[nodiscard]] virtual bool
   lowerStartAttribute(mlir::SymbolRefAttr variable,
-                      const ast::Expression &expression, bool fixed,
+                      const ast::bmodelica::Expression &expression, bool fixed,
                       bool each) override;
 
   virtual std::optional<Results>
-  lower(const ast::Expression &expression) override;
+  lower(const ast::bmodelica::Expression &expression) override;
 
   virtual std::optional<Results>
-  lower(const ast::ArrayGenerator &node) override;
-
-  virtual std::optional<Results> lower(const ast::Call &node) override;
-
-  virtual std::optional<Results> lower(const ast::Constant &constant) override;
+  lower(const ast::bmodelica::ArrayGenerator &node) override;
 
   virtual std::optional<Results>
-  lower(const ast::Operation &operation) override;
+  lower(const ast::bmodelica::Call &node) override;
 
   virtual std::optional<Results>
-  lower(const ast::ComponentReference &componentReference) override;
-
-  virtual std::optional<Results> lower(const ast::Tuple &tuple) override;
+  lower(const ast::bmodelica::Constant &constant) override;
 
   virtual std::optional<Results>
-  lower(const ast::Subscript &subscript) override;
+  lower(const ast::bmodelica::Operation &operation) override;
 
-  [[nodiscard]] virtual bool lower(const ast::EquationSection &node) override;
+  virtual std::optional<Results>
+  lower(const ast::bmodelica::ComponentReference &componentReference) override;
 
-  [[nodiscard]] virtual bool lower(const ast::Equation &equation) override;
+  virtual std::optional<Results>
+  lower(const ast::bmodelica::Tuple &tuple) override;
+
+  virtual std::optional<Results>
+  lower(const ast::bmodelica::Subscript &subscript) override;
 
   [[nodiscard]] virtual bool
-  lower(const ast::EqualityEquation &equation) override;
-
-  [[nodiscard]] virtual bool lower(const ast::ForEquation &equation) override;
-
-  [[nodiscard]] virtual bool lower(const ast::IfEquation &equation) override;
-
-  [[nodiscard]] virtual bool lower(const ast::WhenEquation &equation) override;
-
-  [[nodiscard]] virtual bool lower(const ast::Algorithm &node) override;
-
-  [[nodiscard]] virtual bool lower(const ast::Statement &node) override;
+  lower(const ast::bmodelica::EquationSection &node) override;
 
   [[nodiscard]] virtual bool
-  lower(const ast::AssignmentStatement &statement) override;
+  lower(const ast::bmodelica::Equation &equation) override;
+
+  [[nodiscard]] virtual bool
+  lower(const ast::bmodelica::EqualityEquation &equation) override;
+
+  [[nodiscard]] virtual bool
+  lower(const ast::bmodelica::ForEquation &equation) override;
+
+  [[nodiscard]] virtual bool
+  lower(const ast::bmodelica::IfEquation &equation) override;
+
+  [[nodiscard]] virtual bool
+  lower(const ast::bmodelica::WhenEquation &equation) override;
+
+  [[nodiscard]] virtual bool
+  lower(const ast::bmodelica::Algorithm &node) override;
+
+  [[nodiscard]] virtual bool
+  lower(const ast::bmodelica::Statement &node) override;
+
+  [[nodiscard]] virtual bool
+  lower(const ast::bmodelica::AssignmentStatement &statement) override;
 
   [[nodiscard]] virtual bool lowerAssignmentToComponentReference(
-      mlir::Location assignmentLoc, const ast::ComponentReference &destination,
+      mlir::Location assignmentLoc,
+      const ast::bmodelica::ComponentReference &destination,
       mlir::Value value) override;
 
   [[nodiscard]] virtual bool
-  lower(const ast::BreakStatement &statement) override;
+  lower(const ast::bmodelica::BreakStatement &statement) override;
 
   [[nodiscard]] virtual bool
-  lower(const ast::CallStatement &statement) override;
-
-  [[nodiscard]] virtual bool lower(const ast::ForStatement &statement) override;
-
-  [[nodiscard]] virtual bool lower(const ast::IfStatement &statement) override;
+  lower(const ast::bmodelica::CallStatement &statement) override;
 
   [[nodiscard]] virtual bool
-  lower(const ast::ReturnStatement &statement) override;
+  lower(const ast::bmodelica::ForStatement &statement) override;
 
   [[nodiscard]] virtual bool
-  lower(const ast::WhenStatement &statement) override;
+  lower(const ast::bmodelica::IfStatement &statement) override;
 
   [[nodiscard]] virtual bool
-  lower(const ast::WhileStatement &statement) override;
+  lower(const ast::bmodelica::ReturnStatement &statement) override;
+
+  [[nodiscard]] virtual bool
+  lower(const ast::bmodelica::WhenStatement &statement) override;
+
+  [[nodiscard]] virtual bool
+  lower(const ast::bmodelica::WhileStatement &statement) override;
 
   virtual void
   emitIdentifierError(IdentifierError::IdentifierType identifierType,

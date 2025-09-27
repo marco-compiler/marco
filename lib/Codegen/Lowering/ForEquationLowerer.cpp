@@ -8,7 +8,7 @@ namespace marco::codegen::lowering {
 ForEquationLowerer::ForEquationLowerer(BridgeInterface *bridge)
     : Lowerer(bridge) {}
 
-bool ForEquationLowerer::lower(const ast::ForEquation &forEquation) {
+bool ForEquationLowerer::lower(const ast::bmodelica::ForEquation &forEquation) {
   VariablesSymbolTable::VariablesScope scope(getVariablesSymbolTable());
   mlir::Location location = loc(forEquation.getLocation());
 
@@ -20,45 +20,46 @@ bool ForEquationLowerer::lower(const ast::ForEquation &forEquation) {
   llvm::SmallVector<mlir::Value, 3> inductions;
 
   for (size_t i = 0, e = forEquation.getNumOfForIndices(); i < e; ++i) {
-    const ast::ForIndex *forIndex = forEquation.getForIndex(i);
+    const ast::bmodelica::ForIndex *forIndex = forEquation.getForIndex(i);
     assert(forIndex->hasExpression());
-    assert(forIndex->getExpression()->isa<ast::Operation>());
+    assert(forIndex->getExpression()->isa<ast::bmodelica::Operation>());
 
     const auto *forIndexRange =
-        forIndex->getExpression()->cast<ast::Operation>();
+        forIndex->getExpression()->cast<ast::bmodelica::Operation>();
 
-    assert(forIndexRange->getOperationKind() == ast::OperationKind::range);
+    assert(forIndexRange->getOperationKind() ==
+           ast::bmodelica::OperationKind::range);
 
     int64_t begin, end, step;
 
     if (forIndexRange->getNumOfArguments() == 2) {
-      assert(forIndexRange->getArgument(0)->isa<ast::Constant>());
-      assert(forIndexRange->getArgument(1)->isa<ast::Constant>());
+      assert(forIndexRange->getArgument(0)->isa<ast::bmodelica::Constant>());
+      assert(forIndexRange->getArgument(1)->isa<ast::bmodelica::Constant>());
 
       begin = forIndexRange->getArgument(0)
-                  ->dyn_cast<ast::Constant>()
+                  ->dyn_cast<ast::bmodelica::Constant>()
                   ->as<int64_t>();
 
       step = 1;
 
       end = forIndexRange->getArgument(1)
-                ->dyn_cast<ast::Constant>()
+                ->dyn_cast<ast::bmodelica::Constant>()
                 ->as<int64_t>();
     } else {
-      assert(forIndexRange->getArgument(0)->isa<ast::Constant>());
-      assert(forIndexRange->getArgument(1)->isa<ast::Constant>());
-      assert(forIndexRange->getArgument(2)->isa<ast::Constant>());
+      assert(forIndexRange->getArgument(0)->isa<ast::bmodelica::Constant>());
+      assert(forIndexRange->getArgument(1)->isa<ast::bmodelica::Constant>());
+      assert(forIndexRange->getArgument(2)->isa<ast::bmodelica::Constant>());
 
       begin = forIndexRange->getArgument(0)
-                  ->dyn_cast<ast::Constant>()
+                  ->dyn_cast<ast::bmodelica::Constant>()
                   ->as<int64_t>();
 
       step = forIndexRange->getArgument(1)
-                 ->dyn_cast<ast::Constant>()
+                 ->dyn_cast<ast::bmodelica::Constant>()
                  ->as<int64_t>();
 
       end = forIndexRange->getArgument(2)
-                ->dyn_cast<ast::Constant>()
+                ->dyn_cast<ast::bmodelica::Constant>()
                 ->as<int64_t>();
     }
 

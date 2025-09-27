@@ -8,7 +8,8 @@ namespace marco::codegen::lowering {
 EqualityEquationLowerer::EqualityEquationLowerer(BridgeInterface *bridge)
     : Lowerer(bridge) {}
 
-bool EqualityEquationLowerer::lower(const ast::EqualityEquation &equation) {
+bool EqualityEquationLowerer::lower(
+    const ast::bmodelica::EqualityEquation &equation) {
   mlir::Location location = loc(equation.getLocation());
 
   auto equationOp = builder().create<EquationOp>(location);

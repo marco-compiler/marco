@@ -8,7 +8,7 @@ namespace marco::codegen::lowering {
 IfStatementLowerer::IfStatementLowerer(BridgeInterface *bridge)
     : Lowerer(bridge) {}
 
-bool IfStatementLowerer::lower(const ast::IfStatement &statement) {
+bool IfStatementLowerer::lower(const ast::bmodelica::IfStatement &statement) {
   mlir::Location location = loc(statement.getLocation());
 
   std::optional<mlir::Value> ifCondition =
@@ -66,8 +66,8 @@ bool IfStatementLowerer::lower(const ast::IfStatement &statement) {
   return true;
 }
 
-std::optional<mlir::Value>
-IfStatementLowerer::lowerCondition(const ast::Expression &expression) {
+std::optional<mlir::Value> IfStatementLowerer::lowerCondition(
+    const ast::bmodelica::Expression &expression) {
   mlir::Location location = loc(expression.getLocation());
   auto loweredExpression = lower(expression);
   if (!loweredExpression) {
@@ -78,7 +78,8 @@ IfStatementLowerer::lowerCondition(const ast::Expression &expression) {
   return results[0].get(location);
 }
 
-bool IfStatementLowerer::lower(const ast::StatementsBlock &statementsBlock) {
+bool IfStatementLowerer::lower(
+    const ast::bmodelica::StatementsBlock &statementsBlock) {
   for (size_t i = 0, e = statementsBlock.size(); i < e; ++i) {
     if (!lower(*statementsBlock[i])) {
       return false;

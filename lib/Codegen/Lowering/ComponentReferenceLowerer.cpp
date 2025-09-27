@@ -9,13 +9,13 @@ ComponentReferenceLowerer::ComponentReferenceLowerer(BridgeInterface *bridge)
     : Lowerer(bridge) {}
 
 std::optional<Results> ComponentReferenceLowerer::lower(
-    const ast::ComponentReference &componentReference) {
+    const ast::bmodelica::ComponentReference &componentReference) {
   mlir::Location location = loc(componentReference.getLocation());
 
   size_t pathLength = componentReference.getPathLength();
   assert(pathLength >= 1);
 
-  const ast::ComponentReferenceEntry *firstEntry =
+  const ast::bmodelica::ComponentReferenceEntry *firstEntry =
       componentReference.getElement(0);
 
   std::optional<Reference> result = lookupVariable(firstEntry->getName());
@@ -38,7 +38,7 @@ std::optional<Results> ComponentReferenceLowerer::lower(
     mlir::Value parent = result->get(location);
     mlir::Type parentType = parent.getType();
 
-    const ast::ComponentReferenceEntry *pathEntry =
+    const ast::bmodelica::ComponentReferenceEntry *pathEntry =
         componentReference.getElement(i);
 
     mlir::Type baseType = parentType;
@@ -99,8 +99,8 @@ std::optional<Results> ComponentReferenceLowerer::lower(
 }
 
 std::optional<Reference> ComponentReferenceLowerer::lowerSubscripts(
-    Reference current, const ast::ComponentReferenceEntry &entry, bool isFirst,
-    bool isLast) {
+    Reference current, const ast::bmodelica::ComponentReferenceEntry &entry,
+    bool isFirst, bool isLast) {
   llvm::SmallVector<mlir::Value> subscripts;
 
   for (size_t i = 0, e = entry.getNumOfSubscripts(); i < e; ++i) {

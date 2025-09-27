@@ -7,7 +7,7 @@ using namespace ::mlir::bmodelica;
 namespace marco::codegen::lowering {
 RecordLowerer::RecordLowerer(BridgeInterface *bridge) : Lowerer(bridge) {}
 
-void RecordLowerer::declare(const ast::Record &record) {
+void RecordLowerer::declare(const ast::bmodelica::Record &record) {
   mlir::Location location = loc(record.getLocation());
 
   // Create the record operation.
@@ -19,11 +19,11 @@ void RecordLowerer::declare(const ast::Record &record) {
 
   // Declare the inner classes.
   for (const auto &innerClassNode : record.getInnerClasses()) {
-    declare(*innerClassNode->cast<ast::Class>());
+    declare(*innerClassNode->cast<ast::bmodelica::Class>());
   }
 }
 
-bool RecordLowerer::declareVariables(const ast::Record &record) {
+bool RecordLowerer::declareVariables(const ast::bmodelica::Record &record) {
   mlir::OpBuilder::InsertionGuard guard(builder());
   LookupScopeGuard lookupScopeGuard(&getContext());
 
@@ -34,14 +34,14 @@ bool RecordLowerer::declareVariables(const ast::Record &record) {
 
   // Declare the variables.
   for (const auto &variable : record.getVariables()) {
-    if (!declare(*variable->cast<ast::Member>())) {
+    if (!declare(*variable->cast<ast::bmodelica::Member>())) {
       return false;
     }
   }
 
   // Declare the variables of inner classes.
   for (const auto &innerClassNode : record.getInnerClasses()) {
-    if (!declareVariables(*innerClassNode->cast<ast::Class>())) {
+    if (!declareVariables(*innerClassNode->cast<ast::bmodelica::Class>())) {
       return false;
     }
   }
@@ -49,7 +49,7 @@ bool RecordLowerer::declareVariables(const ast::Record &record) {
   return true;
 }
 
-bool RecordLowerer::lower(const ast::Record &record) {
+bool RecordLowerer::lower(const ast::bmodelica::Record &record) {
   mlir::OpBuilder::InsertionGuard guard(builder());
 
   VariablesSymbolTable::VariablesScope varScope(getVariablesSymbolTable());
@@ -76,14 +76,14 @@ bool RecordLowerer::lower(const ast::Record &record) {
   }
 
   // Create the algorithms.
-  llvm::SmallVector<const ast::Algorithm *> initialAlgorithms;
-  llvm::SmallVector<const ast::Algorithm *> algorithms;
+  llvm::SmallVector<const ast::bmodelica::Algorithm *> initialAlgorithms;
+  llvm::SmallVector<const ast::bmodelica::Algorithm *> algorithms;
 
   for (const auto &algorithm : record.getAlgorithms()) {
-    if (algorithm->cast<ast::Algorithm>()->isInitial()) {
-      initialAlgorithms.push_back(algorithm->cast<ast::Algorithm>());
+    if (algorithm->cast<ast::bmodelica::Algorithm>()->isInitial()) {
+      initialAlgorithms.push_back(algorithm->cast<ast::bmodelica::Algorithm>());
     } else {
-      algorithms.push_back(algorithm->cast<ast::Algorithm>());
+      algorithms.push_back(algorithm->cast<ast::bmodelica::Algorithm>());
     }
   }
 
@@ -117,7 +117,7 @@ bool RecordLowerer::lower(const ast::Record &record) {
 
   // Lower the inner classes.
   for (const auto &innerClassNode : record.getInnerClasses()) {
-    if (!lower(*innerClassNode->cast<ast::Class>())) {
+    if (!lower(*innerClassNode->cast<ast::bmodelica::Class>())) {
       return false;
     }
   }

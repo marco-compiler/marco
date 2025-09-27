@@ -74,19 +74,19 @@ void Lowerer::pushLookupScope(mlir::Operation *lookupScope) {
   getContext().pushLookupScope(lookupScope);
 }
 
-mlir::Operation *Lowerer::getClass(const ast::Class &cls) {
-  llvm::SmallVector<const ast::Class *> classes;
-  const ast::ASTNode *current = &cls;
+mlir::Operation *Lowerer::getClass(const ast::bmodelica::Class &cls) {
+  llvm::SmallVector<const ast::bmodelica::Class *> classes;
+  const ast::bmodelica::ASTNode *current = &cls;
 
-  while (current != nullptr && !current->isa<ast::Root>()) {
-    classes.push_back(current->cast<ast::Class>());
-    current = current->getParentOfType<ast::Class>();
+  while (current != nullptr && !current->isa<ast::bmodelica::Root>()) {
+    classes.push_back(current->cast<ast::bmodelica::Class>());
+    current = current->getParentOfType<ast::bmodelica::Class>();
   }
 
   mlir::Operation *result = getRoot();
 
   while (!classes.empty() && result != nullptr) {
-    const ast::Class *node = classes.back();
+    const ast::bmodelica::Class *node = classes.back();
 
     result = getSymbolTable().lookupSymbolIn(
         result, builder().getStringAttr(node->getName()));
@@ -133,7 +133,7 @@ mlir::Operation *Lowerer::resolveClassName(llvm::StringRef name,
 }
 
 std::optional<mlir::Operation *>
-Lowerer::resolveType(const ast::UserDefinedType &type,
+Lowerer::resolveType(const ast::bmodelica::UserDefinedType &type,
                      mlir::Operation *lookupScope) {
   mlir::Operation *scope = lookupScope;
 
@@ -224,178 +224,204 @@ const LoweringContext &Lowerer::getContext() const {
 
 mlir::Operation *Lowerer::getRoot() const { return bridge->getRoot(); }
 
-void Lowerer::declare(const ast::Class &node) { return bridge->declare(node); }
-
-void Lowerer::declare(const ast::Model &node) { return bridge->declare(node); }
-
-void Lowerer::declare(const ast::Package &node) {
+void Lowerer::declare(const ast::bmodelica::Class &node) {
   return bridge->declare(node);
 }
 
-void Lowerer::declare(const ast::PartialDerFunction &node) {
+void Lowerer::declare(const ast::bmodelica::Model &node) {
   return bridge->declare(node);
 }
 
-void Lowerer::declare(const ast::Record &node) { return bridge->declare(node); }
-
-void Lowerer::declare(const ast::StandardFunction &node) {
+void Lowerer::declare(const ast::bmodelica::Package &node) {
   return bridge->declare(node);
 }
 
-bool Lowerer::declareVariables(const ast::Class &node) {
+void Lowerer::declare(const ast::bmodelica::PartialDerFunction &node) {
+  return bridge->declare(node);
+}
+
+void Lowerer::declare(const ast::bmodelica::Record &node) {
+  return bridge->declare(node);
+}
+
+void Lowerer::declare(const ast::bmodelica::StandardFunction &node) {
+  return bridge->declare(node);
+}
+
+bool Lowerer::declareVariables(const ast::bmodelica::Class &node) {
   return bridge->declareVariables(node);
 }
 
-bool Lowerer::declareVariables(const ast::Model &node) {
+bool Lowerer::declareVariables(const ast::bmodelica::Model &node) {
   return bridge->declareVariables(node);
 }
 
-bool Lowerer::declareVariables(const ast::Package &node) {
+bool Lowerer::declareVariables(const ast::bmodelica::Package &node) {
   return bridge->declareVariables(node);
 }
 
-bool Lowerer::declareVariables(const ast::PartialDerFunction &node) {
+bool Lowerer::declareVariables(const ast::bmodelica::PartialDerFunction &node) {
   return bridge->declareVariables(node);
 }
 
-bool Lowerer::declareVariables(const ast::Record &node) {
+bool Lowerer::declareVariables(const ast::bmodelica::Record &node) {
   return bridge->declareVariables(node);
 }
 
-bool Lowerer::declareVariables(const ast::StandardFunction &node) {
+bool Lowerer::declareVariables(const ast::bmodelica::StandardFunction &node) {
   return bridge->declareVariables(node);
 }
 
-bool Lowerer::declare(const ast::Member &node) { return bridge->declare(node); }
+bool Lowerer::declare(const ast::bmodelica::Member &node) {
+  return bridge->declare(node);
+}
 
-bool Lowerer::lower(const ast::Class &node) { return bridge->lower(node); }
-
-bool Lowerer::lower(const ast::Model &node) { return bridge->lower(node); }
-
-bool Lowerer::lower(const ast::Package &node) { return bridge->lower(node); }
-
-bool Lowerer::lower(const ast::PartialDerFunction &node) {
+bool Lowerer::lower(const ast::bmodelica::Class &node) {
   return bridge->lower(node);
 }
 
-bool Lowerer::lower(const ast::Record &node) { return bridge->lower(node); }
-
-bool Lowerer::lower(const ast::StandardFunction &node) {
+bool Lowerer::lower(const ast::bmodelica::Model &node) {
   return bridge->lower(node);
 }
 
-bool Lowerer::lowerClassBody(const ast::Class &node) {
+bool Lowerer::lower(const ast::bmodelica::Package &node) {
+  return bridge->lower(node);
+}
+
+bool Lowerer::lower(const ast::bmodelica::PartialDerFunction &node) {
+  return bridge->lower(node);
+}
+
+bool Lowerer::lower(const ast::bmodelica::Record &node) {
+  return bridge->lower(node);
+}
+
+bool Lowerer::lower(const ast::bmodelica::StandardFunction &node) {
+  return bridge->lower(node);
+}
+
+bool Lowerer::lowerClassBody(const ast::bmodelica::Class &node) {
   return bridge->lowerClassBody(node);
 }
 
-bool Lowerer::createBindingEquation(const ast::Member &variable,
-                                    const ast::Expression &expression) {
+bool Lowerer::createBindingEquation(
+    const ast::bmodelica::Member &variable,
+    const ast::bmodelica::Expression &expression) {
   return bridge->createBindingEquation(variable, expression);
 }
 
 bool Lowerer::lowerStartAttribute(mlir::SymbolRefAttr variable,
-                                  const ast::Expression &expression, bool fixed,
-                                  bool each) {
+                                  const ast::bmodelica::Expression &expression,
+                                  bool fixed, bool each) {
   return bridge->lowerStartAttribute(variable, expression, fixed, each);
 }
 
-std::optional<Results> Lowerer::lower(const ast::Expression &expression) {
+std::optional<Results>
+Lowerer::lower(const ast::bmodelica::Expression &expression) {
   return bridge->lower(expression);
 }
 
-std::optional<Results> Lowerer::lower(const ast::ArrayGenerator &array) {
+std::optional<Results>
+Lowerer::lower(const ast::bmodelica::ArrayGenerator &array) {
   return bridge->lower(array);
 }
 
-std::optional<Results> Lowerer::lower(const ast::Call &call) {
+std::optional<Results> Lowerer::lower(const ast::bmodelica::Call &call) {
   return bridge->lower(call);
 }
 
-std::optional<Results> Lowerer::lower(const ast::Constant &constant) {
+std::optional<Results>
+Lowerer::lower(const ast::bmodelica::Constant &constant) {
   return bridge->lower(constant);
 }
 
-std::optional<Results> Lowerer::lower(const ast::Operation &operation) {
+std::optional<Results>
+Lowerer::lower(const ast::bmodelica::Operation &operation) {
   return bridge->lower(operation);
 }
 
 std::optional<Results>
-Lowerer::lower(const ast::ComponentReference &componentReference) {
+Lowerer::lower(const ast::bmodelica::ComponentReference &componentReference) {
   return bridge->lower(componentReference);
 }
 
-std::optional<Results> Lowerer::lower(const ast::Tuple &tuple) {
+std::optional<Results> Lowerer::lower(const ast::bmodelica::Tuple &tuple) {
   return bridge->lower(tuple);
 }
 
-std::optional<Results> Lowerer::lower(const ast::Subscript &subscript) {
+std::optional<Results>
+Lowerer::lower(const ast::bmodelica::Subscript &subscript) {
   return bridge->lower(subscript);
 }
 
-bool Lowerer::lower(const ast::EquationSection &node) {
+bool Lowerer::lower(const ast::bmodelica::EquationSection &node) {
   return bridge->lower(node);
 }
 
-bool Lowerer::lower(const ast::Equation &node) { return bridge->lower(node); }
-
-bool Lowerer::lower(const ast::EqualityEquation &node) {
+bool Lowerer::lower(const ast::bmodelica::Equation &node) {
   return bridge->lower(node);
 }
 
-bool Lowerer::lower(const ast::ForEquation &node) {
+bool Lowerer::lower(const ast::bmodelica::EqualityEquation &node) {
   return bridge->lower(node);
 }
 
-bool Lowerer::lower(const ast::IfEquation &node) { return bridge->lower(node); }
-
-bool Lowerer::lower(const ast::WhenEquation &node) {
+bool Lowerer::lower(const ast::bmodelica::ForEquation &node) {
   return bridge->lower(node);
 }
 
-bool Lowerer::lower(const ast::Algorithm &algorithm) {
+bool Lowerer::lower(const ast::bmodelica::IfEquation &node) {
+  return bridge->lower(node);
+}
+
+bool Lowerer::lower(const ast::bmodelica::WhenEquation &node) {
+  return bridge->lower(node);
+}
+
+bool Lowerer::lower(const ast::bmodelica::Algorithm &algorithm) {
   return bridge->lower(algorithm);
 }
 
-bool Lowerer::lower(const ast::Statement &statement) {
+bool Lowerer::lower(const ast::bmodelica::Statement &statement) {
   return bridge->lower(statement);
 }
 
-bool Lowerer::lower(const ast::AssignmentStatement &statement) {
+bool Lowerer::lower(const ast::bmodelica::AssignmentStatement &statement) {
   return bridge->lower(statement);
 }
 
 bool Lowerer::lowerAssignmentToComponentReference(
-    mlir::Location assignmentLoc, const ast::ComponentReference &destination,
-    mlir::Value value) {
+    mlir::Location assignmentLoc,
+    const ast::bmodelica::ComponentReference &destination, mlir::Value value) {
   return bridge->lowerAssignmentToComponentReference(assignmentLoc, destination,
                                                      value);
 }
 
-bool Lowerer::lower(const ast::BreakStatement &statement) {
+bool Lowerer::lower(const ast::bmodelica::BreakStatement &statement) {
   return bridge->lower(statement);
 }
 
-bool Lowerer::lower(const ast::CallStatement &statement) {
+bool Lowerer::lower(const ast::bmodelica::CallStatement &statement) {
   return bridge->lower(statement);
 }
 
-bool Lowerer::lower(const ast::ForStatement &statement) {
+bool Lowerer::lower(const ast::bmodelica::ForStatement &statement) {
   return bridge->lower(statement);
 }
 
-bool Lowerer::lower(const ast::IfStatement &statement) {
+bool Lowerer::lower(const ast::bmodelica::IfStatement &statement) {
   return bridge->lower(statement);
 }
 
-bool Lowerer::lower(const ast::ReturnStatement &statement) {
+bool Lowerer::lower(const ast::bmodelica::ReturnStatement &statement) {
   return bridge->lower(statement);
 }
 
-bool Lowerer::lower(const ast::WhenStatement &statement) {
+bool Lowerer::lower(const ast::bmodelica::WhenStatement &statement) {
   return bridge->lower(statement);
 }
 
-bool Lowerer::lower(const ast::WhileStatement &statement) {
+bool Lowerer::lower(const ast::bmodelica::WhileStatement &statement) {
   return bridge->lower(statement);
 }
 

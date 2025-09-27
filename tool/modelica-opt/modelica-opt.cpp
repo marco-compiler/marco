@@ -5,6 +5,7 @@
 #include "marco/Dialect/BaseModelica/Transforms/Passes.h"
 #include "marco/Dialect/IDA/IR/IDA.h"
 #include "marco/Dialect/KINSOL/IR/KINSOL.h"
+#include "marco/Dialect/Modelica/Transforms/Passes.h"
 #include "marco/Dialect/Runtime/IR/Runtime.h"
 #include "marco/Dialect/Runtime/Transforms/AllInterfaces.h"
 #include "marco/Dialect/Runtime/Transforms/Passes.h"
@@ -39,7 +40,8 @@ int main(int argc, char *argv[]) {
   // Register the passes defined by MARCO.
   marco::codegen::registerConversionPasses();
 
-  mlir::bmodelica::registerModelicaPasses();
+  mlir::bmodelica::registerBaseModelicaPasses();
+  mlir::modelica::registerModelicaPasses();
   mlir::runtime::registerRuntimePasses();
 
   // Register MLIR built-in transformations.

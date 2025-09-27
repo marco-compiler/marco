@@ -9,7 +9,7 @@ EquationSectionLowerer::EquationSectionLowerer(BridgeInterface *bridge)
     : Lowerer(bridge) {}
 
 bool EquationSectionLowerer::lower(
-    const ast::EquationSection &equationSection) {
+    const ast::bmodelica::EquationSection &equationSection) {
   if (equationSection.isInitial()) {
     auto initialOp =
         builder().create<InitialOp>(loc(equationSection.getLocation()));

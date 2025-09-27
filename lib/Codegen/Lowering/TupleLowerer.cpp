@@ -7,7 +7,7 @@ using namespace ::mlir::bmodelica;
 namespace marco::codegen::lowering {
 TupleLowerer::TupleLowerer(BridgeInterface *bridge) : Lowerer(bridge) {}
 
-std::optional<Results> TupleLowerer::lower(const ast::Tuple &tuple) {
+std::optional<Results> TupleLowerer::lower(const ast::bmodelica::Tuple &tuple) {
   Results result;
 
   for (size_t i = 0, e = tuple.size(); i < e; ++i) {

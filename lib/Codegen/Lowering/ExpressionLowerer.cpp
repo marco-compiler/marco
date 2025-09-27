@@ -9,33 +9,33 @@ ExpressionLowerer::ExpressionLowerer(BridgeInterface *bridge)
     : Lowerer(bridge) {}
 
 std::optional<Results>
-ExpressionLowerer::lower(const ast::Expression &expression) {
-  if (auto array = expression.dyn_cast<ast::ArrayGenerator>()) {
+ExpressionLowerer::lower(const ast::bmodelica::Expression &expression) {
+  if (auto array = expression.dyn_cast<ast::bmodelica::ArrayGenerator>()) {
     return lower(*array);
   }
 
-  if (auto call = expression.dyn_cast<ast::Call>()) {
+  if (auto call = expression.dyn_cast<ast::bmodelica::Call>()) {
     return lower(*call);
   }
 
-  if (auto constant = expression.dyn_cast<ast::Constant>()) {
+  if (auto constant = expression.dyn_cast<ast::bmodelica::Constant>()) {
     return lower(*constant);
   }
 
-  if (auto operation = expression.dyn_cast<ast::Operation>()) {
+  if (auto operation = expression.dyn_cast<ast::bmodelica::Operation>()) {
     return lower(*operation);
   }
 
   if (auto componentReference =
-          expression.dyn_cast<ast::ComponentReference>()) {
+          expression.dyn_cast<ast::bmodelica::ComponentReference>()) {
     return lower(*componentReference);
   }
 
-  if (auto tuple = expression.dyn_cast<ast::Tuple>()) {
+  if (auto tuple = expression.dyn_cast<ast::bmodelica::Tuple>()) {
     return lower(*tuple);
   }
 
-  if (auto subscript = expression.dyn_cast<ast::Subscript>()) {
+  if (auto subscript = expression.dyn_cast<ast::bmodelica::Subscript>()) {
     return lower(*subscript);
   }
 

@@ -1,7 +1,7 @@
 #ifndef MARCO_CODEGEN_LOWERING_CLASSDEPENDENCYGRAPH_H
 #define MARCO_CODEGEN_LOWERING_CLASSDEPENDENCYGRAPH_H
 
-#include "marco/AST/AST.h"
+#include "marco/AST/BaseModelica/AST.h"
 #include "marco/Codegen/Lowering/ClassPath.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DenseSet.h"

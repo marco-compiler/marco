@@ -1,7 +1,7 @@
 #ifndef MARCO_CODEGEN_LOWERING_BRIDGE_H
 #define MARCO_CODEGEN_LOWERING_BRIDGE_H
 
-#include "marco/AST/AST.h"
+#include "marco/AST/BaseModelica/AST.h"
 #include "marco/Codegen/Lowering/Results.h"
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "mlir/IR/BuiltinOps.h"
@@ -19,7 +19,7 @@ public:
 
   ~Bridge();
 
-  [[nodiscard]] bool lower(const ast::Root &root);
+  [[nodiscard]] bool lower(const ast::bmodelica::Root &root);
 
   std::unique_ptr<mlir::ModuleOp> &getMLIRModule();
 };

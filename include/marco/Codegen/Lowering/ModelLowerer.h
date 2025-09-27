@@ -1,7 +1,7 @@
 #ifndef MARCO_CODEGEN_LOWERING_MODELLOWERER_H
 #define MARCO_CODEGEN_LOWERING_MODELLOWERER_H
 
-#include "marco/AST/AST.h"
+#include "marco/AST/BaseModelica/AST.h"
 #include "marco/Codegen/Lowering/BridgeInterface.h"
 #include "marco/Codegen/Lowering/Lowerer.h"
 
@@ -10,19 +10,21 @@ class ModelLowerer : public Lowerer {
 public:
   explicit ModelLowerer(BridgeInterface *bridge);
 
-  void declare(const ast::Model &model) override;
+  void declare(const ast::bmodelica::Model &model) override;
 
-  [[nodiscard]] bool declareVariables(const ast::Model &model) override;
+  [[nodiscard]] bool
+  declareVariables(const ast::bmodelica::Model &model) override;
 
-  [[nodiscard]] bool lower(const ast::Model &model) override;
+  [[nodiscard]] bool lower(const ast::bmodelica::Model &model) override;
 
-  [[nodiscard]] bool lowerVariableAttributes(mlir::bmodelica::ModelOp modelOp,
-                                             const ast::Member &variable);
+  [[nodiscard]] bool
+  lowerVariableAttributes(mlir::bmodelica::ModelOp modelOp,
+                          const ast::bmodelica::Member &variable);
 
   [[nodiscard]] bool lowerVariableAttributes(
       mlir::bmodelica::ModelOp modelOp,
       llvm::SmallVectorImpl<mlir::bmodelica::VariableOp> &components,
-      const ast::ClassModification &classModification);
+      const ast::bmodelica::ClassModification &classModification);
 
 protected:
   using Lowerer::declare;

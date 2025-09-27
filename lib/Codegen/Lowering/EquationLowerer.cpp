@@ -7,20 +7,20 @@ using namespace ::mlir::bmodelica;
 namespace marco::codegen::lowering {
 EquationLowerer::EquationLowerer(BridgeInterface *bridge) : Lowerer(bridge) {}
 
-bool EquationLowerer::lower(const ast::Equation &equation) {
-  if (auto casted = equation.dyn_cast<ast::EqualityEquation>()) {
+bool EquationLowerer::lower(const ast::bmodelica::Equation &equation) {
+  if (auto casted = equation.dyn_cast<ast::bmodelica::EqualityEquation>()) {
     return lower(*casted);
   }
 
-  if (auto casted = equation.dyn_cast<ast::IfEquation>()) {
+  if (auto casted = equation.dyn_cast<ast::bmodelica::IfEquation>()) {
     return lower(*casted);
   }
 
-  if (auto casted = equation.dyn_cast<ast::ForEquation>()) {
+  if (auto casted = equation.dyn_cast<ast::bmodelica::ForEquation>()) {
     return lower(*casted);
   }
 
-  if (auto casted = equation.dyn_cast<ast::WhenEquation>()) {
+  if (auto casted = equation.dyn_cast<ast::bmodelica::WhenEquation>()) {
     return lower(*casted);
   }
 

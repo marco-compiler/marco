@@ -1,4 +1,4 @@
-#include "marco/AST/AST.h"
+#include "marco/AST/BaseModelica/AST.h"
 #include "gtest/gtest.h"
 
 using namespace ::marco;

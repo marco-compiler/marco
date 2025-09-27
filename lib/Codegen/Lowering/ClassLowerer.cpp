@@ -8,48 +8,50 @@ using namespace ::mlir::bmodelica;
 namespace marco::codegen::lowering {
 ClassLowerer::ClassLowerer(BridgeInterface *bridge) : Lowerer(bridge) {}
 
-void ClassLowerer::declare(const ast::Class &cls) {
-  if (auto model = cls.dyn_cast<ast::Model>()) {
+void ClassLowerer::declare(const ast::bmodelica::Class &cls) {
+  if (auto model = cls.dyn_cast<ast::bmodelica::Model>()) {
     return declare(*model);
   }
 
-  if (auto package = cls.dyn_cast<ast::Package>()) {
+  if (auto package = cls.dyn_cast<ast::bmodelica::Package>()) {
     return declare(*package);
   }
 
-  if (auto function = cls.dyn_cast<ast::PartialDerFunction>()) {
+  if (auto function = cls.dyn_cast<ast::bmodelica::PartialDerFunction>()) {
     return declare(*function);
   }
 
-  if (auto record = cls.dyn_cast<ast::Record>()) {
+  if (auto record = cls.dyn_cast<ast::bmodelica::Record>()) {
     return declare(*record);
   }
 
-  if (auto standardFunction = cls.dyn_cast<ast::StandardFunction>()) {
+  if (auto standardFunction =
+          cls.dyn_cast<ast::bmodelica::StandardFunction>()) {
     return declare(*standardFunction);
   }
 
   llvm_unreachable("Unknown class type");
 }
 
-bool ClassLowerer::declareVariables(const ast::Class &cls) {
-  if (auto model = cls.dyn_cast<ast::Model>()) {
+bool ClassLowerer::declareVariables(const ast::bmodelica::Class &cls) {
+  if (auto model = cls.dyn_cast<ast::bmodelica::Model>()) {
     return declareVariables(*model);
   }
 
-  if (auto package = cls.dyn_cast<ast::Package>()) {
+  if (auto package = cls.dyn_cast<ast::bmodelica::Package>()) {
     return declareVariables(*package);
   }
 
-  if (auto function = cls.dyn_cast<ast::PartialDerFunction>()) {
+  if (auto function = cls.dyn_cast<ast::bmodelica::PartialDerFunction>()) {
     return declareVariables(*function);
   }
 
-  if (auto record = cls.dyn_cast<ast::Record>()) {
+  if (auto record = cls.dyn_cast<ast::bmodelica::Record>()) {
     return declareVariables(*record);
   }
 
-  if (auto standardFunction = cls.dyn_cast<ast::StandardFunction>()) {
+  if (auto standardFunction =
+          cls.dyn_cast<ast::bmodelica::StandardFunction>()) {
     return declareVariables(*standardFunction);
   }
 
@@ -57,7 +59,7 @@ bool ClassLowerer::declareVariables(const ast::Class &cls) {
   return false;
 }
 
-bool ClassLowerer::declare(const ast::Member &variable) {
+bool ClassLowerer::declare(const ast::bmodelica::Member &variable) {
   mlir::Location location = loc(variable.getLocation());
 
   std::optional<VariableType> variableType =
@@ -73,7 +75,8 @@ bool ClassLowerer::declare(const ast::Member &variable) {
           mlir::dyn_cast<mlir::ShapedType>(variableType->unwrap())) {
     for (size_t dim = 0, rank = variable.getType()->getRank(); dim < rank;
          ++dim) {
-      const ast::ArrayDimension *dimension = (*variable.getType())[dim];
+      const ast::bmodelica::ArrayDimension *dimension =
+          (*variable.getType())[dim];
 
       if (dimension->isDynamic()) {
         if (dimension->hasExpression()) {
@@ -99,24 +102,25 @@ bool ClassLowerer::declare(const ast::Member &variable) {
   return true;
 }
 
-bool ClassLowerer::lower(const ast::Class &cls) {
-  if (auto model = cls.dyn_cast<ast::Model>()) {
+bool ClassLowerer::lower(const ast::bmodelica::Class &cls) {
+  if (auto model = cls.dyn_cast<ast::bmodelica::Model>()) {
     return lower(*model);
   }
 
-  if (auto package = cls.dyn_cast<ast::Package>()) {
+  if (auto package = cls.dyn_cast<ast::bmodelica::Package>()) {
     return lower(*package);
   }
 
-  if (auto function = cls.dyn_cast<ast::PartialDerFunction>()) {
+  if (auto function = cls.dyn_cast<ast::bmodelica::PartialDerFunction>()) {
     return lower(*function);
   }
 
-  if (auto record = cls.dyn_cast<ast::Record>()) {
+  if (auto record = cls.dyn_cast<ast::bmodelica::Record>()) {
     return lower(*record);
   }
 
-  if (auto standardFunction = cls.dyn_cast<ast::StandardFunction>()) {
+  if (auto standardFunction =
+          cls.dyn_cast<ast::bmodelica::StandardFunction>()) {
     return lower(*standardFunction);
   }
 
@@ -124,12 +128,12 @@ bool ClassLowerer::lower(const ast::Class &cls) {
 }
 
 std::optional<VariableType>
-ClassLowerer::getVariableType(const ast::VariableType &variableType,
-                              const ast::TypePrefix &typePrefix) {
+ClassLowerer::getVariableType(const ast::bmodelica::VariableType &variableType,
+                              const ast::bmodelica::TypePrefix &typePrefix) {
   llvm::SmallVector<int64_t, 3> shape;
 
   for (size_t i = 0, rank = variableType.getRank(); i < rank; ++i) {
-    const ast::ArrayDimension *dimension = variableType[i];
+    const ast::bmodelica::ArrayDimension *dimension = variableType[i];
 
     if (dimension->isDynamic()) {
       shape.push_back(VariableType::kDynamic);
@@ -140,21 +144,22 @@ ClassLowerer::getVariableType(const ast::VariableType &variableType,
 
   mlir::Type baseType;
 
-  if (auto builtInType = variableType.dyn_cast<ast::BuiltInType>()) {
-    if (builtInType->getBuiltInTypeKind() == ast::BuiltInType::Kind::Boolean) {
+  if (auto builtInType = variableType.dyn_cast<ast::bmodelica::BuiltInType>()) {
+    if (builtInType->getBuiltInTypeKind() ==
+        ast::bmodelica::BuiltInType::Kind::Boolean) {
       baseType = BooleanType::get(builder().getContext());
     } else if (builtInType->getBuiltInTypeKind() ==
-               ast::BuiltInType::Kind::Integer) {
+               ast::bmodelica::BuiltInType::Kind::Integer) {
       baseType = IntegerType::get(builder().getContext());
     } else if (builtInType->getBuiltInTypeKind() ==
-               ast::BuiltInType::Kind::Real) {
+               ast::bmodelica::BuiltInType::Kind::Real) {
       baseType = RealType::get(builder().getContext());
     } else {
       llvm_unreachable("Unknown built-in type");
       return nullptr;
     }
   } else if (auto userDefinedType =
-                 variableType.dyn_cast<ast::UserDefinedType>()) {
+                 variableType.dyn_cast<ast::bmodelica::UserDefinedType>()) {
     auto symbolOp = resolveType(*userDefinedType, getLookupScope());
 
     if (!symbolOp) {
@@ -193,19 +198,19 @@ ClassLowerer::getVariableType(const ast::VariableType &variableType,
   return VariableType::get(shape, baseType, variabilityProperty, ioProperty);
 }
 
-bool ClassLowerer::lowerClassBody(const ast::Class &cls) {
+bool ClassLowerer::lowerClassBody(const ast::bmodelica::Class &cls) {
   // Lower the constraints for the dynamic dimensions of the variables.
   for (const auto &variable : cls.getVariables()) {
     if (!lowerVariableDimensionConstraints(
             getSymbolTable().getSymbolTable(getClass(cls)),
-            *variable->cast<ast::Member>())) {
+            *variable->cast<ast::bmodelica::Member>())) {
       return false;
     }
   }
 
   // Create the equations.
   for (const auto &section : cls.getEquationSections()) {
-    if (!lower(*section->cast<ast::EquationSection>())) {
+    if (!lower(*section->cast<ast::bmodelica::EquationSection>())) {
       return false;
     }
   }
@@ -213,8 +218,9 @@ bool ClassLowerer::lowerClassBody(const ast::Class &cls) {
   return true;
 }
 
-bool ClassLowerer::createBindingEquation(const ast::Member &variable,
-                                         const ast::Expression &expression) {
+bool ClassLowerer::createBindingEquation(
+    const ast::bmodelica::Member &variable,
+    const ast::bmodelica::Expression &expression) {
   mlir::Location location = loc(expression.getLocation());
 
   auto bindingEquationOp =
@@ -243,9 +249,9 @@ bool ClassLowerer::createBindingEquation(const ast::Member &variable,
   return true;
 }
 
-bool ClassLowerer::lowerStartAttribute(mlir::SymbolRefAttr variable,
-                                       const ast::Expression &expression,
-                                       bool fixed, bool each) {
+bool ClassLowerer::lowerStartAttribute(
+    mlir::SymbolRefAttr variable, const ast::bmodelica::Expression &expression,
+    bool fixed, bool each) {
   mlir::Location location = loc(expression.getLocation());
 
   auto startOp = builder().create<StartOp>(location, variable, fixed, each);
@@ -269,7 +275,7 @@ bool ClassLowerer::lowerStartAttribute(mlir::SymbolRefAttr variable,
 }
 
 bool ClassLowerer::lowerVariableDimensionConstraints(
-    mlir::SymbolTable &symbolTable, const ast::Member &variable) {
+    mlir::SymbolTable &symbolTable, const ast::bmodelica::Member &variable) {
   mlir::Location location = loc(variable.getLocation());
   auto variableOp = symbolTable.lookup<VariableOp>(variable.getName());
   assert(variableOp != nullptr);
@@ -284,10 +290,12 @@ bool ClassLowerer::lowerVariableDimensionConstraints(
 
     for (size_t dim = 0, rank = variable.getType()->getRank(); dim < rank;
          ++dim) {
-      const ast::ArrayDimension *dimension = (*variable.getType())[dim];
+      const ast::bmodelica::ArrayDimension *dimension =
+          (*variable.getType())[dim];
 
       if (dimension->hasExpression()) {
-        const ast::Expression *sizeExpression = dimension->getExpression();
+        const ast::bmodelica::Expression *sizeExpression =
+            dimension->getExpression();
         mlir::Location sizeLoc = loc(sizeExpression->getLocation());
         auto loweredExpression = lower(*sizeExpression);
         if (!loweredExpression) {

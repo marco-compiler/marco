@@ -8,7 +8,7 @@ namespace marco::codegen::lowering {
 IfEquationLowerer::IfEquationLowerer(BridgeInterface *bridge)
     : Lowerer(bridge) {}
 
-bool IfEquationLowerer::lower(const ast::IfEquation &equation) {
+bool IfEquationLowerer::lower(const ast::bmodelica::IfEquation &equation) {
   llvm_unreachable("If equation is not implemented yet");
   return false;
 }

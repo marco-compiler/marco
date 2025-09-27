@@ -7,36 +7,36 @@ using namespace ::mlir::bmodelica;
 namespace marco::codegen::lowering {
 StatementLowerer::StatementLowerer(BridgeInterface *bridge) : Lowerer(bridge) {}
 
-bool StatementLowerer::lower(const ast::Statement &statement) {
-  if (auto casted = statement.dyn_cast<ast::AssignmentStatement>()) {
+bool StatementLowerer::lower(const ast::bmodelica::Statement &statement) {
+  if (auto casted = statement.dyn_cast<ast::bmodelica::AssignmentStatement>()) {
     return lower(*casted);
   }
 
-  if (auto casted = statement.dyn_cast<ast::BreakStatement>()) {
+  if (auto casted = statement.dyn_cast<ast::bmodelica::BreakStatement>()) {
     return lower(*casted);
   }
 
-  if (auto casted = statement.dyn_cast<ast::CallStatement>()) {
+  if (auto casted = statement.dyn_cast<ast::bmodelica::CallStatement>()) {
     return lower(*casted);
   }
 
-  if (auto casted = statement.dyn_cast<ast::ForStatement>()) {
+  if (auto casted = statement.dyn_cast<ast::bmodelica::ForStatement>()) {
     return lower(*casted);
   }
 
-  if (auto casted = statement.dyn_cast<ast::IfStatement>()) {
+  if (auto casted = statement.dyn_cast<ast::bmodelica::IfStatement>()) {
     return lower(*casted);
   }
 
-  if (auto casted = statement.dyn_cast<ast::ReturnStatement>()) {
+  if (auto casted = statement.dyn_cast<ast::bmodelica::ReturnStatement>()) {
     return lower(*casted);
   }
 
-  if (auto casted = statement.dyn_cast<ast::WhileStatement>()) {
+  if (auto casted = statement.dyn_cast<ast::bmodelica::WhileStatement>()) {
     return lower(*casted);
   }
 
-  if (auto casted = statement.dyn_cast<ast::WhenStatement>()) {
+  if (auto casted = statement.dyn_cast<ast::bmodelica::WhenStatement>()) {
     return lower(*casted);
   }
 

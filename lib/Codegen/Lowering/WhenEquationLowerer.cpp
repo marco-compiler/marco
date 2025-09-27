@@ -8,7 +8,7 @@ namespace marco::codegen::lowering {
 WhenEquationLowerer::WhenEquationLowerer(BridgeInterface *bridge)
     : Lowerer(bridge) {}
 
-bool WhenEquationLowerer::lower(const ast::WhenEquation &equation) {
+bool WhenEquationLowerer::lower(const ast::bmodelica::WhenEquation &equation) {
   llvm_unreachable("When equation is not implemented yet");
   return false;
 }

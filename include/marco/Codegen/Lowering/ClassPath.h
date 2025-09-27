@@ -1,7 +1,7 @@
 #ifndef MARCO_CODEGEN_LOWERING_CLASSPATH_H
 #define MARCO_CODEGEN_LOWERING_CLASSPATH_H
 
-#include "marco/AST/AST.h"
+#include "marco/AST/BaseModelica/AST.h"
 #include "llvm/ADT/DenseMapInfo.h"
 
 namespace marco::codegen::lowering {
@@ -24,16 +24,16 @@ public:
 
   bool operator<(const ClassPath &other) const;
 
-  llvm::ArrayRef<const ast::Class *> get() const;
+  llvm::ArrayRef<const ast::bmodelica::Class *> get() const;
 
   size_t size() const;
 
-  void append(const ast::Class &cls);
+  void append(const ast::bmodelica::Class &cls);
 
-  const ast::Class &getLeaf() const;
+  const ast::bmodelica::Class &getLeaf() const;
 
 private:
-  std::vector<const ast::Class *> path;
+  std::vector<const ast::bmodelica::Class *> path;
 };
 } // namespace marco::codegen::lowering
 

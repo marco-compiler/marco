@@ -313,11 +313,11 @@ bool ASTAction::beginSourceFilesAction() {
 
   if (!ci.getFrontendOptions().omcBypass) {
     // Remove the outer package.
-    auto *root = ast->cast<ast::Root>();
+    auto *root = ast->cast<ast::bmodelica::Root>();
     assert(root->getInnerClasses().size() == 1);
-    assert(root->getInnerClasses()[0]->isa<ast::Package>());
-    auto *package = root->getInnerClasses()[0]->cast<ast::Package>();
-    auto newRoot = std::make_unique<ast::Root>(root->getLocation());
+    assert(root->getInnerClasses()[0]->isa<ast::bmodelica::Package>());
+    auto *package = root->getInnerClasses()[0]->cast<ast::bmodelica::Package>();
+    auto newRoot = std::make_unique<ast::bmodelica::Root>(root->getLocation());
     newRoot->setInnerClasses(package->getInnerClasses());
     ast = std::move(newRoot);
   }
@@ -654,7 +654,7 @@ bool CodeGenAction::generateMLIR() {
 
     // Convert the AST to MLIR.
     marco::codegen::lowering::Bridge bridge(getMLIRContext());
-    if (!bridge.lower(*ast->cast<ast::Root>())) {
+    if (!bridge.lower(*ast->cast<ast::bmodelica::Root>())) {
       return false;
     }
 
