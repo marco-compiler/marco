@@ -56,7 +56,7 @@ private:
   removeDerOps(mlir::SymbolTableCollection &symbolTableCollection,
                const DerivativesMap &derivativesMap,
                MutexCollection &mutexCollection,
-               EquationInstanceOp equationInstanceOp);
+               EquationTemplateOp equationTemplateOp);
 
   mlir::LogicalResult
   removeDerOps(mlir::SymbolTableCollection &symbolTableCollection,
@@ -128,8 +128,14 @@ DerivativesMaterializationPass::processModelOp(ModelOp modelOp) {
   }
 
   // Replace the derivative operations.
+  llvm::SmallVector<EquationTemplateOp> equationTemplateOps;
+
+  for (EquationInstanceOp equationInstanceOp : equationInstanceOps) {
+    equationTemplateOps.push_back(equationInstanceOp.getTemplate());
+  }
+
   if (mlir::failed(mlir::failableParallelForEach(
-          &getContext(), equationInstanceOps, [&](EquationInstanceOp equation) {
+          &getContext(), equationTemplateOps, [&](EquationTemplateOp equation) {
             return removeDerOps(symbolTableCollection, derivativesMap,
                                 mutexCollection, equation);
           }))) {
@@ -537,15 +543,14 @@ private:
 mlir::LogicalResult DerivativesMaterializationPass::removeDerOps(
     mlir::SymbolTableCollection &symbolTableCollection,
     const DerivativesMap &derivativesMap, MutexCollection &mutexCollection,
-    EquationInstanceOp equationInstanceOp) {
+    EquationTemplateOp equationTemplateOp) {
   mlir::RewritePatternSet patterns(&getContext());
 
   patterns.add<DerOpRemovePattern>(&getContext(), symbolTableCollection,
                                    mutexCollection.symbolTableCollectionMutex,
                                    derivativesMap);
 
-  return mlir::applyPatternsGreedily(equationInstanceOp.getTemplate(),
-                                     std::move(patterns));
+  return mlir::applyPatternsGreedily(equationTemplateOp, std::move(patterns));
 }
 
 mlir::LogicalResult DerivativesMaterializationPass::removeDerOps(
