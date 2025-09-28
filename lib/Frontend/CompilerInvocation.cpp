@@ -551,6 +551,7 @@ static void parseCodegenArgs(marco::frontend::CodegenOptions &options,
   }
 
   if (options.optLevel.getSizeLevel() > 0) {
+    options.MergeFunctions = true;
     options.debug = false;
     options.cse = true;
     options.functionCallsCSE = true;
