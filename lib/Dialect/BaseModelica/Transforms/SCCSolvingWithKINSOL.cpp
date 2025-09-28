@@ -44,11 +44,15 @@ private:
 
 using ProxyMap = llvm::DenseMap<VariableOp, ProxyVariable>;
 
+using ZeroResidualGetterFn =
+    std::function<mlir::kinsol::ResidualFunctionOp(int64_t)>;
+
 class KINSOLInstance {
 public:
   KINSOLInstance(llvm::StringRef identifier,
                  mlir::SymbolTableCollection &symbolTableCollection,
-                 bool reducedDerivatives, bool debugInformation);
+                 bool reducedDerivatives, bool debugInformation,
+                 ZeroResidualGetterFn getOrCreateZeroResidualFunctionFn);
 
   [[nodiscard]] bool hasVariable(VariableOp variable) const;
 
@@ -159,10 +163,6 @@ private:
                          llvm::StringRef residualFunctionName,
                          const ProxyMap &proxyMap);
 
-  mlir::LogicalResult createProxyResidualFunction(
-      mlir::RewriterBase &rewriter, mlir::ModuleOp moduleOp, ModelOp modelOp,
-      const ProxyVariable &proxy, llvm::StringRef residualFunctionName);
-
   mlir::LogicalResult
   getIndependentVariablesForAD(llvm::DenseSet<VariableOp> &result,
                                ModelOp modelOp, EquationInstanceOp equationOp);
@@ -212,6 +212,9 @@ private:
   bool reducedDerivatives;
   bool debugInformation;
 
+  /// Callback to get or create a zero residual function.
+  ZeroResidualGetterFn zeroResidualFunctionFn;
+
   /// The variables of the model that are managed by KINSOL.
   llvm::SmallVector<VariableOp> variables;
 
@@ -244,11 +247,13 @@ const IndexSet &ProxyVariable::getMask() const { return mask; }
 KINSOLInstance::KINSOLInstance(
     llvm::StringRef identifier,
     mlir::SymbolTableCollection &symbolTableCollection, bool reducedDerivatives,
-    bool debugInformation)
+    bool debugInformation,
+    ZeroResidualGetterFn getOrCreateZeroResidualFunctionFn)
     : identifier(identifier.str()),
       symbolTableCollection(&symbolTableCollection),
       reducedDerivatives(reducedDerivatives),
-      debugInformation(debugInformation) {}
+      debugInformation(debugInformation),
+      zeroResidualFunctionFn(std::move(getOrCreateZeroResidualFunctionFn)) {}
 
 bool KINSOLInstance::hasVariable(VariableOp variable) const {
   assert(variable != nullptr);
@@ -913,17 +918,14 @@ mlir::LogicalResult KINSOLInstance::addEquationsToKINSOL(
       }
 
       // Create the residual function.
-      std::string residualFunctionName = getKINSOLFunctionName(
-          "residualFunction_" + std::to_string(residualFunctionsCounter++));
-
-      if (mlir::failed(createProxyResidualFunction(rewriter, moduleOp, modelOp,
-                                                   proxyIt->getSecond(),
-                                                   residualFunctionName))) {
-        return mlir::failure();
-      }
+      mlir::kinsol::ResidualFunctionOp residualFunction =
+          zeroResidualFunctionFn(
+              mlir::cast<mlir::ShapedType>(
+                  proxyIt->getSecond().getProxyVariable().getType())
+                  .getRank());
 
       rewriter.create<mlir::kinsol::SetResidualOp>(
-          loc, identifier, kinsolEquation, residualFunctionName);
+          loc, identifier, kinsolEquation, residualFunction.getSymName());
 
       // Create the partial Jacobian functions.
       assert(variables.size() == kinsolVariables.size());
@@ -1140,32 +1142,6 @@ mlir::LogicalResult KINSOLInstance::createResidualFunction(
     return mlir::failure();
   }
 
-  return mlir::success();
-}
-
-mlir::LogicalResult KINSOLInstance::createProxyResidualFunction(
-    mlir::RewriterBase &rewriter, mlir::ModuleOp moduleOp, ModelOp modelOp,
-    const ProxyVariable &proxy, llvm::StringRef residualFunctionName) {
-  mlir::OpBuilder::InsertionGuard guard(rewriter);
-  rewriter.setInsertionPointToEnd(moduleOp.getBody());
-
-  mlir::Location loc = proxy.getProxyVariable().getLoc();
-
-  int64_t numOfInductionVariables =
-      mlir::cast<ArrayType>(proxy.getProxyVariable().getType()).getRank();
-
-  auto residualFunction = rewriter.create<mlir::kinsol::ResidualFunctionOp>(
-      loc, residualFunctionName, numOfInductionVariables);
-
-  symbolTableCollection->getSymbolTable(moduleOp).insert(residualFunction);
-
-  mlir::Block *bodyBlock = residualFunction.addEntryBlock();
-  rewriter.setInsertionPointToStart(bodyBlock);
-
-  mlir::Value result = rewriter.create<mlir::arith::ConstantOp>(
-      loc, rewriter.getF64FloatAttr(0));
-
-  rewriter.create<mlir::kinsol::ReturnOp>(loc, result);
   return mlir::success();
 }
 
@@ -1682,13 +1658,15 @@ private:
   processInitialOp(mlir::RewriterBase &rewriter,
                    mlir::SymbolTableCollection &symbolTableCollection,
                    mlir::ModuleOp moduleOp, ModelOp modelOp,
-                   InitialOp initialOp);
+                   InitialOp initialOp,
+                   ZeroResidualGetterFn zeroResidualGetterFn);
 
   mlir::LogicalResult
   processDynamicOp(mlir::RewriterBase &rewriter,
                    mlir::SymbolTableCollection &symbolTableCollection,
                    mlir::ModuleOp moduleOp, ModelOp modelOp,
-                   DynamicOp dynamicOp);
+                   DynamicOp dynamicOp,
+                   ZeroResidualGetterFn zeroResidualGetterFn);
 
   mlir::LogicalResult processSCC(
       mlir::RewriterBase &rewriter,
@@ -1697,7 +1675,8 @@ private:
       llvm::function_ref<mlir::Block *(mlir::OpBuilder &, mlir::Location)>
           createBeginFn,
       llvm::function_ref<mlir::Block *(mlir::OpBuilder &, mlir::Location)>
-          createEndFn);
+          createEndFn,
+      ZeroResidualGetterFn zeroResidualGetterFn);
 
   mlir::kinsol::InstanceOp
   declareInstance(mlir::OpBuilder &builder,
@@ -1755,17 +1734,52 @@ mlir::LogicalResult SCCSolvingWithKINSOLPass::processModelOp(
     mlir::RewriterBase &rewriter,
     mlir::SymbolTableCollection &symbolTableCollection, mlir::ModuleOp moduleOp,
     ModelOp modelOp) {
+  // The zero-valued residual functions used for proxy variables.
+  // A function is created for each different rank of the proxy variables.
+  llvm::DenseMap<int64_t, mlir::kinsol::ResidualFunctionOp>
+      zeroResidualFunctionsByRank;
+
+  auto getOrCreateZeroResidualFunctionFn =
+      [&](int64_t rank) -> mlir::kinsol::ResidualFunctionOp {
+    mlir::OpBuilder::InsertionGuard residualGuard(rewriter);
+    rewriter.setInsertionPointToEnd(moduleOp.getBody());
+
+    auto it = zeroResidualFunctionsByRank.find(rank);
+    if (it != zeroResidualFunctionsByRank.end()) {
+      return it->second;
+    }
+
+    auto residualFunction = rewriter.create<mlir::kinsol::ResidualFunctionOp>(
+        moduleOp.getLoc(), "kinsol_zero_residual", rank);
+
+    symbolTableCollection.getSymbolTable(moduleOp).insert(
+        residualFunction, moduleOp.getBody()->end());
+
+    mlir::Block *bodyBlock = residualFunction.addEntryBlock();
+    rewriter.setInsertionPointToStart(bodyBlock);
+
+    mlir::Value result = rewriter.create<mlir::arith::ConstantOp>(
+        residualFunction.getLoc(), rewriter.getF64FloatAttr(0));
+
+    rewriter.create<mlir::kinsol::ReturnOp>(residualFunction.getLoc(), result);
+    zeroResidualFunctionsByRank[rank] = residualFunction;
+
+    return residualFunction;
+  };
+
   for (ScheduleOp scheduleOp : modelOp.getOps<ScheduleOp>()) {
     for (InitialOp initialOp : scheduleOp.getOps<InitialOp>()) {
       if (mlir::failed(processInitialOp(rewriter, symbolTableCollection,
-                                        moduleOp, modelOp, initialOp))) {
+                                        moduleOp, modelOp, initialOp,
+                                        getOrCreateZeroResidualFunctionFn))) {
         return mlir::failure();
       }
     }
 
     for (DynamicOp dynamicOp : scheduleOp.getOps<DynamicOp>()) {
       if (mlir::failed(processDynamicOp(rewriter, symbolTableCollection,
-                                        moduleOp, modelOp, dynamicOp))) {
+                                        moduleOp, modelOp, dynamicOp,
+                                        getOrCreateZeroResidualFunctionFn))) {
         return mlir::failure();
       }
     }
@@ -1777,7 +1791,8 @@ mlir::LogicalResult SCCSolvingWithKINSOLPass::processModelOp(
 mlir::LogicalResult SCCSolvingWithKINSOLPass::processInitialOp(
     mlir::RewriterBase &rewriter,
     mlir::SymbolTableCollection &symbolTableCollection, mlir::ModuleOp moduleOp,
-    ModelOp modelOp, InitialOp initialOp) {
+    ModelOp modelOp, InitialOp initialOp,
+    ZeroResidualGetterFn zeroResidualGetterFn) {
   auto createBeginFn = [&](mlir::OpBuilder &builder,
                            mlir::Location loc) -> mlir::Block * {
     mlir::OpBuilder::InsertionGuard guard(builder);
@@ -1802,7 +1817,8 @@ mlir::LogicalResult SCCSolvingWithKINSOLPass::processInitialOp(
 
   for (SCCOp scc : SCCs) {
     if (mlir::succeeded(processSCC(rewriter, symbolTableCollection, moduleOp,
-                                   modelOp, scc, createBeginFn, createEndFn))) {
+                                   modelOp, scc, createBeginFn, createEndFn,
+                                   zeroResidualGetterFn))) {
       rewriter.eraseOp(scc);
     }
   }
@@ -1813,7 +1829,8 @@ mlir::LogicalResult SCCSolvingWithKINSOLPass::processInitialOp(
 mlir::LogicalResult SCCSolvingWithKINSOLPass::processDynamicOp(
     mlir::RewriterBase &rewriter,
     mlir::SymbolTableCollection &symbolTableCollection, mlir::ModuleOp moduleOp,
-    ModelOp modelOp, DynamicOp dynamicOp) {
+    ModelOp modelOp, DynamicOp dynamicOp,
+    ZeroResidualGetterFn zeroResidualGetterFn) {
   auto createBeginFn = [&](mlir::OpBuilder &builder,
                            mlir::Location loc) -> mlir::Block * {
     mlir::OpBuilder::InsertionGuard guard(builder);
@@ -1838,7 +1855,8 @@ mlir::LogicalResult SCCSolvingWithKINSOLPass::processDynamicOp(
 
   for (SCCOp scc : SCCs) {
     if (mlir::succeeded(processSCC(rewriter, symbolTableCollection, moduleOp,
-                                   modelOp, scc, createBeginFn, createEndFn))) {
+                                   modelOp, scc, createBeginFn, createEndFn,
+                                   zeroResidualGetterFn))) {
       rewriter.eraseOp(scc);
     }
   }
@@ -1853,7 +1871,8 @@ mlir::LogicalResult SCCSolvingWithKINSOLPass::processSCC(
     llvm::function_ref<mlir::Block *(mlir::OpBuilder &, mlir::Location)>
         createBeginFn,
     llvm::function_ref<mlir::Block *(mlir::OpBuilder &, mlir::Location)>
-        createEndFn) {
+        createEndFn,
+    ZeroResidualGetterFn zeroResidualGetterFn) {
   mlir::OpBuilder::InsertionGuard guard(rewriter);
   ProxyMap proxyMap;
 
@@ -1902,7 +1921,7 @@ mlir::LogicalResult SCCSolvingWithKINSOLPass::processSCC(
 
   auto kinsolInstance = std::make_unique<KINSOLInstance>(
       instanceOp.getSymName(), symbolTableCollection, reducedDerivatives,
-      debugInformation);
+      debugInformation, zeroResidualGetterFn);
 
   // Add the variables to KINSOL.
   for (VariableOp variable : variables) {
