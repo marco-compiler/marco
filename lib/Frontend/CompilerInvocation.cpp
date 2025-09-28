@@ -541,7 +541,7 @@ static void parseCodegenArgs(marco::frontend::CodegenOptions &options,
     options.inlining = true;
     options.cse = true;
     options.functionCallsCSE = true;
-    options.loopFusion = true;
+    options.FuseLoops = true;
     options.loopHoisting = true;
   }
 
@@ -556,7 +556,7 @@ static void parseCodegenArgs(marco::frontend::CodegenOptions &options,
     options.cse = true;
     options.functionCallsCSE = true;
     options.variablesPruning = true;
-    options.loopFusion = true;
+    options.FuseLoops = true;
     options.runtimeVerification = false;
   }
 

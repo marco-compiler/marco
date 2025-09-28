@@ -1067,7 +1067,7 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
       mlir::createConvertLinalgToAffineLoopsPass());
 
   // Optimize loops.
-  if (ci.getCodeGenOptions().loopFusion) {
+  if (ci.getCodeGenOptions().FuseLoops) {
     pm.addNestedPass<mlir::func::FuncOp>(mlir::affine::createLoopFusionPass());
 
     // Try to get rid of privatized memrefs that may have been introduced by

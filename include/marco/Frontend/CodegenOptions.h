@@ -32,7 +32,6 @@ struct CodegenOptions : public clang::CodeGenOptions {
   bool equationsRuntimeScheduling = false;
   bool omp = false;
   bool singleValuedInductionElimination = false;
-  bool loopFusion = false;
   bool loopHoisting = false;
   bool loopTiling = false;
   bool runtimeVerification = true;
