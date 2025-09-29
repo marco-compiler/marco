@@ -75,6 +75,11 @@ public:
                                            mlir::Location loc,
                                            mlir::ArrayAttr dimensions,
                                            llvm::StringRef prefix) const {
+    if (dimensions.empty()) {
+      return builder.create<mlir::LLVM::ZeroOp>(
+          loc, mlir::LLVM::LLVMPointerType::get(builder.getContext()));
+    }
+
     auto globalOp =
         declareDimensionsArray(builder, moduleOp, loc, dimensions, prefix);
 
