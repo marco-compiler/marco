@@ -56,17 +56,25 @@ public:
 
   void addEquation(EquationInstanceOp equation);
 
-  mlir::LogicalResult initialize(mlir::OpBuilder &builder, mlir::Location loc);
+  mlir::LogicalResult initialize(mlir::RewriterBase &rewriter,
+                                 mlir::Location loc, mlir::ModuleOp moduleOp,
+                                 ModelOp modelOp,
+                                 llvm::ArrayRef<VariableOp> variableOps,
+                                 ProxyMap &proxyMap);
 
-  mlir::LogicalResult configure(mlir::RewriterBase &rewriter,
-                                mlir::Location loc, mlir::ModuleOp moduleOp,
-                                ModelOp modelOp,
-                                llvm::ArrayRef<VariableOp> variableOps,
-                                ProxyMap &proxyMap);
+  mlir::func::FuncOp
+  createInitializationFunction(mlir::OpBuilder &builder,
+                               mlir::SymbolTableCollection &symbolTables,
+                               mlir::Location loc, mlir::ModuleOp moduleOp);
 
   mlir::LogicalResult performSolve(mlir::OpBuilder &builder, mlir::Location loc,
                                    mlir::ModuleOp moduleOp,
                                    const ProxyMap &proxyMap);
+
+  RawFunctionOp createSolveFunction(mlir::OpBuilder &builder,
+                                    mlir::SymbolTableCollection &symbolTables,
+                                    mlir::Location loc,
+                                    mlir::ModuleOp moduleOp);
 
   mlir::func::FuncOp createCopyFromProxyFunction(
       mlir::OpBuilder &builder, mlir::SymbolTableCollection &symbolTables,
@@ -79,8 +87,13 @@ public:
                             mlir::Location loc, mlir::ModuleOp moduleOp,
                             VariableOp variableOp, const ProxyVariable &proxy);
 
-  mlir::LogicalResult deleteInstance(mlir::OpBuilder &builder,
-                                     mlir::Location loc);
+  mlir::LogicalResult deinitialize(mlir::OpBuilder &builder, mlir::Location loc,
+                                   mlir::ModuleOp moduleOp);
+
+  mlir::func::FuncOp
+  createDeinitializationFunction(mlir::OpBuilder &builder,
+                                 mlir::SymbolTableCollection &symbolTables,
+                                 mlir::Location loc, mlir::ModuleOp moduleOp);
 
 private:
   mlir::LogicalResult
@@ -259,21 +272,24 @@ void KINSOLInstance::addEquation(EquationInstanceOp equation) {
   equations.insert(equation);
 }
 
-mlir::LogicalResult KINSOLInstance::initialize(mlir::OpBuilder &builder,
-                                               mlir::Location loc) {
-  // Initialize the instance.
-  builder.create<mlir::kinsol::InitOp>(loc, identifier);
-
-  return mlir::success();
-}
-
 mlir::LogicalResult
-KINSOLInstance::configure(mlir::RewriterBase &rewriter, mlir::Location loc,
-                          mlir::ModuleOp moduleOp, ModelOp modelOp,
-                          llvm::ArrayRef<VariableOp> variableOps,
-                          ProxyMap &proxyMap) {
+KINSOLInstance::initialize(mlir::RewriterBase &rewriter, mlir::Location loc,
+                           mlir::ModuleOp moduleOp, ModelOp modelOp,
+                           llvm::ArrayRef<VariableOp> variableOps,
+                           ProxyMap &proxyMap) {
+  mlir::func::FuncOp configureFuncOp = createInitializationFunction(
+      rewriter, *symbolTableCollection, loc, moduleOp);
+
+  rewriter.create<mlir::func::CallOp>(loc, configureFuncOp);
+
+  mlir::OpBuilder::InsertionGuard guard(rewriter);
+  rewriter.setInsertionPointToStart(&configureFuncOp.getBody().front());
+
   llvm::DenseMap<mlir::AffineMap, mlir::sundials::AccessFunctionOp>
       accessFunctionsMap;
+
+  // Initialize the instance.
+  rewriter.create<mlir::kinsol::InitOp>(loc, identifier);
 
   // Add the variables to KINSOL.
   if (mlir::failed(addVariablesToKINSOL(rewriter, loc, moduleOp, modelOp,
@@ -288,7 +304,24 @@ KINSOLInstance::configure(mlir::RewriterBase &rewriter, mlir::Location loc,
     return mlir::failure();
   }
 
+  rewriter.create<mlir::func::ReturnOp>(loc);
   return mlir::success();
+}
+
+mlir::func::FuncOp KINSOLInstance::createInitializationFunction(
+    mlir::OpBuilder &builder, mlir::SymbolTableCollection &symbolTables,
+    mlir::Location loc, mlir::ModuleOp moduleOp) {
+  mlir::OpBuilder::InsertionGuard guard(builder);
+  builder.setInsertionPointToEnd(moduleOp.getBody());
+
+  auto funcOp = builder.create<mlir::func::FuncOp>(
+      loc, getKINSOLFunctionName("init"), builder.getFunctionType({}, {}));
+
+  symbolTables.getSymbolTable(moduleOp).insert(funcOp,
+                                               moduleOp.getBody()->end());
+
+  funcOp.addEntryBlock();
+  return funcOp;
 }
 
 static void
@@ -315,6 +348,15 @@ mlir::LogicalResult KINSOLInstance::performSolve(mlir::OpBuilder &builder,
                                                  mlir::Location loc,
                                                  mlir::ModuleOp moduleOp,
                                                  const ProxyMap &proxyMap) {
+  // Create a dedicated function to invoke the solver.
+  RawFunctionOp funcOp =
+      createSolveFunction(builder, *symbolTableCollection, loc, moduleOp);
+
+  builder.create<CallOp>(loc, funcOp);
+
+  mlir::OpBuilder::InsertionGuard guard(builder);
+  builder.setInsertionPointToStart(&funcOp.getBody().front());
+
   // Copy original variables into proxy ones.
   for (VariableOp variableOp : variables) {
     auto proxyIt = proxyMap.find(variableOp);
@@ -355,7 +397,27 @@ mlir::LogicalResult KINSOLInstance::performSolve(mlir::OpBuilder &builder,
     builder.create<mlir::func::CallOp>(loc, copyFuncOp);
   }
 
+  builder.create<RawReturnOp>(loc);
   return mlir::success();
+}
+
+RawFunctionOp KINSOLInstance::createSolveFunction(
+    mlir::OpBuilder &builder, mlir::SymbolTableCollection &symbolTables,
+    mlir::Location loc, mlir::ModuleOp moduleOp) {
+  mlir::OpBuilder::InsertionGuard guard(builder);
+  builder.setInsertionPointToEnd(moduleOp.getBody());
+
+  // The call operation is inside the model, and the semantics of the
+  // func::FuncOp operation prohibit referencing functions outside of the
+  // closest symbol table. Therefore, we use a RawFunctionOp.
+  auto funcOp = builder.create<RawFunctionOp>(
+      loc, getKINSOLFunctionName("solve"), builder.getFunctionType({}, {}));
+
+  symbolTables.getSymbolTable(moduleOp).insert(funcOp,
+                                               moduleOp.getBody()->end());
+
+  funcOp.addEntryBlock();
+  return funcOp;
 }
 
 mlir::func::FuncOp KINSOLInstance::createCopyFromProxyFunction(
@@ -437,10 +499,41 @@ mlir::func::FuncOp KINSOLInstance::createCopyToProxyFunction(
   return funcOp;
 }
 
-mlir::LogicalResult KINSOLInstance::deleteInstance(mlir::OpBuilder &builder,
-                                                   mlir::Location loc) {
+mlir::LogicalResult KINSOLInstance::deinitialize(mlir::OpBuilder &builder,
+                                                 mlir::Location loc,
+                                                 mlir::ModuleOp moduleOp) {
+  mlir::func::FuncOp funcOp = createDeinitializationFunction(
+      builder, *symbolTableCollection, loc, moduleOp);
+
+  builder.create<mlir::func::CallOp>(loc, funcOp);
+
+  mlir::OpBuilder::InsertionGuard guard(builder);
+  builder.setInsertionPointToStart(&funcOp.getBody().front());
+
+  llvm::DenseMap<mlir::AffineMap, mlir::sundials::AccessFunctionOp>
+      accessFunctionsMap;
+
+  // Destroy the instance.
   builder.create<mlir::kinsol::FreeOp>(loc, identifier);
+
+  builder.create<mlir::func::ReturnOp>(loc);
   return mlir::success();
+}
+
+mlir::func::FuncOp KINSOLInstance::createDeinitializationFunction(
+    mlir::OpBuilder &builder, mlir::SymbolTableCollection &symbolTables,
+    mlir::Location loc, mlir::ModuleOp moduleOp) {
+  mlir::OpBuilder::InsertionGuard guard(builder);
+  builder.setInsertionPointToEnd(moduleOp.getBody());
+
+  auto funcOp = builder.create<mlir::func::FuncOp>(
+      loc, getKINSOLFunctionName("deinit"), builder.getFunctionType({}, {}));
+
+  symbolTables.getSymbolTable(moduleOp).insert(funcOp,
+                                               moduleOp.getBody()->end());
+
+  funcOp.addEntryBlock();
+  return funcOp;
 }
 
 mlir::LogicalResult KINSOLInstance::addVariablesToKINSOL(
@@ -1920,12 +2013,8 @@ mlir::LogicalResult SCCSolvingWithKINSOLPass::createBeginFunction(
   mlir::Block *bodyBlock = createBeginFn(rewriter, loc);
   rewriter.setInsertionPointToStart(bodyBlock);
 
-  if (mlir::failed(kinsolInstance->initialize(rewriter, loc))) {
-    return mlir::failure();
-  }
-
-  if (mlir::failed(kinsolInstance->configure(rewriter, loc, moduleOp, modelOp,
-                                             variables, proxyMap))) {
+  if (mlir::failed(kinsolInstance->initialize(rewriter, loc, moduleOp, modelOp,
+                                              variables, proxyMap))) {
     return mlir::failure();
   }
 
@@ -1941,7 +2030,7 @@ mlir::LogicalResult SCCSolvingWithKINSOLPass::createEndFunction(
   mlir::Block *bodyBlock = createEndFn(rewriter, loc);
   rewriter.setInsertionPointToStart(bodyBlock);
 
-  if (mlir::failed(kinsolInstance->deleteInstance(rewriter, loc))) {
+  if (mlir::failed(kinsolInstance->deinitialize(rewriter, loc, moduleOp))) {
     return mlir::failure();
   }
 
