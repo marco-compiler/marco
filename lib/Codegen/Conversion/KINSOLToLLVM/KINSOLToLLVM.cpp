@@ -17,13 +17,54 @@ using namespace ::marco::codegen;
 using namespace ::mlir::kinsol;
 
 namespace {
+mlir::LLVM::GlobalOp
+declareArrayConstant(mlir::OpBuilder &builder, mlir::Location loc,
+                     mlir::SymbolTableCollection &symbolTables,
+                     mlir::ModuleOp moduleOp, llvm::StringRef name,
+                     mlir::DenseIntElementsAttr values) {
+  auto arrayType = mlir::LLVM::LLVMArrayType::get(
+      values.getType().getElementType(), values.size());
+
+  auto globalOp = builder.create<mlir::LLVM::GlobalOp>(
+      loc, arrayType, true, mlir::LLVM::Linkage::Private, name, values);
+
+  symbolTables.getSymbolTable(moduleOp).insert(globalOp);
+  return globalOp;
+}
+} // namespace
+
+namespace mlir::kinsol_to_llvm {
+mlir::LLVM::GlobalOp GlobalsCache::getOrDeclareArrayConstant(
+    mlir::OpBuilder &builder, mlir::Location loc,
+    mlir::SymbolTableCollection &symbolTables, mlir::ModuleOp moduleOp,
+    mlir::DenseIntElementsAttr values) {
+  auto it = arrayConstants.find(mlir::cast<mlir::Attribute>(values));
+
+  if (it != arrayConstants.end()) {
+    return it->second;
+  }
+
+  auto globalOp = ::declareArrayConstant(builder, loc, symbolTables, moduleOp,
+                                         "kinsol_constant", values);
+
+  arrayConstants[mlir::cast<mlir::Attribute>(values)] = globalOp;
+  return globalOp;
+}
+} // namespace mlir::kinsol_to_llvm
+
+namespace {
 template <typename Op>
 class KINSOLOpConversion : public mlir::ConvertOpToLLVMPattern<Op> {
+protected:
+  mlir::SymbolTableCollection &symbolTables;
+  mlir::kinsol_to_llvm::GlobalsCache *globalsCache;
+
 public:
   KINSOLOpConversion(mlir::LLVMTypeConverter &typeConverter,
-                     mlir::SymbolTableCollection &symbolTableCollection)
+                     mlir::SymbolTableCollection &symbolTables,
+                     mlir::kinsol_to_llvm::GlobalsCache *globalsCache = nullptr)
       : mlir::ConvertOpToLLVMPattern<Op>(typeConverter),
-        symbolTableCollection(&symbolTableCollection) {}
+        symbolTables(symbolTables), globalsCache(globalsCache) {}
 
   mlir::Value getInstance(mlir::OpBuilder &builder, mlir::Location loc,
                           llvm::StringRef name) const {
@@ -38,36 +79,34 @@ public:
     return builder.create<mlir::LLVM::LoadOp>(loc, elementType, address);
   }
 
-  mlir::LLVM::GlobalOp declareDimensionsArray(mlir::OpBuilder &builder,
-                                              mlir::ModuleOp moduleOp,
-                                              mlir::Location loc,
-                                              mlir::ArrayAttr dimensions,
-                                              llvm::StringRef prefix) const {
+  mlir::LLVM::GlobalOp
+  getOrDeclareDimensionsArray(mlir::OpBuilder &builder, mlir::ModuleOp moduleOp,
+                              mlir::Location loc, mlir::ArrayAttr dimensions,
+                              llvm::StringRef prefix) const {
     mlir::OpBuilder::InsertionGuard guard(builder);
     builder.setInsertionPointToStart(moduleOp.getBody());
 
     auto arrayType =
         mlir::LLVM::LLVMArrayType::get(builder.getI64Type(), dimensions.size());
 
-    std::string symbolName = prefix.str() + "_dimensions";
     llvm::SmallVector<int64_t> values;
 
     for (const auto &dimension : dimensions.getAsRange<mlir::IntegerAttr>()) {
       values.push_back(dimension.getInt());
     }
 
-    auto tensorType = mlir::RankedTensorType::get(arrayType.getNumElements(),
-                                                  builder.getI64Type());
+    auto elementsAttr = mlir::DenseIntElementsAttr::get(
+        mlir::RankedTensorType::get(arrayType.getNumElements(),
+                                    builder.getI64Type()),
+        values);
 
-    mlir::SymbolTable &symbolTable =
-        symbolTableCollection->getSymbolTable(moduleOp);
+    if (globalsCache) {
+      return globalsCache->getOrDeclareArrayConstant(builder, loc, symbolTables,
+                                                     moduleOp, elementsAttr);
+    }
 
-    auto globalOp = builder.create<mlir::LLVM::GlobalOp>(
-        loc, arrayType, true, mlir::LLVM::Linkage::Private, symbolName,
-        mlir::DenseIntElementsAttr::get(tensorType, values));
-
-    symbolTable.insert(globalOp);
-    return globalOp;
+    return ::declareArrayConstant(builder, loc, symbolTables, moduleOp,
+                                  prefix.str() + "_dimensions", elementsAttr);
   }
 
   mlir::Value declareAndGetDimensionsArray(mlir::OpBuilder &builder,
@@ -81,7 +120,7 @@ public:
     }
 
     auto globalOp =
-        declareDimensionsArray(builder, moduleOp, loc, dimensions, prefix);
+        getOrDeclareDimensionsArray(builder, moduleOp, loc, dimensions, prefix);
 
     mlir::Value address =
         builder.create<mlir::LLVM::AddressOfOp>(loc, globalOp);
@@ -107,17 +146,18 @@ public:
       values.push_back(indices[dim].getEnd());
     }
 
-    std::string symbolName = prefix.str() + "_range";
+    auto elementsAttr = mlir::DenseIntElementsAttr::get(
+        mlir::RankedTensorType::get(arrayType.getNumElements(),
+                                    builder.getI64Type()),
+        values);
 
-    auto tensorType = mlir::RankedTensorType::get(arrayType.getNumElements(),
-                                                  builder.getI64Type());
+    if (globalsCache) {
+      return globalsCache->getOrDeclareArrayConstant(builder, loc, symbolTables,
+                                                     moduleOp, elementsAttr);
+    }
 
-    auto globalOp = builder.create<mlir::LLVM::GlobalOp>(
-        loc, arrayType, true, mlir::LLVM::Linkage::Private, symbolName,
-        mlir::DenseIntElementsAttr::get(tensorType, values));
-
-    symbolTableCollection->getSymbolTable(moduleOp).insert(globalOp);
-    return globalOp;
+    return ::declareArrayConstant(builder, loc, symbolTables, moduleOp,
+                                  prefix.str() + "_range", elementsAttr);
   }
 
   mlir::Value declareAndGetRangesArray(mlir::OpBuilder &builder,
@@ -138,7 +178,7 @@ public:
   getOrDeclareFunction(mlir::OpBuilder &builder, mlir::ModuleOp moduleOp,
                        mlir::Location loc, llvm::StringRef name,
                        mlir::LLVM::LLVMFunctionType functionType) const {
-    auto funcOp = symbolTableCollection->lookupSymbolIn<mlir::LLVM::LLVMFuncOp>(
+    auto funcOp = symbolTables.lookupSymbolIn<mlir::LLVM::LLVMFuncOp>(
         moduleOp, builder.getStringAttr(name));
 
     if (funcOp) {
@@ -151,7 +191,7 @@ public:
     auto newFuncOp =
         builder.create<mlir::LLVM::LLVMFuncOp>(loc, name, functionType);
 
-    symbolTableCollection->getSymbolTable(moduleOp).insert(newFuncOp);
+    symbolTables.getSymbolTable(moduleOp).insert(newFuncOp);
     return newFuncOp;
   }
 
@@ -283,7 +323,7 @@ public:
           builder.getStringAttr(
               llvm::StringRef(value.data(), value.size() + 1)));
 
-      symbolTableCollection->getSymbolTable(moduleOp).insert(global);
+      symbolTables.getSymbolTable(moduleOp).insert(global);
     }
 
     // Get the pointer to the first character of the global string.
@@ -297,9 +337,6 @@ public:
         loc, mlir::LLVM::LLVMPointerType::get(builder.getContext()), type,
         globalPtr, llvm::ArrayRef<mlir::LLVM::GEPArg>{0, 0});
   }
-
-protected:
-  mlir::SymbolTableCollection *symbolTableCollection;
 };
 
 struct InstanceOpLowering : public KINSOLOpConversion<InstanceOp> {
@@ -309,9 +346,7 @@ struct InstanceOpLowering : public KINSOLOpConversion<InstanceOp> {
   matchAndRewrite(InstanceOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
     auto moduleOp = op->getParentOfType<mlir::ModuleOp>();
-
-    mlir::SymbolTable &symbolTable =
-        symbolTableCollection->getSymbolTable(moduleOp);
+    mlir::SymbolTable &symbolTable = symbolTables.getSymbolTable(moduleOp);
 
     // Create the global variable.
     auto newOp = rewriter.create<mlir::LLVM::GlobalOp>(
@@ -769,10 +804,11 @@ mlir::LogicalResult KINSOLToLLVMConversionPass::convertOperations() {
   LLVMTypeConverter typeConverter(&getContext(), llvmLoweringOptions);
 
   mlir::RewritePatternSet patterns(&getContext());
-  mlir::SymbolTableCollection symbolTableCollection;
+  mlir::SymbolTableCollection symbolTables;
+  mlir::kinsol_to_llvm::GlobalsCache globalsCache;
 
   mlir::populateKINSOLToLLVMConversionPatterns(patterns, typeConverter,
-                                               symbolTableCollection);
+                                               symbolTables, &globalsCache);
 
   return applyPartialConversion(moduleOp, target, std::move(patterns));
 }
@@ -780,11 +816,13 @@ mlir::LogicalResult KINSOLToLLVMConversionPass::convertOperations() {
 namespace mlir {
 void populateKINSOLToLLVMConversionPatterns(
     mlir::RewritePatternSet &patterns, mlir::LLVMTypeConverter &typeConverter,
-    mlir::SymbolTableCollection &symbolTables) {
+    mlir::SymbolTableCollection &symbolTables,
+    kinsol_to_llvm::GlobalsCache *globalsCache) {
   patterns.insert<InstanceOpLowering, AddEquationOpLowering,
                   AddVariableOpLowering, AddVariableAccessOpLowering,
                   SetResidualOpLowering, AddJacobianOpLowering, InitOpLowering,
-                  SolveOpLowering, FreeOpLowering>(typeConverter, symbolTables);
+                  SolveOpLowering, FreeOpLowering>(typeConverter, symbolTables,
+                                                   globalsCache);
 }
 
 std::unique_ptr<mlir::Pass> createKINSOLToLLVMConversionPass() {

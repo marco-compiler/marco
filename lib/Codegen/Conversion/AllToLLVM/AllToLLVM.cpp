@@ -83,8 +83,9 @@ private:
       return std::nullopt;
     });
 
-    // THe cached symbol tables.
+    // Caching data structures.
     mlir::SymbolTableCollection symbolTables;
+    mlir::kinsol_to_llvm::GlobalsCache kinsolToLLVMGlobalsCache;
 
     // Collect the conversion patterns.
     mlir::RewritePatternSet patterns(&getContext());
@@ -93,8 +94,8 @@ private:
 
     populateIDAToLLVMConversionPatterns(patterns, typeConverter, symbolTables);
 
-    populateKINSOLToLLVMConversionPatterns(patterns, typeConverter,
-                                           symbolTables);
+    populateKINSOLToLLVMConversionPatterns(
+        patterns, typeConverter, symbolTables, &kinsolToLLVMGlobalsCache);
 
     populateRuntimeToLLVMPatterns(patterns, typeConverter, symbolTables);
 
