@@ -456,7 +456,7 @@ def DataRecomputationPass : Pass<"data-recomputation", "mlir::ModuleOp">
   }];
 
   let dependentDialects = [
-    "memref::MemRefDialect", "vector::VectorDialect", "affine::AffineDialect"
+    "memref::MemRefDialect", "vector::VectorDialect", "affine::AffineDialect", "ptr::PtrDialect"
   ];
 
   let constructor = "mlir::bmodelica::createDataRecomputationPass()";
