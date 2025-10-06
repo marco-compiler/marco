@@ -15,6 +15,7 @@
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/Vector/IR/VectorDialect.h.inc"
+#include "mlir/Dialect/Ptr/IR/PtrOps.h"
 #include "mlir/Interfaces/ControlFlowInterfaces.h"
 #include "llvm/Support/Format.h"
 #include "llvm/Support/FormatVariadic.h"
@@ -25,7 +26,6 @@ namespace mlir::bmodelica {
 #include "marco/Dialect/BaseModelica/Transforms/Passes.h.inc"
 } // namespace mlir::bmodelica
 
-using namespace ::mlir::bmodelica;
 using namespace ::mlir::memref;
 using namespace ::mlir::func;
 
@@ -60,6 +60,29 @@ using namespace ::mlir::func;
 // To begin with, the estimate will be highly pessimistic. We aim to refine it
 // by considering contiguous or small-stride access patterns.
 
+
+//=== On parametric R-trees
+// This applies to the decision problem that answers whether there are potential
+// interposing writes / clobbers to candidate operands for reuse.
+//
+// An idea to figure out whether clobbers are resolvable or undeterminably
+// overlapping is to use parametric R-trees. See bibtex below.
+// Spatial queries for overlaps and minimal bounding rectangle (MBR) are efficient.
+//
+// The parametric range delimiters for each dimension can potentially be
+// partitioned by thread ID. A question that remains is figuring out the
+// worst-case scenario that would guarantee or (for now) reduce the risk
+// of miscompiling.
+
+/*
+@inproceedings{cai2000parametric,
+  title={Parametric R-tree: An index structure for moving objects},
+  author={Cai, Mengchu and Revesz, Peter},
+  booktitle={Proc. of the COMAD},
+  year={2000}
+}
+  */
+
 namespace detail {
 
 
@@ -89,15 +112,20 @@ struct GlobalDef {
 
 /// DataRecomputation Write
 struct DRWrite {
+
+  using StoreVariant = std::variant<::mlir::memref::StoreOp,
+                           ::mlir::affine::AffineStoreOp, ::mlir::ptr::StoreOp>;
+
   DRWrite(mlir::memref::StoreOp storeOp) noexcept : storeOp{storeOp} { }
   DRWrite(mlir::affine::AffineStoreOp storeOp) noexcept : storeOp{storeOp} {}
+  DRWrite(mlir::ptr::StoreOp storeOp) noexcept : storeOp{storeOp} {}
 
   DRWrite(const DRWrite &) = default;
   DRWrite(DRWrite &&) = default;
   DRWrite &operator=(const DRWrite &) = default;
   DRWrite &operator=(DRWrite &&) = default;
   // Discern between memref write, affine write, tensor write, etc.
-  std::variant<::mlir::memref::StoreOp, ::mlir::affine::AffineStoreOp> storeOp;
+  StoreVariant storeOp;
   std::optional<mlir::Operation *> allocatingOperation;
 
   bool isMemref() const {
@@ -106,6 +134,10 @@ struct DRWrite {
 
   bool isAffine() const {
     return std::holds_alternative<mlir::affine::AffineStoreOp>(storeOp);
+  }
+
+  bool isPtr() const {
+    return std::holds_alternative<mlir::ptr::StoreOp>(storeOp);
   }
 };
 
@@ -123,7 +155,7 @@ using FunctionWritesMap = llvm::DenseMap<mlir::Operation *, FunctionWritesVec>;
 namespace {
 
 class DataRecomputationPass final
-    : public impl::DataRecomputationPassBase<DataRecomputationPass> {
+    : public mlir::bmodelica::impl::DataRecomputationPassBase<DataRecomputationPass> {
 
 public:
   // Use the base class' constructor
@@ -145,6 +177,8 @@ private:
   llvm::DenseMap<mlir::StringRef, FuncOp> functionMap;
 
   ::detail::FunctionWritesMap functionWritesMap;
+
+  mlir::func::FuncOp entrypointFuncOp;
 
 };
 } // namespace
@@ -202,27 +236,74 @@ void DataRecomputationPass::runOnOperation() {
   mlir::ModuleOp moduleOp = this->getOperation();
   auto globalAccesses = getGlobalReads(moduleOp);
 
+  // Assume entrypoint
+  mlir::SmallVector<mlir::func::FuncOp> entrypointFuncs{};
+
+  moduleOp.walk([&entrypointFuncs](mlir::func::FuncOp funcOp) {
+    auto nameStr = funcOp.getName().str();
+
+    auto strIter = nameStr.find("_dynamic");
+
+    if ( strIter != std::string::npos ) {
+      entrypointFuncs.emplace_back(funcOp);
+    }
+  });
+
+  if ( entrypointFuncs.empty() ) {
+    signalPassFailure();
+    return;
+  }
+
+
+  // IMPORTANT NOTE:
+  // This selection is for an IPO-analysis. In the final pass,
+  // the selection should not be informed by a _dynamic prefix, but rather
+  // something more general.
+
+  // Immediately invoked lambda expression (IILE)
+  entrypointFuncOp = std::invoke([&](){
+    if ( entrypointFuncs.size() > 1 ) {
+      // Select the one with the most function calls
+      //auto mostCallsFunction = std::max_element(entrypointFuncs.begin(),
+      // Not memoized -- shouldn't be more than one to two candidates in the cases we're testing now
+      return *llvm::max_element(entrypointFuncs, [] (mlir::func::FuncOp first, mlir::func::FuncOp second) {
+        auto firstOpsRange = first.getRegion().getOps();
+        auto secondOpsRange = second.getRegion().getOps();
+
+        auto countFirst = llvm::count_if(firstOpsRange, [](mlir::Operation &op){
+          return static_cast<bool>(mlir::dyn_cast<mlir::func::FuncOp>(op));
+        });
+
+        auto countSecond = llvm::count_if(secondOpsRange, [](mlir::Operation &op){
+          return static_cast<bool>(mlir::dyn_cast<mlir::func::FuncOp>(op));
+        });
+
+        return countFirst < countSecond;
+
+      });
+    }
+
+    return entrypointFuncs.front();
+
+  });
+
+  llvm::dbgs() << "Selected " << entrypointFuncOp.getName() << " as entrypoint\n";
+
+
+
   llvm::for_each(globalAccesses, [](::detail::GlobalAccessPair &kvPair) {
     auto &[key, value] = kvPair;
-    llvm::outs() << "Global Accesses: " << key.str() << "\n";
+    llvm::dbgs() << "Global Accesses: " << key.str() << "\n";
   });
 
-  moduleOp.walk([](mlir::func::FuncOp funcOp) {
-    auto &blocks = funcOp.getCallableRegion()->getBlocks();
-    auto name = funcOp.getName();
 
-    llvm::outs() << llvm::formatv("function {} has {} blocks", name,
-                                  blocks.size())
-                 << "\n";
-  });
-
-  moduleOp.walk([](GetGlobalOp getGlobalOp) {
-    ::mlir::Block *block = getGlobalOp->getBlock();
-    ::mlir::Operation *parentOp = block->getParentOp();
+  moduleOp.walk([](mlir::memref::GetGlobalOp getGlobalOp) {
+    // ::mlir::Block *block = getGlobalOp->getBlock();
+    ::mlir::Operation *parentOp = getGlobalOp->getParentOp();
 
     if (auto funcOp = mlir::dyn_cast<FuncOp>(parentOp)) {
-      llvm::outs() << llvm::formatv("block with {} ops has parent function {}",
-                                    block->getOperations().size(),
+      llvm::outs() << llvm::formatv("GetGlobalOp to {} has parent function {}",
+                                    getGlobalOp.getName(),
                                     funcOp.getName())
                    << "\n";
     }
@@ -248,32 +329,40 @@ void DataRecomputationPass::runOnOperation() {
     });
 
     // Find branching / jumping ops
-    for ( auto *block : localCFG ) {
-      auto *terminator = (*block)->getTerminator();
-      auto numSuccessors = terminator->getSuccessors().size();
-      auto bopi = mlir::cast<mlir::BranchOpInterface>(terminator);
+    // for ( auto *block : localCFG ) {
+    //   auto *terminator = (*block)->getTerminator();
+    //   auto numSuccessors = terminator->getSuccessors().size();
+    //   auto bopi = mlir::cast<mlir::BranchOpInterface>(terminator);
 
-      for ( size_t i = 0; i < numSuccessors; i++) {
-        auto successorOperands = bopi.getSuccessorOperands(i);
+    //   for ( size_t i = 0; i < numSuccessors; i++) {
+    //     auto successorOperands = bopi.getSuccessorOperands(i);
 
-        llvm::for_each(successorOperands.getForwardedOperands(), [](mlir::Value val) {
-          if ( ! val.getDefiningOp() ) {
-            return;
-          }
+    //     llvm::for_each(successorOperands.getForwardedOperands(), [](mlir::Value val) {
+    //       if ( ! val.getDefiningOp() ) {
+    //         return;
+    //       }
 
-          llvm::dbgs() << "Successor forwarding defining op: " << val.getDefiningOp()->getName() << "\n";
-        });
-      }
-    }
+    //       llvm::dbgs() << "Successor forwarding defining op: " << val.getDefiningOp()->getName() << "\n";
+    //     });
+    //   }
+    // }
 
     for ( auto *op : functionWritesMap.keys() ) {
       auto funcOp = mlir::dyn_cast<mlir::func::FuncOp>(op);
-
-      llvm::dbgs() << funcOp.getName() << " has " << functionWritesMap[op].size() << " writes\n";
     }
+
 
   });
 }
+
+// template <class Variant, class... OpTys>
+// void opTypeSwitch(mlir::Operation *op, std::function<void(mlir::Operation*)> callback) {
+//     ([&](mlir::Operation *op) {
+//         if ( auto castedOp = mlir::dyn_cast<OpTys>( op ) ) {
+//             callback(castedOp);
+//         }
+//     });
+// }
 
 
 ::detail::FunctionWritesVec
@@ -292,6 +381,8 @@ DataRecomputationPass::getFunctionWrites(mlir::func::FuncOp funcOp) {
       writes.emplace_back(storeOp);
     }
   });
+
+
 
   return writes;
 
