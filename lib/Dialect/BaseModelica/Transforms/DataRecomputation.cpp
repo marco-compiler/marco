@@ -89,6 +89,14 @@ using namespace ::mlir::func;
 
 #define MARCO_DBG() llvm::dbgs() << R"(==== DataRecomputation: )"
 
+namespace {
+  template <class... OpTys>
+  static bool isAnyOp(mlir::Operation *op)
+  {
+    return (mlir::isa<OpTys>(op) || ...);
+  }
+} // namespace
+
 namespace detail {
 
 using AccessSet = llvm::DenseSet<mlir::Operation *>;
@@ -110,6 +118,8 @@ struct GlobalDef {
   GlobalDef(GlobalDef &&other) = default;
   GlobalDef &operator=(GlobalDef &&other) = default;
 };
+
+
 
 // Generic Instantiable Index Set Element
 
@@ -149,17 +159,20 @@ struct DataRecomputationMemrefTracer {
 
   using Chain = llvm::SmallVector<mlir::Operation *, 4>;
 
-  static mlir::Operation *traceStore(mlir::memref::StoreOp storeOp) {
+  static std::pair<llvm::SmallVector<mlir::Operation *, 4>, mlir::Operation *>
+  traceStore(mlir::memref::StoreOp storeOp) {
     auto memref = storeOp.getMemref();
     return traceMemref(memref);
   }
 
-  static mlir::Operation *traceStore(mlir::affine::AffineStoreOp storeOp) {
+  static std::pair<llvm::SmallVector<mlir::Operation *, 4>, mlir::Operation *>
+  traceStore(mlir::affine::AffineStoreOp storeOp) {
     auto memref = storeOp.getMemref();
     return traceMemref(memref);
   }
 
-  static mlir::Operation *traceMemref(mlir::TypedValue<mlir::MemRefType> memrefValue) {
+  static std::pair<llvm::SmallVector<mlir::Operation *, 4>, mlir::Operation *>
+  traceMemref(mlir::TypedValue<mlir::MemRefType> memrefValue) {
     // Walk it back to where the memref originated
     auto *definingOp = memrefValue.getDefiningOp();
 
@@ -172,15 +185,10 @@ struct DataRecomputationMemrefTracer {
       finishFlag = finish;
     }
 
-    return memrefChain.back();
+    return std::make_pair(std::move(memrefChain), memrefChain.back());
   }
 
 
-  template <class... OpTys>
-  static bool isAnyOp(mlir::Operation *op)
-  {
-    return (mlir::isa<OpTys>(op) || ...);
-  }
 
   using TraceReturnTy = std::pair<bool, mlir::Operation *>;
   static TraceReturnTy traceOnce(mlir::Operation *op) {
@@ -277,7 +285,6 @@ DataRecomputationPass::getGlobalReads(mlir::ModuleOp moduleOp) {
     accesses.insert(getGlobalOp.getOperation());
 
     auto users = getGlobalOp.getResult().getUsers();
-
   });
 
   return result;
@@ -316,15 +323,64 @@ void DataRecomputationPass::runOnOperation() {
   llvm::DenseMap<mlir::memref::StoreOp, mlir::Operation *>
       memrefStoreToOriginOp{};
 
-  moduleOp.walk([&memrefStoreToOriginOp](mlir::memref::StoreOp storeOp) {
-    auto *memrefOriginOp =
+  llvm::DenseMap<mlir::memref::StoreOp, llvm::SmallVector<mlir::Operation *, 4>>
+      memrefStoreToOriginChain{};
+
+
+  struct ReinterpretInfo {
+    mlir::Operation *castingOp;
+    mlir::MemRefType before;
+    mlir::MemRefType after;
+  };
+
+  struct ReinterpretChain {
+    llvm::SmallVector<ReinterpretInfo, 4> chain;
+
+    mlir::memref::ReinterpretCastOp reinterpretCastOp;
+    mlir::TypedValue<mlir::MemRefType> original;
+    mlir::TypedValue<mlir::MemRefType> reinterpreted;
+
+    bool isOriginal() {
+      return original == reinterpreted;
+    }
+
+    mlir::TypedValue<mlir::MemRefType> getValue();
+    mlir::TypedValue<mlir::MemRefType> getOriginalValue();
+  };
+
+  moduleOp.walk([&](mlir::memref::StoreOp storeOp) {
+    auto [chain, originOp] =
         ::detail::DataRecomputationMemrefTracer::traceStore(storeOp);
-    memrefStoreToOriginOp.insert(std::make_pair(storeOp, memrefOriginOp));
+    memrefStoreToOriginOp.insert(std::make_pair(storeOp, originOp));
+    memrefStoreToOriginChain.insert(std::make_pair(storeOp, std::move(chain)));
+
+
+    // Debug output
+    for ( auto &[storeOp, chain] : memrefStoreToOriginChain ) {
+      auto reinterpretingChain =
+        llvm::filter_to_vector(chain, isAnyOp<mlir::memref::ReinterpretCastOp, mlir::memref::SubViewOp>);
+
+      llvm::for_each(reinterpretingChain, [](mlir::Operation *op) {
+        MARCO_DBG() << "After filtering I got a " << op->getName() << "\n";
+      });
+    }
+
+    auto indices = storeOp.getIndices();
+    MARCO_DBG() << "Memref store with " << indices.size() << " indices\n";
+
+    // In any case -- look back for a reinterpret_cast
+
   });
 
   for (auto &[k, v] : memrefStoreToOriginOp) {
+    mlir::StringRef parentName = "NONE";
+    if ( auto parent = v->getParentOfType<mlir::func::FuncOp>() ) {
+      parentName = parent.getName();
+    }
+
+
     MARCO_DBG() << k->getName() << " had its memref loaded at " << v->getName()
-                 << "\n";
+      << " inside " << parentName << "\n";
   }
 
   llvm::DenseMap<mlir::ptr::StoreOp, mlir::Operation *> ptrStoreToOriginOp{};
@@ -340,9 +396,14 @@ void DataRecomputationPass::runOnOperation() {
   llvm::DenseMap<mlir::affine::AffineStoreOp, mlir::Operation *>
       affineStoreToOriginOp{};
 
-  moduleOp.walk([&affineStoreToOriginOp](mlir::affine::AffineStoreOp storeOp) {
-    auto *memrefOriginOp = ::detail::DataRecomputationMemrefTracer::traceStore(storeOp);
-    affineStoreToOriginOp.insert(std::make_pair(storeOp, memrefOriginOp));
+  llvm::DenseMap<mlir::affine::AffineStoreOp, llvm::SmallVector<mlir::Operation *, 4>>
+      affineStoreToOriginChain{};
+
+  moduleOp.walk([&](mlir::affine::AffineStoreOp storeOp) {
+    auto [chain, originOp] =
+        ::detail::DataRecomputationMemrefTracer::traceStore(storeOp);
+    affineStoreToOriginOp.insert(std::make_pair(storeOp, originOp));
+    affineStoreToOriginChain.insert(std::make_pair(storeOp, std::move(chain)));
   });
 
   for (auto &[k, v] : affineStoreToOriginOp) {
