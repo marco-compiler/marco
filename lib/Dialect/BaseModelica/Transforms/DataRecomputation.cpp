@@ -322,6 +322,11 @@ void DataRecomputationPass::runOnOperation() {
     memrefStoreToOriginOp.insert(std::make_pair(storeOp, memrefOriginOp));
   });
 
+  for (auto &[k, v] : memrefStoreToOriginOp) {
+    MARCO_DBG() << k->getName() << " had its memref loaded at " << v->getName()
+                 << "\n";
+  }
+
   llvm::DenseMap<mlir::ptr::StoreOp, mlir::Operation *> ptrStoreToOriginOp{};
 
   /*moduleOp.walk([&ptrStoreToOriginOp](mlir::ptr::StoreOp storeOp) {
@@ -336,24 +341,15 @@ void DataRecomputationPass::runOnOperation() {
       affineStoreToOriginOp{};
 
   moduleOp.walk([&affineStoreToOriginOp](mlir::affine::AffineStoreOp storeOp) {
-    auto memref = storeOp.getMemref();
-    auto *definingOp = memref.getDefiningOp();
+    auto *memrefOriginOp = ::detail::DataRecomputationMemrefTracer::traceStore(storeOp);
+    affineStoreToOriginOp.insert(std::make_pair(storeOp, memrefOriginOp));
   });
 
-  for (auto &[k, v] : memrefStoreToOriginOp) {
+  for (auto &[k, v] : affineStoreToOriginOp) {
     MARCO_DBG() << k->getName() << " had its memref loaded at " << v->getName()
                  << "\n";
   }
 
-  moduleOp.walk([](mlir::memref::GetGlobalOp getGlobalOp) {
-    ::mlir::Operation *parentOp = getGlobalOp->getParentOp();
-
-    if (auto funcOp = mlir::dyn_cast<FuncOp>(parentOp)) {
-      MARCO_DBG() << llvm::formatv("GetGlobalOp to {} has parent function {}",
-                                    getGlobalOp.getName(), funcOp.getName())
-                   << "\n";
-    }
-  });
 
   moduleOp.walk([&](FuncOp funcOp) {
     // Insert the function into the function map
