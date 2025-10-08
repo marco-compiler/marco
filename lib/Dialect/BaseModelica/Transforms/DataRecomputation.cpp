@@ -31,6 +31,8 @@ namespace mlir::bmodelica {
 using namespace ::mlir::memref;
 using namespace ::mlir::func;
 
+
+
 //=== Rationale:
 // The idea behind this pass is to keep track of stores and do a full
 // module-wide interprocedural analysis to find loads from globals or other
@@ -84,6 +86,8 @@ using namespace ::mlir::func;
   year={2000}
 }
   */
+
+#define MARCO_DBG() llvm::dbgs() << R"(==== DataRecomputation: )"
 
 namespace detail {
 
@@ -142,47 +146,64 @@ struct DRWrite {
 };
 
 struct DataRecomputationMemrefTracer {
+
+  using Chain = llvm::SmallVector<mlir::Operation *, 4>;
+
   static mlir::Operation *traceStore(mlir::memref::StoreOp storeOp) {
-    auto value = storeOp.getMemref();
+    auto memref = storeOp.getMemref();
+    return traceMemref(memref);
+  }
 
+  static mlir::Operation *traceStore(mlir::affine::AffineStoreOp storeOp) {
+    auto memref = storeOp.getMemref();
+    return traceMemref(memref);
+  }
+
+  static mlir::Operation *traceMemref(mlir::TypedValue<mlir::MemRefType> memrefValue) {
     // Walk it back to where the memref originated
-    auto *definingOp = value.getDefiningOp();
+    auto *definingOp = memrefValue.getDefiningOp();
 
-    llvm::SmallVector<mlir::Operation *, 4> memrefChain;
+    Chain memrefChain;
     memrefChain.emplace_back(definingOp);
 
     for (bool finishFlag = false; !finishFlag;) {
-      mlir::Operation *lastOp = memrefChain.back();
-
-      mlir::LogicalResult result =
-          mlir::TypeSwitch<mlir::Operation *, mlir::LogicalResult>(lastOp)
-              .Case<mlir::memref::ReinterpretCastOp>(
-                  [&memrefChain](
-                      mlir::memref::ReinterpretCastOp reinterpretCastOp) {
-                    auto source = reinterpretCastOp.getSource();
-                    auto *definingOp = source.getDefiningOp();
-                    memrefChain.emplace_back(definingOp);
-                    return mlir::LogicalResult::success();
-                  })
-              .Case<mlir::memref::GetGlobalOp>(
-                  [&memrefChain,
-                   &finishFlag](mlir::memref::GetGlobalOp getGlobalOp) {
-                    memrefChain.emplace_back(getGlobalOp.getOperation());
-                    finishFlag = true;
-                    return mlir::success();
-                  })
-              .Default([&finishFlag](mlir::Operation *op) {
-                finishFlag = true;
-                return mlir::failure();
-              });
-
-      if (result.failed()) {
-        return nullptr;
-      }
+      auto [finish, op] = traceOnce(memrefChain.back());
+      memrefChain.emplace_back(op);
+      finishFlag = finish;
     }
 
     return memrefChain.back();
   }
+
+
+  template <class... OpTys>
+  static bool isAnyOp(mlir::Operation *op)
+  {
+    return (mlir::isa<OpTys>(op) || ...);
+  }
+
+  using TraceReturnTy = std::pair<bool, mlir::Operation *>;
+  static TraceReturnTy traceOnce(mlir::Operation *op) {
+
+    // Check if the operation should terminate the chain
+    if ( isAnyOp<mlir::memref::GetGlobalOp, mlir::memref::AllocOp>(op) ) {
+      return std::make_pair(true, op);
+    }
+
+    return mlir::TypeSwitch<mlir::Operation *, TraceReturnTy>(op)
+      .Case<mlir::memref::ReinterpretCastOp>(
+        [](
+          mlir::memref::ReinterpretCastOp reinterpretCastOp) {
+          const auto source = reinterpretCastOp.getSource();
+          auto *definingOp = source.getDefiningOp();
+          return std::make_pair(false, definingOp);
+
+        })
+      .Default([](mlir::Operation *op) {
+        return std::make_pair(true, nullptr);
+      });
+  }
+
 };
 
 using GlobalAccessPair = std::pair<llvm::StringRef, GlobalDef>;
@@ -209,6 +230,9 @@ public:
   void runOnOperation() override;
 
 private:
+
+  mlir::ModuleOp moduleOp;
+
   ::detail::GlobalAccessMap prepareGlobalAccessMap(mlir::ModuleOp moduleOp);
 
   // Returns a Map of Globals and a Vector of operations accessing the globals
@@ -223,7 +247,9 @@ private:
   ::detail::FunctionWritesMap functionWritesMap;
 
   mlir::func::FuncOp entrypointFuncOp;
-  std::optional<mlir::func::FuncOp> selectEntrypoint(mlir::ModuleOp moduleOp);
+
+  mlir::FailureOr<mlir::func::FuncOp>
+   selectEntrypoint(mlir::ModuleOp moduleOp);
 };
 } // namespace
 
@@ -252,15 +278,6 @@ DataRecomputationPass::getGlobalReads(mlir::ModuleOp moduleOp) {
 
     auto users = getGlobalOp.getResult().getUsers();
 
-    llvm::for_each(users, [&](mlir::Operation *op) {
-      if (mlir::memref::ReinterpretCastOp reinterpretCastOp =
-              mlir::dyn_cast<mlir::memref::ReinterpretCastOp>(op)) {
-
-        auto sourceType = reinterpretCastOp.getSource().getType();
-
-        llvm::dbgs() << "A loaded global's memref was reinterpreted!" << "\n";
-      }
-    });
   });
 
   return result;
@@ -275,32 +292,26 @@ DataRecomputationPass::getGlobalWrites(mlir::ModuleOp moduleOp) {
 
 void DataRecomputationPass::runOnOperation() {
   // Gather all global statics
-  mlir::ModuleOp moduleOp = this->getOperation();
-  auto globalAccesses = getGlobalReads(moduleOp);
+  moduleOp = this->getOperation();
+  // auto globalAccesses = getGlobalReads(moduleOp);
 
-  // Assume entrypoint
+  mlir::SymbolTableCollection symTabCollection{};
+
+
 
   // IMPORTANT NOTE:
   // This selection is for an IPO-analysis. In the final pass,
   // the selection should not be informed by a _dynamic prefix, but rather
   // something more general.
 
-  // Immediately invoked lambda expression (IILE)
-
   auto entrypointFuncOption = selectEntrypoint(moduleOp);
-  if (!entrypointFuncOption) {
-    llvm::dbgs() << "Failed to select entrypoint function\n";
+  if (mlir::failed(entrypointFuncOption)) {
+    MARCO_DBG() << "Failed to select entrypoint function\n";
     signalPassFailure();
     return;
   }
+  entrypointFuncOp = entrypointFuncOption.value();
 
-  llvm::dbgs() << "Selected " << entrypointFuncOp.getName()
-               << " as entrypoint\n";
-
-  llvm::for_each(globalAccesses, [](::detail::GlobalAccessPair &kvPair) {
-    auto &[key, value] = kvPair;
-    llvm::dbgs() << "Global Accesses: " << key.str() << "\n";
-  });
 
   llvm::DenseMap<mlir::memref::StoreOp, mlir::Operation *>
       memrefStoreToOriginOp{};
@@ -330,7 +341,7 @@ void DataRecomputationPass::runOnOperation() {
   });
 
   for (auto &[k, v] : memrefStoreToOriginOp) {
-    llvm::dbgs() << k->getName() << " had its memref loaded at " << v->getName()
+    MARCO_DBG() << k->getName() << " had its memref loaded at " << v->getName()
                  << "\n";
   }
 
@@ -338,7 +349,7 @@ void DataRecomputationPass::runOnOperation() {
     ::mlir::Operation *parentOp = getGlobalOp->getParentOp();
 
     if (auto funcOp = mlir::dyn_cast<FuncOp>(parentOp)) {
-      llvm::outs() << llvm::formatv("GetGlobalOp to {} has parent function {}",
+      MARCO_DBG() << llvm::formatv("GetGlobalOp to {} has parent function {}",
                                     getGlobalOp.getName(), funcOp.getName())
                    << "\n";
     }
@@ -349,25 +360,11 @@ void DataRecomputationPass::runOnOperation() {
     functionMap.insert(std::make_pair(funcOp.getName(), funcOp));
     functionWritesMap.insert(
         std::make_pair(funcOp.getOperation(), getFunctionWrites(funcOp)));
-
-    // Get the basic blocks
-    llvm::DirectedGraph<mlir::Block *, mlir::ValueRange> localCFG{};
-
-    mlir::DenseMap<size_t, mlir::Block *> basicBlocks{};
-    size_t basicBlockCount = 0;
-
-    llvm::for_each(funcOp.getBlocks(), [&](mlir::Block &block) {
-      basicBlocks.insert(std::make_pair(basicBlockCount, &block));
-      localCFG.addNode(basicBlocks[basicBlockCount++]);
-    });
-
-    for (auto *op : functionWritesMap.keys()) {
-      auto funcOp = mlir::dyn_cast<mlir::func::FuncOp>(op);
-    }
   });
 }
 
-std::optional<mlir::func::FuncOp>
+
+mlir::FailureOr<mlir::func::FuncOp>
 DataRecomputationPass::selectEntrypoint(mlir::ModuleOp moduleOp) {
 
   mlir::SmallVector<mlir::func::FuncOp> entrypointFuncs{};
@@ -398,10 +395,12 @@ DataRecomputationPass::selectEntrypoint(mlir::ModuleOp moduleOp) {
   };
 
   if (entrypointFuncs.empty()) {
-    return std::nullopt;
+    return mlir::failure();
   }
 
   if (entrypointFuncs.size() > 1) {
+    // TODO: Solve entrypoint selection.
+    // Hacky non-robust entrypoint selection.
     // Select the one with the most function calls
     // auto mostCallsFunction = std::max_element(entrypointFuncs.begin(),
     // Not memoized -- shouldn't be more than one to two candidates in the
@@ -409,18 +408,8 @@ DataRecomputationPass::selectEntrypoint(mlir::ModuleOp moduleOp) {
     return *llvm::max_element(entrypointFuncs, compareFunc);
   }
 
-  return entrypointFuncs.front();
+    return entrypointFuncs.front();
 }
-
-// template <class Variant, class... OpTys>
-// void opTypeSwitch(mlir::Operation *op, std::function<void(mlir::Operation*)>
-// callback) {
-//     ([&](mlir::Operation *op) {
-//         if ( auto castedOp = mlir::dyn_cast<OpTys>( op ) ) {
-//             callback(castedOp);
-//         }
-//     });
-// }
 
 ::detail::FunctionWritesVec
 DataRecomputationPass::getFunctionWrites(mlir::func::FuncOp funcOp) {
