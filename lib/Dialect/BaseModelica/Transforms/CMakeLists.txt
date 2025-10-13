@@ -16,8 +16,8 @@ add_mlir_dialect_library(MLIRBaseModelicaTransforms
     DerivableOpInterfaceImpl.cpp
     DerivableTypeInterfaceImpl.cpp
     DerivativeChainRule.cpp
-    DerivativesAllocation.cpp
     DerivativesInitialization.cpp
+    DerivativesMaterialization.cpp
     EquationAccessSplit.cpp
     EquationExplicitation.cpp
     EquationExplicitationTest.cpp
