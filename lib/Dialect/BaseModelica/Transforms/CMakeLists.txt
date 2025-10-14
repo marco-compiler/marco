@@ -7,6 +7,7 @@ add_mlir_dialect_library(MLIRBaseModelicaTransforms
     Modeling/VariableBridge.cpp
     Solvers/SUNDIALS.cpp
     AccessReplacementTest.cpp
+    AliasElimination.cpp
     AllInterfaces.cpp
     AllocationOpInterfaceImpl.cpp
     BindingEquationConversion.cpp

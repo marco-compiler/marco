@@ -2,6 +2,7 @@
 #define MARCO_DIALECT_BASEMODELICA_TRANSFORMS_PASSES_H
 
 #include "marco/Dialect/BaseModelica/Transforms/AccessReplacementTest.h"
+#include "marco/Dialect/BaseModelica/Transforms/AliasElimination.h"
 #include "marco/Dialect/BaseModelica/Transforms/AutomaticDifferentiation.h"
 #include "marco/Dialect/BaseModelica/Transforms/BindingEquationConversion.h"
 #include "marco/Dialect/BaseModelica/Transforms/CallCSE.h"

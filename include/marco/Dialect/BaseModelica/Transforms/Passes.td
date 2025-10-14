@@ -319,6 +319,22 @@ def ViewAccessFoldingPass : Pass<"fold-view-accesses", "mlir::ModuleOp">
 // Optimizations
 //===---------------------------------------------------------------------===//
 
+def AliasEliminationPass
+    : Pass<"alias-elimination", "ModelOp">
+{
+    let summary = "Deduplicate aliased variables.";
+
+    let description = [{
+        Remove variables that contained the same data as other variables.
+    }];
+
+    let dependentDialects = [
+        "mlir::bmodelica::BaseModelicaDialect"
+    ];
+
+    let constructor = "mlir::bmodelica::createAliasEliminationPass()";
+}
+
 def EquationFunctionLoopHoistingPass
     : Pass<"equation-function-loop-hoist", "EquationFunctionOp">
 {
