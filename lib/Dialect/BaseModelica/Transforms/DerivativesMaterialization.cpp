@@ -84,7 +84,7 @@ void DerivativesMaterializationPass::runOnOperation() {
 
 mlir::LogicalResult
 DerivativesMaterializationPass::processModelOp(ModelOp modelOp) {
-  mlir::SymbolTableCollection symolTables;
+  mlir::SymbolTableCollection symbolTables;
 
   llvm::SmallVector<EquationInstanceOp> equationInstanceOps;
   llvm::SmallVector<AlgorithmOp> algorithmOps;
@@ -102,24 +102,24 @@ DerivativesMaterializationPass::processModelOp(ModelOp modelOp) {
 
   if (mlir::failed(mlir::failableParallelForEach(
           &getContext(), equationInstanceOps, [&](EquationInstanceOp equation) {
-            return collectDerivedIndices(modelOp, symolTables, derivedVariables,
-                                         derivativesMap, mutexCollection,
-                                         equation);
+            return collectDerivedIndices(modelOp, symbolTables,
+                                         derivedVariables, derivativesMap,
+                                         mutexCollection, equation);
           }))) {
     return mlir::failure();
   }
 
   if (mlir::failed(mlir::failableParallelForEach(
           &getContext(), algorithmOps, [&](AlgorithmOp algorithmOp) {
-            return collectDerivedIndices(modelOp, symolTables, derivedVariables,
-                                         derivativesMap, mutexCollection,
-                                         algorithmOp);
+            return collectDerivedIndices(modelOp, symbolTables,
+                                         derivedVariables, derivativesMap,
+                                         mutexCollection, algorithmOp);
           }))) {
     return mlir::failure();
   }
 
   // Create the derivative variables.
-  if (mlir::failed(createDerivativeVariables(modelOp, symolTables,
+  if (mlir::failed(createDerivativeVariables(modelOp, symbolTables,
                                              derivativesMap, derivedVariables,
                                              mutexCollection))) {
     return mlir::failure();
@@ -134,14 +134,15 @@ DerivativesMaterializationPass::processModelOp(ModelOp modelOp) {
 
   if (mlir::failed(mlir::failableParallelForEach(
           &getContext(), equationTemplateOps, [&](EquationTemplateOp equation) {
-            return removeDerOps(symolTables, modelOp, derivativesMap, equation);
+            return removeDerOps(symbolTables, modelOp, derivativesMap,
+                                equation);
           }))) {
     return mlir::failure();
   }
 
   if (mlir::failed(mlir::failableParallelForEach(
           &getContext(), algorithmOps, [&](AlgorithmOp algorithmOp) {
-            return removeDerOps(symolTables, modelOp, derivativesMap,
+            return removeDerOps(symbolTables, modelOp, derivativesMap,
                                 algorithmOp);
           }))) {
     return mlir::failure();
