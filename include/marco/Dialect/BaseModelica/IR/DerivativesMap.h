@@ -6,10 +6,13 @@
 #include "mlir/Bytecode/BytecodeWriter.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "llvm/ADT/MapVector.h"
+#include <mutex>
 
 namespace mlir::bmodelica {
 class DerivativesMap {
 public:
+  virtual ~DerivativesMap() = default;
+
   bool operator==(const DerivativesMap &other) const;
 
   mlir::DictionaryAttr asAttribute(mlir::MLIRContext *context) const;
@@ -32,29 +35,29 @@ public:
 
   friend void print(mlir::OpAsmPrinter &printer, const DerivativesMap &prop);
 
-  bool empty() const;
+  virtual bool empty() const;
 
-  llvm::SmallVector<mlir::SymbolRefAttr> getDerivedVariables() const;
+  virtual llvm::SmallVector<mlir::SymbolRefAttr> getDerivedVariables() const;
 
   /// Get the derivative variable of a given state variable.
-  std::optional<mlir::SymbolRefAttr>
+  virtual std::optional<mlir::SymbolRefAttr>
   getDerivative(mlir::SymbolRefAttr variable) const;
 
   /// Set the derivative variable for a state one.
-  void setDerivative(mlir::SymbolRefAttr variable,
-                     mlir::SymbolRefAttr derivative);
+  virtual void setDerivative(mlir::SymbolRefAttr variable,
+                             mlir::SymbolRefAttr derivative);
 
-  std::optional<std::reference_wrapper<const marco::modeling::IndexSet>>
+  virtual std::optional<std::reference_wrapper<const marco::modeling::IndexSet>>
   getDerivedIndices(mlir::SymbolRefAttr variable) const;
 
-  void setDerivedIndices(mlir::SymbolRefAttr variable,
-                         marco::modeling::IndexSet indices);
+  virtual void setDerivedIndices(mlir::SymbolRefAttr variable,
+                                 marco::modeling::IndexSet indices);
 
-  void addDerivedIndices(mlir::SymbolRefAttr variable,
-                         marco::modeling::IndexSet indices);
+  virtual void addDerivedIndices(mlir::SymbolRefAttr variable,
+                                 marco::modeling::IndexSet indices);
 
   /// Get the state variable of a given derivative variable.
-  std::optional<mlir::SymbolRefAttr>
+  virtual std::optional<mlir::SymbolRefAttr>
   getDerivedVariable(mlir::SymbolRefAttr derivative) const;
 
 private:
@@ -64,6 +67,42 @@ private:
       derivedIndices;
 
   llvm::MapVector<mlir::SymbolRefAttr, mlir::SymbolRefAttr> inverseDerivatives;
+};
+
+/// A multithread safe version of DerivativesMap.
+class LockedDerivativesMap : public DerivativesMap {
+  DerivativesMap &derivativesMap;
+  mutable std::mutex mutex;
+
+public:
+  explicit LockedDerivativesMap(DerivativesMap &derivativesMap);
+
+  LockedDerivativesMap(const LockedDerivativesMap &other) = delete;
+  LockedDerivativesMap(LockedDerivativesMap &&other) = delete;
+  LockedDerivativesMap &operator=(const LockedDerivativesMap &other) = delete;
+  LockedDerivativesMap &operator=(LockedDerivativesMap &&other) = delete;
+
+  bool empty() const override;
+
+  llvm::SmallVector<mlir::SymbolRefAttr> getDerivedVariables() const override;
+
+  std::optional<mlir::SymbolRefAttr>
+  getDerivative(mlir::SymbolRefAttr variable) const override;
+
+  void setDerivative(mlir::SymbolRefAttr variable,
+                     mlir::SymbolRefAttr derivative) override;
+
+  std::optional<std::reference_wrapper<const marco::modeling::IndexSet>>
+  getDerivedIndices(mlir::SymbolRefAttr variable) const override;
+
+  void setDerivedIndices(mlir::SymbolRefAttr variable,
+                         marco::modeling::IndexSet indices) override;
+
+  void addDerivedIndices(mlir::SymbolRefAttr variable,
+                         marco::modeling::IndexSet indices) override;
+
+  std::optional<mlir::SymbolRefAttr>
+  getDerivedVariable(mlir::SymbolRefAttr derivative) const override;
 };
 } // namespace mlir::bmodelica
 

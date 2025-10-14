@@ -444,4 +444,54 @@ DerivativesMap::getDerivedVariable(mlir::SymbolRefAttr derivative) const {
 
   return it->second;
 }
+
+LockedDerivativesMap::LockedDerivativesMap(DerivativesMap &derivativesMap)
+    : derivativesMap(derivativesMap) {}
+
+bool LockedDerivativesMap::empty() const {
+  std::lock_guard lock(mutex);
+  return derivativesMap.empty();
+}
+
+llvm::SmallVector<mlir::SymbolRefAttr>
+LockedDerivativesMap::getDerivedVariables() const {
+  std::lock_guard lock(mutex);
+  return derivativesMap.getDerivedVariables();
+}
+
+std::optional<mlir::SymbolRefAttr>
+LockedDerivativesMap::getDerivative(mlir::SymbolRefAttr variable) const {
+  std::lock_guard lock(mutex);
+  return derivativesMap.getDerivative(variable);
+}
+
+void LockedDerivativesMap::setDerivative(mlir::SymbolRefAttr variable,
+                                         mlir::SymbolRefAttr derivative) {
+  std::lock_guard lock(mutex);
+  return derivativesMap.setDerivative(variable, derivative);
+}
+
+std::optional<std::reference_wrapper<const marco::modeling::IndexSet>>
+LockedDerivativesMap::getDerivedIndices(mlir::SymbolRefAttr variable) const {
+  std::lock_guard lock(mutex);
+  return derivativesMap.getDerivedIndices(variable);
+}
+
+void LockedDerivativesMap::setDerivedIndices(
+    mlir::SymbolRefAttr variable, marco::modeling::IndexSet indices) {
+  std::lock_guard lock(mutex);
+  return derivativesMap.setDerivedIndices(variable, std::move(indices));
+}
+
+void LockedDerivativesMap::addDerivedIndices(
+    mlir::SymbolRefAttr variable, marco::modeling::IndexSet indices) {
+  std::lock_guard lock(mutex);
+  return derivativesMap.addDerivedIndices(variable, std::move(indices));
+}
+
+std::optional<mlir::SymbolRefAttr>
+LockedDerivativesMap::getDerivedVariable(mlir::SymbolRefAttr derivative) const {
+  std::lock_guard lock(mutex);
+  return derivativesMap.getDerivedVariable(derivative);
+}
 } // namespace mlir::bmodelica
