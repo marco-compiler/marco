@@ -10,9 +10,14 @@ namespace mlir::bmodelica {
 using namespace ::mlir::bmodelica;
 
 namespace {
-struct MutexCollection {
-  std::mutex symbolTableCollectionMutex;
-  std::mutex derivativesMutex;
+class DifferentialVariablesSet : public llvm::SetVector<mlir::SymbolRefAttr> {
+  mutable std::mutex mutex;
+
+public:
+  bool insert(mlir::SymbolRefAttr variable) {
+    std::lock_guard lock(mutex);
+    return llvm::SetVector<mlir::SymbolRefAttr>::insert(variable);
+  }
 };
 
 class DerivativesMaterializationPass
@@ -27,29 +32,27 @@ public:
 private:
   mlir::LogicalResult processModelOp(ModelOp modelOp);
 
-  mlir::LogicalResult collectDerivedIndices(
-      ModelOp modelOp, mlir::SymbolTableCollection &symbolTableCollection,
-      llvm::SetVector<mlir::SymbolRefAttr> &derivedVariables,
-      DerivativesMap &derivativesMap, MutexCollection &mutexCollection,
-      EquationInstanceOp equationInstanceOp) const;
+  mlir::LogicalResult
+  collectDerivedIndices(ModelOp modelOp,
+                        mlir::SymbolTableCollection &symbolTables,
+                        DifferentialVariablesSet &newDifferentialVariables,
+                        DerivativesMap &derivativesMap,
+                        EquationInstanceOp equationInstanceOp) const;
 
   mlir::LogicalResult collectDerivedIndices(
-      ModelOp modelOp, mlir::SymbolTableCollection &symbolTableCollection,
-      llvm::SetVector<mlir::SymbolRefAttr> &derivedVariables,
-      DerivativesMap &derivativesMap, MutexCollection &mutexCollection,
-      AlgorithmOp algorithmOp) const;
+      ModelOp modelOp, mlir::SymbolTableCollection &symbolTables,
+      DifferentialVariablesSet &newDifferentialVariables,
+      DerivativesMap &derivativesMap, AlgorithmOp algorithmOp) const;
 
   mlir::LogicalResult collectDerivedIndicesInAlgorithmRegion(
-      ModelOp modelOp, mlir::SymbolTableCollection &symbolTableCollection,
-      llvm::SetVector<mlir::SymbolRefAttr> &derivedVariables,
-      DerivativesMap &derivativesMap, MutexCollection &mutexCollection,
-      mlir::Region &region) const;
+      ModelOp modelOp, mlir::SymbolTableCollection &symbolTables,
+      DifferentialVariablesSet &newDifferentialVariables,
+      DerivativesMap &derivativesMap, mlir::Region &region) const;
 
   mlir::LogicalResult createDerivativeVariables(
-      ModelOp modelOp, mlir::SymbolTableCollection &symbolTableCollection,
+      ModelOp modelOp, mlir::SymbolTableCollection &symbolTables,
       DerivativesMap &derivativesMap,
-      const llvm::SetVector<mlir::SymbolRefAttr> &derivedVariables,
-      MutexCollection &mutexCollection);
+      const llvm::SetVector<mlir::SymbolRefAttr> &newDifferentialVariables);
 };
 } // namespace
 
@@ -192,6 +195,7 @@ mlir::LogicalResult removeDerOps(mlir::Region &region, ModelOp modelOp,
 mlir::LogicalResult
 DerivativesMaterializationPass::processModelOp(ModelOp modelOp) {
   mlir::SymbolTableCollection symbolTables;
+  mlir::LockedSymbolTableCollection lockedSymbolTables(symbolTables);
 
   llvm::SmallVector<EquationInstanceOp> equationInstanceOps;
   llvm::SmallVector<AlgorithmOp> algorithmOps;
@@ -203,32 +207,31 @@ DerivativesMaterializationPass::processModelOp(ModelOp modelOp) {
   modelOp.collectMainAlgorithms(algorithmOps);
 
   // Collect the derived indices.
-  llvm::SetVector<mlir::SymbolRefAttr> derivedVariables;
+  DifferentialVariablesSet newDifferentialVariables;
   DerivativesMap &derivativesMap = modelOp.getProperties().derivativesMap;
-  MutexCollection mutexCollection;
+  LockedDerivativesMap lockedDerivativesMap(derivativesMap);
 
   if (mlir::failed(mlir::failableParallelForEach(
           &getContext(), equationInstanceOps, [&](EquationInstanceOp equation) {
-            return collectDerivedIndices(modelOp, symbolTables,
-                                         derivedVariables, derivativesMap,
-                                         mutexCollection, equation);
+            return collectDerivedIndices(modelOp, lockedSymbolTables,
+                                         newDifferentialVariables,
+                                         lockedDerivativesMap, equation);
           }))) {
     return mlir::failure();
   }
 
   if (mlir::failed(mlir::failableParallelForEach(
           &getContext(), algorithmOps, [&](AlgorithmOp algorithmOp) {
-            return collectDerivedIndices(modelOp, symbolTables,
-                                         derivedVariables, derivativesMap,
-                                         mutexCollection, algorithmOp);
+            return collectDerivedIndices(modelOp, lockedSymbolTables,
+                                         newDifferentialVariables,
+                                         lockedDerivativesMap, algorithmOp);
           }))) {
     return mlir::failure();
   }
 
   // Create the derivative variables.
-  if (mlir::failed(createDerivativeVariables(modelOp, symbolTables,
-                                             derivativesMap, derivedVariables,
-                                             mutexCollection))) {
+  if (mlir::failed(createDerivativeVariables(
+          modelOp, symbolTables, derivativesMap, newDifferentialVariables))) {
     return mlir::failure();
   }
 
@@ -239,12 +242,10 @@ DerivativesMaterializationPass::processModelOp(ModelOp modelOp) {
     equationTemplateOps.push_back(equationInstanceOp.getTemplate());
   }
 
-  mlir::LockedSymbolTableCollection lockedSymbolTables(symbolTables);
-
   if (mlir::failed(mlir::failableParallelForEach(
           &getContext(), equationTemplateOps, [&](EquationTemplateOp equation) {
             return ::removeDerOps(equation.getBodyRegion(), modelOp,
-                                  lockedSymbolTables, derivativesMap);
+                                  lockedSymbolTables, lockedDerivativesMap);
           }))) {
     return mlir::failure();
   }
@@ -252,7 +253,7 @@ DerivativesMaterializationPass::processModelOp(ModelOp modelOp) {
   if (mlir::failed(mlir::failableParallelForEach(
           &getContext(), algorithmOps, [&](AlgorithmOp algorithmOp) {
             return ::removeDerOps(algorithmOp.getBodyRegion(), modelOp,
-                                  lockedSymbolTables, derivativesMap);
+                                  lockedSymbolTables, lockedDerivativesMap);
           }))) {
     return mlir::failure();
   }
@@ -263,13 +264,11 @@ DerivativesMaterializationPass::processModelOp(ModelOp modelOp) {
 namespace {
 mlir::LogicalResult getShape(llvm::SmallVectorImpl<int64_t> &shape,
                              ModelOp modelOp,
-                             mlir::SymbolTableCollection &symbolTableCollection,
-                             std::mutex &symbolTableMutex,
+                             mlir::SymbolTableCollection &symbolTables,
                              mlir::SymbolRefAttr variable) {
-  std::lock_guard<std::mutex> lock(symbolTableMutex);
   auto moduleOp = modelOp->getParentOfType<mlir::ModuleOp>();
 
-  auto variableOp = symbolTableCollection.lookupSymbolIn<VariableOp>(
+  auto variableOp = symbolTables.lookupSymbolIn<VariableOp>(
       modelOp, variable.getRootReference());
 
   if (!variableOp) {
@@ -284,10 +283,10 @@ mlir::LogicalResult getShape(llvm::SmallVectorImpl<int64_t> &shape,
 
     auto recordOp = mlir::cast<RecordOp>(
         mlir::cast<RecordType>(variableOp.getVariableType().unwrap())
-            .getRecordOp(symbolTableCollection, moduleOp));
+            .getRecordOp(symbolTables, moduleOp));
 
-    variableOp = symbolTableCollection.lookupSymbolIn<VariableOp>(
-        recordOp, component.getAttr());
+    variableOp =
+        symbolTables.lookupSymbolIn<VariableOp>(recordOp, component.getAttr());
 
     if (!variableOp) {
       return mlir::failure();
@@ -348,9 +347,9 @@ void collectDerOps(
 } // namespace
 
 mlir::LogicalResult DerivativesMaterializationPass::collectDerivedIndices(
-    ModelOp modelOp, mlir::SymbolTableCollection &symbolTableCollection,
-    llvm::SetVector<mlir::SymbolRefAttr> &derivedVariables,
-    DerivativesMap &derivativesMap, MutexCollection &mutexCollection,
+    ModelOp modelOp, mlir::SymbolTableCollection &symbolTables,
+    DifferentialVariablesSet &newDifferentialVariables,
+    DerivativesMap &derivativesMap,
     EquationInstanceOp equationInstanceOp) const {
   EquationTemplateOp equationTemplateOp = equationInstanceOp.getTemplate();
 
@@ -361,11 +360,8 @@ mlir::LogicalResult DerivativesMaterializationPass::collectDerivedIndices(
     llvm::SmallVector<VariableAccess, 1> accesses;
 
     {
-      std::lock_guard<std::mutex> symbolTableLock(
-          mutexCollection.symbolTableCollectionMutex);
-
-      auto access = equationTemplateOp.getAccessAtPath(symbolTableCollection,
-                                                       derOp.second + 0);
+      auto access =
+          equationTemplateOp.getAccessAtPath(symbolTables, derOp.second + 0);
 
       if (!access) {
         return mlir::failure();
@@ -377,8 +373,7 @@ mlir::LogicalResult DerivativesMaterializationPass::collectDerivedIndices(
     for (const VariableAccess &access : accesses) {
       llvm::SmallVector<int64_t, 3> variableShape;
 
-      if (mlir::failed(getShape(variableShape, modelOp, symbolTableCollection,
-                                mutexCollection.symbolTableCollectionMutex,
+      if (mlir::failed(getShape(variableShape, modelOp, symbolTables,
                                 access.getVariable()))) {
         return mlir::failure();
       }
@@ -411,8 +406,7 @@ mlir::LogicalResult DerivativesMaterializationPass::collectDerivedIndices(
       }
 
       // Add the derived indices.
-      std::lock_guard<std::mutex> lock(mutexCollection.derivativesMutex);
-      derivedVariables.insert(access.getVariable());
+      newDifferentialVariables.insert(access.getVariable());
 
       derivativesMap.addDerivedIndices(access.getVariable(),
                                        std::move(derivedIndices));
@@ -424,20 +418,18 @@ mlir::LogicalResult DerivativesMaterializationPass::collectDerivedIndices(
 
 mlir::LogicalResult DerivativesMaterializationPass::collectDerivedIndices(
     ModelOp modelOp, mlir::SymbolTableCollection &symbolTableCollection,
-    llvm::SetVector<mlir::SymbolRefAttr> &derivedVariables,
-    DerivativesMap &derivativesMap, MutexCollection &mutexCollection,
-    AlgorithmOp algorithmOp) const {
+    DifferentialVariablesSet &newDifferentialVariables,
+    DerivativesMap &derivativesMap, AlgorithmOp algorithmOp) const {
   return collectDerivedIndicesInAlgorithmRegion(
-      modelOp, symbolTableCollection, derivedVariables, derivativesMap,
-      mutexCollection, algorithmOp.getBodyRegion());
+      modelOp, symbolTableCollection, newDifferentialVariables, derivativesMap,
+      algorithmOp.getBodyRegion());
 }
 
 mlir::LogicalResult
 DerivativesMaterializationPass::collectDerivedIndicesInAlgorithmRegion(
     ModelOp modelOp, mlir::SymbolTableCollection &symbolTableCollection,
-    llvm::SetVector<mlir::SymbolRefAttr> &derivedVariables,
-    DerivativesMap &derivativesMap, MutexCollection &mutexCollection,
-    mlir::Region &region) const {
+    DifferentialVariablesSet &newDifferentialVariables,
+    DerivativesMap &derivativesMap, mlir::Region &region) const {
   llvm::SmallVector<DerOp> derOps;
 
   region.walk([&](DerOp derOp) { derOps.push_back(derOp); });
@@ -455,21 +447,20 @@ DerivativesMaterializationPass::collectDerivedIndicesInAlgorithmRegion(
     llvm::SmallVector<int64_t, 3> variableShape;
 
     if (mlir::failed(getShape(variableShape, modelOp, symbolTableCollection,
-                              mutexCollection.symbolTableCollectionMutex,
                               variable))) {
       return mlir::failure();
     }
 
     // Add the derived indices.
-    std::lock_guard<std::mutex> lock(mutexCollection.derivativesMutex);
-    derivedVariables.insert(variable);
+    newDifferentialVariables.insert(variable);
     derivativesMap.addDerivedIndices(variable, shapeToIndexSet(variableShape));
   }
 
   return mlir::success();
 }
 
-static std::string getDerivativeName(mlir::SymbolRefAttr variableName) {
+namespace {
+std::string getDerivativeName(mlir::SymbolRefAttr variableName) {
   std::string result = "der_" + variableName.getRootReference().str();
 
   for (mlir::FlatSymbolRefAttr component : variableName.getNestedReferences()) {
@@ -478,12 +469,12 @@ static std::string getDerivativeName(mlir::SymbolRefAttr variableName) {
 
   return result;
 }
+} // namespace
 
 mlir::LogicalResult DerivativesMaterializationPass::createDerivativeVariables(
     ModelOp modelOp, mlir::SymbolTableCollection &symbolTableCollection,
     DerivativesMap &derivativesMap,
-    const llvm::SetVector<mlir::SymbolRefAttr> &derivedVariables,
-    MutexCollection &mutexCollection) {
+    const llvm::SetVector<mlir::SymbolRefAttr> &newDifferentialVariables) {
   mlir::OpBuilder builder(modelOp);
   builder.setInsertionPointToEnd(modelOp.getBody());
 
@@ -491,7 +482,7 @@ mlir::LogicalResult DerivativesMaterializationPass::createDerivativeVariables(
       symbolTableCollection.getSymbolTable(modelOp);
 
   // Add the new attributes.
-  for (mlir::SymbolRefAttr variable : derivedVariables) {
+  for (mlir::SymbolRefAttr variable : newDifferentialVariables) {
     // If the derivative map contains the derivative, a variable already exists.
     if (derivativesMap.getDerivative(variable).has_value()) {
       continue;
@@ -500,7 +491,6 @@ mlir::LogicalResult DerivativesMaterializationPass::createDerivativeVariables(
     llvm::SmallVector<int64_t, 3> variableShape;
 
     if (mlir::failed(getShape(variableShape, modelOp, symbolTableCollection,
-                              mutexCollection.symbolTableCollectionMutex,
                               variable))) {
       return mlir::failure();
     }
