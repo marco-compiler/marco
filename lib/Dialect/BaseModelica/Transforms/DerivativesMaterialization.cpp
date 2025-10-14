@@ -50,16 +50,6 @@ private:
       DerivativesMap &derivativesMap,
       const llvm::SetVector<mlir::SymbolRefAttr> &derivedVariables,
       MutexCollection &mutexCollection);
-
-  mlir::LogicalResult removeDerOps(mlir::SymbolTableCollection &symbolTables,
-                                   ModelOp modelOp,
-                                   const DerivativesMap &derivativesMap,
-                                   EquationTemplateOp equationTemplateOp);
-
-  mlir::LogicalResult removeDerOps(mlir::SymbolTableCollection &symbolTables,
-                                   ModelOp modelOp,
-                                   const DerivativesMap &derivativesMap,
-                                   AlgorithmOp algorithmOp);
 };
 } // namespace
 
@@ -81,6 +71,123 @@ void DerivativesMaterializationPass::runOnOperation() {
 
   markAnalysesPreserved<DerivativesMap>();
 }
+
+namespace {
+mlir::LogicalResult
+getAccess(mlir::Value value,
+          llvm::SmallVectorImpl<mlir::FlatSymbolRefAttr> &symbols,
+          llvm::SmallVectorImpl<mlir::Value> &indices) {
+  mlir::Operation *definingOp = value.getDefiningOp();
+
+  if (auto variableGetOp = mlir::dyn_cast<VariableGetOp>(definingOp)) {
+    symbols.push_back(
+        mlir::FlatSymbolRefAttr::get(variableGetOp.getVariableAttr()));
+
+    std::reverse(symbols.begin(), symbols.end());
+    std::reverse(indices.begin(), indices.end());
+
+    return mlir::success();
+  }
+
+  if (auto componentGetOp = mlir::dyn_cast<ComponentGetOp>(definingOp)) {
+    symbols.push_back(
+        mlir::FlatSymbolRefAttr::get(componentGetOp.getComponentNameAttr()));
+
+    return getAccess(componentGetOp.getVariable(), symbols, indices);
+  }
+
+  if (auto extractOp = mlir::dyn_cast<TensorExtractOp>(definingOp)) {
+    for (size_t i = 0, e = extractOp.getIndices().size(); i < e; ++i) {
+      indices.push_back(extractOp.getIndices()[e - i - 1]);
+    }
+
+    return getAccess(extractOp.getTensor(), symbols, indices);
+  }
+
+  if (auto viewOp = mlir::dyn_cast<TensorViewOp>(definingOp)) {
+    for (size_t i = 0, e = viewOp.getSubscriptions().size(); i < e; ++i) {
+      indices.push_back(viewOp.getSubscriptions()[e - i - 1]);
+    }
+
+    return getAccess(viewOp.getSource(), symbols, indices);
+  }
+
+  return mlir::failure();
+}
+
+mlir::SymbolRefAttr
+getSymbolRefFromPath(llvm::ArrayRef<mlir::FlatSymbolRefAttr> symbols) {
+  assert(!symbols.empty());
+  return mlir::SymbolRefAttr::get(symbols[0].getAttr(), symbols.drop_front());
+}
+
+VariableOp resolveVariable(ModelOp modelOp,
+                           mlir::SymbolTableCollection &symbolTableCollection,
+                           mlir::SymbolRefAttr variable) {
+  auto moduleOp = modelOp->getParentOfType<mlir::ModuleOp>();
+
+  auto variableOp = symbolTableCollection.lookupSymbolIn<VariableOp>(
+      modelOp, variable.getRootReference());
+
+  for (mlir::FlatSymbolRefAttr component : variable.getNestedReferences()) {
+    auto recordOp = mlir::cast<RecordOp>(
+        mlir::cast<RecordType>(variableOp.getVariableType().unwrap())
+            .getRecordOp(symbolTableCollection, moduleOp));
+
+    variableOp = symbolTableCollection.lookupSymbolIn<VariableOp>(
+        recordOp, component.getAttr());
+  }
+
+  return variableOp;
+}
+
+mlir::LogicalResult removeDerOps(mlir::Region &region, ModelOp modelOp,
+                                 mlir::SymbolTableCollection &symbolTables,
+                                 const DerivativesMap &derivativesMap) {
+  mlir::IRRewriter rewriter(region.getContext());
+  llvm::SmallVector<DerOp> derOps;
+  region.walk([&](DerOp derOp) { derOps.push_back(derOp); });
+
+  for (DerOp derOp : derOps) {
+    rewriter.setInsertionPoint(derOp);
+
+    llvm::SmallVector<mlir::FlatSymbolRefAttr, 3> symbols;
+    llvm::SmallVector<mlir::Value, 3> indices;
+
+    if (mlir::failed(getAccess(derOp.getOperand(), symbols, indices))) {
+      return mlir::failure();
+    }
+
+    mlir::SymbolRefAttr variableName = getSymbolRefFromPath(symbols);
+    auto derivativeName = derivativesMap.getDerivative(variableName);
+
+    if (!derivativeName) {
+      return mlir::failure();
+    }
+
+    VariableOp variableOp =
+        ::resolveVariable(modelOp, symbolTables, *derivativeName);
+    mlir::Value replacement =
+        rewriter.create<VariableGetOp>(derOp.getLoc(), variableOp);
+
+    if (!indices.empty()) {
+      replacement =
+          rewriter.create<TensorViewOp>(derOp.getLoc(), replacement, indices);
+    }
+
+    if (auto tensorType =
+            mlir::dyn_cast<mlir::TensorType>(replacement.getType());
+        tensorType && tensorType.hasRank()) {
+      replacement = rewriter.create<TensorExtractOp>(
+          derOp.getLoc(), replacement, mlir::ValueRange());
+    }
+
+    rewriter.replaceOp(derOp, replacement);
+  }
+
+  return mlir::success();
+}
+} // namespace
 
 mlir::LogicalResult
 DerivativesMaterializationPass::processModelOp(ModelOp modelOp) {
@@ -132,18 +239,20 @@ DerivativesMaterializationPass::processModelOp(ModelOp modelOp) {
     equationTemplateOps.push_back(equationInstanceOp.getTemplate());
   }
 
+  mlir::LockedSymbolTableCollection lockedSymbolTables(symbolTables);
+
   if (mlir::failed(mlir::failableParallelForEach(
           &getContext(), equationTemplateOps, [&](EquationTemplateOp equation) {
-            return removeDerOps(symbolTables, modelOp, derivativesMap,
-                                equation);
+            return ::removeDerOps(equation.getBodyRegion(), modelOp,
+                                  lockedSymbolTables, derivativesMap);
           }))) {
     return mlir::failure();
   }
 
   if (mlir::failed(mlir::failableParallelForEach(
           &getContext(), algorithmOps, [&](AlgorithmOp algorithmOp) {
-            return removeDerOps(symbolTables, modelOp, derivativesMap,
-                                algorithmOp);
+            return ::removeDerOps(algorithmOp.getBodyRegion(), modelOp,
+                                  lockedSymbolTables, derivativesMap);
           }))) {
     return mlir::failure();
   }
@@ -151,16 +260,12 @@ DerivativesMaterializationPass::processModelOp(ModelOp modelOp) {
   return mlir::success();
 }
 
-static mlir::SymbolRefAttr
-getSymbolRefFromPath(llvm::ArrayRef<mlir::FlatSymbolRefAttr> symbols) {
-  assert(!symbols.empty());
-  return mlir::SymbolRefAttr::get(symbols[0].getAttr(), symbols.drop_front());
-}
-
-static mlir::LogicalResult
-getShape(llvm::SmallVectorImpl<int64_t> &shape, ModelOp modelOp,
-         mlir::SymbolTableCollection &symbolTableCollection,
-         std::mutex &symbolTableMutex, mlir::SymbolRefAttr variable) {
+namespace {
+mlir::LogicalResult getShape(llvm::SmallVectorImpl<int64_t> &shape,
+                             ModelOp modelOp,
+                             mlir::SymbolTableCollection &symbolTableCollection,
+                             std::mutex &symbolTableMutex,
+                             mlir::SymbolRefAttr variable) {
   std::lock_guard<std::mutex> lock(symbolTableMutex);
   auto moduleOp = modelOp->getParentOfType<mlir::ModuleOp>();
 
@@ -195,7 +300,7 @@ getShape(llvm::SmallVectorImpl<int64_t> &shape, ModelOp modelOp,
   return mlir::success();
 }
 
-static IndexSet shapeToIndexSet(llvm::ArrayRef<int64_t> shape) {
+IndexSet shapeToIndexSet(llvm::ArrayRef<int64_t> shape) {
   IndexSet result;
   llvm::SmallVector<Range, 3> ranges;
 
@@ -207,51 +312,9 @@ static IndexSet shapeToIndexSet(llvm::ArrayRef<int64_t> shape) {
   return result;
 }
 
-static mlir::LogicalResult
-getAccess(mlir::Value value,
-          llvm::SmallVectorImpl<mlir::FlatSymbolRefAttr> &symbols,
-          llvm::SmallVectorImpl<mlir::Value> &indices) {
-  mlir::Operation *definingOp = value.getDefiningOp();
-
-  if (auto variableGetOp = mlir::dyn_cast<VariableGetOp>(definingOp)) {
-    symbols.push_back(
-        mlir::FlatSymbolRefAttr::get(variableGetOp.getVariableAttr()));
-
-    std::reverse(symbols.begin(), symbols.end());
-    std::reverse(indices.begin(), indices.end());
-
-    return mlir::success();
-  }
-
-  if (auto componentGetOp = mlir::dyn_cast<ComponentGetOp>(definingOp)) {
-    symbols.push_back(
-        mlir::FlatSymbolRefAttr::get(componentGetOp.getComponentNameAttr()));
-
-    return getAccess(componentGetOp.getVariable(), symbols, indices);
-  }
-
-  if (auto extractOp = mlir::dyn_cast<TensorExtractOp>(definingOp)) {
-    for (size_t i = 0, e = extractOp.getIndices().size(); i < e; ++i) {
-      indices.push_back(extractOp.getIndices()[e - i - 1]);
-    }
-
-    return getAccess(extractOp.getTensor(), symbols, indices);
-  }
-
-  if (auto viewOp = mlir::dyn_cast<TensorViewOp>(definingOp)) {
-    for (size_t i = 0, e = viewOp.getSubscriptions().size(); i < e; ++i) {
-      indices.push_back(viewOp.getSubscriptions()[e - i - 1]);
-    }
-
-    return getAccess(viewOp.getSource(), symbols, indices);
-  }
-
-  return mlir::failure();
-}
-
-static void
-collectDerOps(llvm::SmallVectorImpl<std::pair<DerOp, EquationPath>> &result,
-              mlir::Value value, const EquationPath &path) {
+void collectDerOps(
+    llvm::SmallVectorImpl<std::pair<DerOp, EquationPath>> &result,
+    mlir::Value value, const EquationPath &path) {
   if (auto definingOp = value.getDefiningOp()) {
     if (auto derOp = mlir::dyn_cast<DerOp>(definingOp)) {
       result.emplace_back(derOp, path);
@@ -263,9 +326,9 @@ collectDerOps(llvm::SmallVectorImpl<std::pair<DerOp, EquationPath>> &result,
   }
 }
 
-static void
-collectDerOps(llvm::SmallVectorImpl<std::pair<DerOp, EquationPath>> &result,
-              EquationTemplateOp equationTemplateOp) {
+void collectDerOps(
+    llvm::SmallVectorImpl<std::pair<DerOp, EquationPath>> &result,
+    EquationTemplateOp equationTemplateOp) {
   auto equationSidesOp = mlir::cast<EquationSidesOp>(
       equationTemplateOp.getBody()->getTerminator());
 
@@ -282,6 +345,7 @@ collectDerOps(llvm::SmallVectorImpl<std::pair<DerOp, EquationPath>> &result,
     collectDerOps(result, rhsValues[i], EquationPath(EquationPath::RIGHT, i));
   }
 }
+} // namespace
 
 mlir::LogicalResult DerivativesMaterializationPass::collectDerivedIndices(
     ModelOp modelOp, mlir::SymbolTableCollection &symbolTableCollection,
@@ -452,93 +516,6 @@ mlir::LogicalResult DerivativesMaterializationPass::createDerivativeVariables(
   }
 
   return mlir::success();
-}
-
-static VariableOp
-resolveVariable(ModelOp modelOp,
-                mlir::SymbolTableCollection &symbolTableCollection,
-                mlir::SymbolRefAttr variable) {
-  auto moduleOp = modelOp->getParentOfType<mlir::ModuleOp>();
-
-  auto variableOp = symbolTableCollection.lookupSymbolIn<VariableOp>(
-      modelOp, variable.getRootReference());
-
-  for (mlir::FlatSymbolRefAttr component : variable.getNestedReferences()) {
-    auto recordOp = mlir::cast<RecordOp>(
-        mlir::cast<RecordType>(variableOp.getVariableType().unwrap())
-            .getRecordOp(symbolTableCollection, moduleOp));
-
-    variableOp = symbolTableCollection.lookupSymbolIn<VariableOp>(
-        recordOp, component.getAttr());
-  }
-
-  return variableOp;
-}
-
-namespace {
-mlir::LogicalResult removeDerOps(mlir::Region &region, ModelOp modelOp,
-                                 mlir::SymbolTableCollection &symbolTables,
-                                 const DerivativesMap &derivativesMap) {
-  mlir::IRRewriter rewriter(region.getContext());
-  llvm::SmallVector<DerOp> derOps;
-  region.walk([&](DerOp derOp) { derOps.push_back(derOp); });
-
-  for (DerOp derOp : derOps) {
-    rewriter.setInsertionPoint(derOp);
-
-    llvm::SmallVector<mlir::FlatSymbolRefAttr, 3> symbols;
-    llvm::SmallVector<mlir::Value, 3> indices;
-
-    if (mlir::failed(getAccess(derOp.getOperand(), symbols, indices))) {
-      return mlir::failure();
-    }
-
-    mlir::SymbolRefAttr variableName = getSymbolRefFromPath(symbols);
-    auto derivativeName = derivativesMap.getDerivative(variableName);
-
-    if (!derivativeName) {
-      return mlir::failure();
-    }
-
-    VariableOp variableOp =
-        ::resolveVariable(modelOp, symbolTables, *derivativeName);
-    mlir::Value replacement =
-        rewriter.create<VariableGetOp>(derOp.getLoc(), variableOp);
-
-    if (!indices.empty()) {
-      replacement =
-          rewriter.create<TensorViewOp>(derOp.getLoc(), replacement, indices);
-    }
-
-    if (auto tensorType =
-            mlir::dyn_cast<mlir::TensorType>(replacement.getType());
-        tensorType && tensorType.hasRank()) {
-      replacement = rewriter.create<TensorExtractOp>(
-          derOp.getLoc(), replacement, mlir::ValueRange());
-    }
-
-    rewriter.replaceOp(derOp, replacement);
-  }
-
-  return mlir::success();
-}
-} // namespace
-
-mlir::LogicalResult DerivativesMaterializationPass::removeDerOps(
-    mlir::SymbolTableCollection &symolTables, ModelOp modelOp,
-    const DerivativesMap &derivativesMap,
-    EquationTemplateOp equationTemplateOp) {
-  mlir::LockedSymbolTableCollection lockedSymbolTables(symolTables);
-  return ::removeDerOps(equationTemplateOp.getBodyRegion(), modelOp,
-                        lockedSymbolTables, derivativesMap);
-}
-
-mlir::LogicalResult DerivativesMaterializationPass::removeDerOps(
-    mlir::SymbolTableCollection &symolTables, ModelOp modelOp,
-    const DerivativesMap &derivativesMap, AlgorithmOp algorithmOp) {
-  mlir::LockedSymbolTableCollection lockedSymbolTables(symolTables);
-  return ::removeDerOps(algorithmOp.getBodyRegion(), modelOp,
-                        lockedSymbolTables, derivativesMap);
 }
 
 namespace mlir::bmodelica {
