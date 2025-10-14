@@ -923,6 +923,10 @@ void CodeGenAction::buildMLIRModelSolvingPipeline(mlir::PassManager &pm) {
 
   pm.addPass(mlir::createCanonicalizerPass());
 
+  if (ci.getCodeGenOptions().aliasElimination) {
+    pm.addPass(mlir::bmodelica::createAliasEliminationPass());
+  }
+
   // Perform index reduction.
   pm.addPass(mlir::bmodelica::createPantelidesPass());
 

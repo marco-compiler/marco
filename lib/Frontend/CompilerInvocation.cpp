@@ -532,6 +532,7 @@ static void parseCodegenArgs(marco::frontend::CodegenOptions &options,
   }
 
   if (options.optLevel.getSpeedupLevel() > 1) {
+    options.aliasElimination = true;
     options.outputArraysPromotion = true;
     options.heapToStackPromotion = true;
     options.mem2reg = true;
@@ -553,6 +554,7 @@ static void parseCodegenArgs(marco::frontend::CodegenOptions &options,
   if (options.optLevel.getSizeLevel() > 0) {
     options.MergeFunctions = true;
     options.debug = false;
+    options.aliasElimination = true;
     options.cse = true;
     options.functionCallsCSE = true;
     options.variablesPruning = true;

@@ -16,6 +16,7 @@ struct CodegenOptions : public clang::CodeGenOptions {
 
   bool debug = true;
   bool assertions = true;
+  bool aliasElimination = false;
   bool inlining = false;
   bool outputArraysPromotion = false;
   bool heapToStackPromotion = false;
