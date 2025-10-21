@@ -329,12 +329,83 @@ void DataRecomputationPass::runOnOperation() {
 
   struct ReinterpretInfo {
     mlir::Operation *castingOp;
-    mlir::MemRefType before;
-    mlir::MemRefType after;
+
+    llvm::SmallVector<int64_t, 4> stridesBefore;
+    int64_t offsetBefore;
+
+    // mlir::MemRefType before;
+    // mlir::MemRefType after;
+
+    llvm::SmallVector<int64_t, 4> stridesAfter;
+    int64_t offsetAfter;
   };
 
   struct ReinterpretChain {
     llvm::SmallVector<ReinterpretInfo, 4> chain;
+
+    explicit ReinterpretChain(llvm::SmallVector<mlir::Operation *> &&inChain)
+    {
+
+      assert(!inChain.empty() && "Passed an empty chain to ReinterpretChain move constructor");
+
+      // Skip the end
+      auto iter = std::next(inChain.rbegin());
+      auto end = inChain.rend();
+
+      auto *originOp = inChain.back();
+
+      // Get the base loaded / alloced memref
+      mlir::MemRefType baseMemref = [](mlir::Operation *op) {
+         return mlir::TypeSwitch<mlir::Operation *, mlir::MemRefType>(op)
+             .Case<mlir::memref::GetGlobalOp>([](mlir::memref::GetGlobalOp getGlobalOp){
+               return getGlobalOp.getType();
+             }).Case<mlir::memref::AllocOp>([](mlir::memref::AllocOp allocOp) {
+               return allocOp.getType();
+             }).Case<mlir::memref::AllocaOp>([](mlir::memref::AllocaOp allocaOp) {
+               return allocaOp.getType();
+            }).Default([](auto *) -> mlir::MemRefType { llvm_unreachable("Should not fall into default type switch case"); });
+      }(originOp);
+
+      ReinterpretInfo currentReinterpret{};
+
+      // Assumption: loaded memrefs are not strided, and not offset
+      currentReinterpret.offsetBefore = 0;
+      for ( auto i = 0; i < baseMemref.getRank(); i++ ) {
+        currentReinterpret.stridesBefore.emplace_back(0);
+      }
+      currentReinterpret.offsetBefore = 0;
+
+      while ( iter != end ) {
+        iter = std::next(iter);
+
+        mlir::Operation *nextOp = *iter;
+
+        mlir::TypeSwitch<mlir::Operation *, void>(nextOp)
+          .Case<mlir::memref::CastOp>([&currentReinterpret](mlir::memref::CastOp castOp){
+            // castOp.getOffsets()
+            return;
+           })
+          .Case<mlir::memref::ReinterpretCastOp>([&currentReinterpret](mlir::memref::ReinterpretCastOp reinterpretCastOp){
+
+            auto offsets = reinterpretCastOp.getOffsets();
+            auto strides = reinterpretCastOp.getStrides();
+
+            for ( auto x : offsets ) {
+              MARCO_DBG() << "Offset? ";  x.getType().dump();
+
+            }
+
+            return;
+
+          }).Case<mlir::memref::SubViewOp>([&currentReinterpret](mlir::memref::SubViewOp subviewOp){
+
+            return;
+          })
+          .Default([](auto *){llvm_unreachable("A reinterpret chain op wasn't supported.");});
+
+
+      }
+    }
 
     mlir::memref::ReinterpretCastOp reinterpretCastOp;
     mlir::TypedValue<mlir::MemRefType> original;
@@ -360,16 +431,13 @@ void DataRecomputationPass::runOnOperation() {
       auto reinterpretingChain =
         llvm::filter_to_vector(chain, isAnyOp<mlir::memref::ReinterpretCastOp, mlir::memref::SubViewOp>);
 
-      llvm::for_each(reinterpretingChain, [](mlir::Operation *op) {
-        MARCO_DBG() << "After filtering I got a " << op->getName() << "\n";
-      });
+      ReinterpretChain reinterpretedChain{std::move(reinterpretingChain)};
+
+
     }
 
     auto indices = storeOp.getIndices();
     MARCO_DBG() << "Memref store with " << indices.size() << " indices\n";
-
-    // In any case -- look back for a reinterpret_cast
-
   });
 
   for (auto &[k, v] : memrefStoreToOriginOp) {
@@ -378,9 +446,6 @@ void DataRecomputationPass::runOnOperation() {
       parentName = parent.getName();
     }
 
-
-    MARCO_DBG() << k->getName() << " had its memref loaded at " << v->getName()
-      << " inside " << parentName << "\n";
   }
 
   llvm::DenseMap<mlir::ptr::StoreOp, mlir::Operation *> ptrStoreToOriginOp{};
@@ -405,12 +470,6 @@ void DataRecomputationPass::runOnOperation() {
     affineStoreToOriginOp.insert(std::make_pair(storeOp, originOp));
     affineStoreToOriginChain.insert(std::make_pair(storeOp, std::move(chain)));
   });
-
-  for (auto &[k, v] : affineStoreToOriginOp) {
-    MARCO_DBG() << k->getName() << " had its memref loaded at " << v->getName()
-                 << "\n";
-  }
-
 
   moduleOp.walk([&](FuncOp funcOp) {
     // Insert the function into the function map
