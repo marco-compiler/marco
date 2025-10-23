@@ -17,11 +17,14 @@
 #include "mlir/Dialect/Vector/IR/VectorDialect.h.inc"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/Types.h"
+#include "mlir/IR/Value.h"
 #include "mlir/Interfaces/ControlFlowInterfaces.h"
 #include "llvm/ADT/DirectedGraph.h"
 #include "llvm/ADT/TypeSwitch.h"
 #include "llvm/Support/Format.h"
 #include "llvm/Support/FormatVariadic.h"
+#include "marco/Dialect/BaseModelica/Transforms/DataRecomputation/IndexExpression.h"
+#include "mlir/Support/LLVM.h"
 
 namespace mlir::bmodelica {
 #define GEN_PASS_DEF_DATARECOMPUTATIONPASS
@@ -118,10 +121,6 @@ struct GlobalDef {
   GlobalDef(GlobalDef &&other) = default;
   GlobalDef &operator=(GlobalDef &&other) = default;
 };
-
-
-
-// Generic Instantiable Index Set Element
 
 /// DataRecomputation Write
 struct DRWrite {
@@ -297,14 +296,93 @@ DataRecomputationPass::getGlobalWrites(mlir::ModuleOp moduleOp) {
   return result;
 }
 
+namespace {
+
+using mlir::bmodelica::IndexExpressionNode;
+using mlir::bmodelica::IndexExpression;
+
+
+
+struct AccessorTagConstant {};
+struct AccessorTagLinear {};
+struct AccessorTagMultiparam {};
+
+
+struct Accessor {
+  IndexExpression tree;
+};
+
+template <class T, std::size_t LineSize = 64>
+static constexpr auto smallVectorCacheFitCapacity = [](std::size_t numLines) -> std::size_t {
+  std::size_t n = 0;
+  std::size_t metadataSize = sizeof(llvm::SmallVector<T, 0>);
+  std::size_t remaining = LineSize - metadataSize + (numLines - 1) * (LineSize / sizeof(T));
+  std::size_t elems = remaining / sizeof(T);
+
+  return elems;
+};
+struct AccessorInterpreter {
+
+  // Single cache-line size
+  static llvm::SmallVector<int64_t, smallVectorCacheFitCapacity<int64_t>(1)> accessedIndices(const Accessor &accessor)
+  {
+
+    llvm::DenseMap<const IndexExpressionNode *, int64_t> resolvedValues{};
+
+    // Do a depth-first post-order walk to calculate
+    // static constexpr std::size_t fitsInTwoCacheLines = vecSize<int64_t, /*NumLines*/2>;
+    llvm::SmallVector<const IndexExpressionNode *, smallVectorCacheFitCapacity<int64_t>(2)> stack;
+    const IndexExpressionNode *current = &accessor.tree.root;
+
+    while ( true )  {
+      while ( current != nullptr ) {
+        if ( current->right ) {
+          stack.push_back(current->right.get());
+        }
+        stack.push_back(current); // Should be met topmost
+
+        current = current->left.get();
+      }
+
+      current = stack.back();
+      stack.pop_back();
+
+      if ( current->right.get() == stack.back() ) {
+        auto *right = stack.back();
+        stack.pop_back();
+        stack.push_back(current);
+        current = right;
+      } else {
+        // Process
+        MARCO_DBG() << "Processing!" << "\n";
+      }
+
+      if ( stack.empty() ) break;
+    }
+  }
+};
+
+
+struct ParametricClobber {
+  std::size_t numDims;
+  llvm::SmallVector<std::size_t> dimSizes;
+
+  // Per-dimension accessor
+
+};
+
+struct ReinterpretChainAnalysis
+{
+};
+
+} // namespace
+
 void DataRecomputationPass::runOnOperation() {
   // Gather all global statics
   moduleOp = this->getOperation();
   // auto globalAccesses = getGlobalReads(moduleOp);
 
   mlir::SymbolTableCollection symTabCollection{};
-
-
 
   // IMPORTANT NOTE:
   // This selection is for an IPO-analysis. In the final pass,
@@ -340,84 +418,101 @@ void DataRecomputationPass::runOnOperation() {
     int64_t offsetAfter;
   };
 
-  struct ReinterpretChain {
-    llvm::SmallVector<ReinterpretInfo, 4> chain;
-
-    explicit ReinterpretChain(llvm::SmallVector<mlir::Operation *> &&inChain)
-    {
-
-      assert(!inChain.empty() && "Passed an empty chain to ReinterpretChain move constructor");
-
-      // Skip the end
-      auto iter = std::next(inChain.rbegin());
-      auto end = inChain.rend();
-
-      auto *originOp = inChain.back();
-
-      // Get the base loaded / alloced memref
-      mlir::MemRefType baseMemref = [](mlir::Operation *op) {
-         return mlir::TypeSwitch<mlir::Operation *, mlir::MemRefType>(op)
-             .Case<mlir::memref::GetGlobalOp>([](mlir::memref::GetGlobalOp getGlobalOp){
-               return getGlobalOp.getType();
-             }).Case<mlir::memref::AllocOp>([](mlir::memref::AllocOp allocOp) {
-               return allocOp.getType();
-             }).Case<mlir::memref::AllocaOp>([](mlir::memref::AllocaOp allocaOp) {
-               return allocaOp.getType();
-            }).Default([](auto *) -> mlir::MemRefType { llvm_unreachable("Should not fall into default type switch case"); });
-      }(originOp);
-
-      ReinterpretInfo currentReinterpret{};
-
-      // Assumption: loaded memrefs are not strided, and not offset
-      currentReinterpret.offsetBefore = 0;
-      for ( auto i = 0; i < baseMemref.getRank(); i++ ) {
-        currentReinterpret.stridesBefore.emplace_back(0);
-      }
-      currentReinterpret.offsetBefore = 0;
-
-      while ( iter != end ) {
-        iter = std::next(iter);
-
-        mlir::Operation *nextOp = *iter;
-
-        mlir::TypeSwitch<mlir::Operation *, void>(nextOp)
-          .Case<mlir::memref::CastOp>([&currentReinterpret](mlir::memref::CastOp castOp){
-            // castOp.getOffsets()
-            return;
-           })
-          .Case<mlir::memref::ReinterpretCastOp>([&currentReinterpret](mlir::memref::ReinterpretCastOp reinterpretCastOp){
-
-            auto offsets = reinterpretCastOp.getOffsets();
-            auto strides = reinterpretCastOp.getStrides();
-
-            for ( auto x : offsets ) {
-              MARCO_DBG() << "Offset? ";  x.getType().dump();
-
-            }
-
-            return;
-
-          }).Case<mlir::memref::SubViewOp>([&currentReinterpret](mlir::memref::SubViewOp subviewOp){
-
-            return;
-          })
-          .Default([](auto *){llvm_unreachable("A reinterpret chain op wasn't supported.");});
+  // struct ReinterpretChain {
+  //   llvm::SmallVector<ReinterpretInfo, 4> chain;
 
 
-      }
-    }
+  //   void performAnalysis(llvm::SmallVector<mlir::Operation *> &chain) {
 
-    mlir::memref::ReinterpretCastOp reinterpretCastOp;
-    mlir::TypedValue<mlir::MemRefType> original;
-    mlir::TypedValue<mlir::MemRefType> reinterpreted;
+  //     // Skip the end
+  //     auto iter = std::next(chain.rbegin());
+  //     auto end = chain.rend();
 
-    bool isOriginal() {
-      return original == reinterpreted;
-    }
+  //     auto *originOp = chain.back();
 
-    mlir::TypedValue<mlir::MemRefType> getValue();
-    mlir::TypedValue<mlir::MemRefType> getOriginalValue();
-  };
+  //     // Get the base loaded / alloced memref
+  //     mlir::MemRefType baseMemref = [](mlir::Operation *op) {
+  //        return mlir::TypeSwitch<mlir::Operation *, mlir::MemRefType>(op)
+  //            .Case<mlir::memref::GetGlobalOp>([](mlir::memref::GetGlobalOp getGlobalOp){
+  //              return getGlobalOp.getType();
+  //            }).Case<mlir::memref::AllocOp>([](mlir::memref::AllocOp allocOp) {
+  //              return allocOp.getType();
+  //            }).Case<mlir::memref::AllocaOp>([](mlir::memref::AllocaOp allocaOp) {
+  //              return allocaOp.getType();
+  //           }).Default([](auto *op) -> mlir::MemRefType {
+  //             MARCO_DBG() << "Encountered unhandled operation type: " << op->getName() << "\n";
+  //             llvm_unreachable("Should not fall into default type switch case");
+  //       });
+  //     }(originOp);
+
+  //     ReinterpretInfo currentReinterpret{};
+
+  //     // Assumption: loaded memrefs are not strided, and not offset
+  //     currentReinterpret.offsetBefore = 0;
+  //     for ( auto i = 0; i < baseMemref.getRank(); i++ ) {
+  //       currentReinterpret.stridesBefore.emplace_back(0);
+  //     }
+  //     currentReinterpret.offsetBefore = 0;
+
+  //     while ( iter != end ) {
+  //       iter = std::next(iter);
+
+  //       mlir::Operation *nextOp = *iter;
+
+  //       mlir::TypeSwitch<mlir::Operation *, void>(nextOp)
+  //         .Case<mlir::memref::CastOp>([&currentReinterpret](mlir::memref::CastOp castOp){
+  //           // castOp.getOffsets()
+  //           return;
+  //          })
+  //         .Case<mlir::memref::ReinterpretCastOp>([&currentReinterpret](mlir::memref::ReinterpretCastOp reinterpretCastOp){
+
+  //           auto offsets = reinterpretCastOp.getOffsets();
+  //           auto strides = reinterpretCastOp.getStrides();
+
+  //           for ( auto x : offsets ) {
+  //             MARCO_DBG() << "Offset? ";  x.getType().dump();
+  //           }
+
+  //           return;
+
+  //         }).Case<mlir::memref::SubViewOp>([&currentReinterpret](mlir::memref::SubViewOp subviewOp){
+
+  //           return;
+  //         })
+  //         .Default([](auto *){llvm_unreachable("A reinterpret chain op wasn't supported.");});
+  //     }
+  //   }
+
+  //   ///////////
+  //   ReinterpretChain(const llvm::SmallVector<mlir::Operation *> &inChain) {
+  //     assert(!inChain.empty() && "Passed an empty chain to ReinterpretChain move constructor");
+
+  //     // TODO: Avoid copy?
+  //     auto chain = inChain;
+
+  //     performAnalysis(chain);
+
+  //   }
+
+  //   ///////////
+  //   explicit ReinterpretChain(llvm::SmallVector<mlir::Operation *> &&inChain)
+  //   {
+  //     assert(!inChain.empty() && "Passed an empty chain to ReinterpretChain move constructor");
+
+  //     performAnalysis(inChain);
+  //   }
+
+  //   mlir::memref::ReinterpretCastOp reinterpretCastOp;
+  //   mlir::TypedValue<mlir::MemRefType> original;
+  //   mlir::TypedValue<mlir::MemRefType> reinterpreted;
+
+  //   bool isOriginal() {
+  //     return original == reinterpreted;
+  //   }
+
+  //   mlir::TypedValue<mlir::MemRefType> getValue();
+  //   mlir::TypedValue<mlir::MemRefType> getOriginalValue();
+  // };
 
   moduleOp.walk([&](mlir::memref::StoreOp storeOp) {
     auto [chain, originOp] =
@@ -425,16 +520,55 @@ void DataRecomputationPass::runOnOperation() {
     memrefStoreToOriginOp.insert(std::make_pair(storeOp, originOp));
     memrefStoreToOriginChain.insert(std::make_pair(storeOp, std::move(chain)));
 
+    // Walk the chain and use the operands involved to build the expression.
+    // What happens when the stride is simply reset with reinterpret_cast?
+
+    llvm::DenseMap<mlir::memref::ReinterpretCastOp, Accessor> reinterpretExpressions;
+
+
+    for ( auto &[storeOp, chain] : memrefStoreToOriginChain ) {
+      for ( auto *op : chain ) {
+        if ( mlir::memref::ReinterpretCastOp reinterpretCastOp =
+            mlir::dyn_cast<mlir::memref::ReinterpretCastOp>(op) ) {
+          Accessor accessorExpression;
+
+          auto range = reinterpretCastOp.getOffsets();
+
+          if ( range.size() > 1 ) {
+            continue; // Do not handle
+            // TODO: Handle multiple offsets
+          }
+
+          // TODO(Tor): Continue here
+          auto val = range[0];
+
+          auto *definingOp = val.getDefiningOp();
+
+          mlir::FailureOr<IndexExpressionNode> result =
+              mlir::TypeSwitch<mlir::Operation *, mlir::FailureOr<IndexExpressionNode>>(definingOp)
+                  .Case<mlir::arith::AddIOp>([](mlir::arith::AddIOp addIOp) {
+                    MARCO_DBG() << "AddIOp :)\n";
+
+                    return IndexExpressionNode{};
+                  })
+                  .Default([](mlir::Operation *unhandledOp) {
+                    return mlir::failure();
+                  });
+
+
+
+        }
+      }
+    }
+
 
     // Debug output
-    for ( auto &[storeOp, chain] : memrefStoreToOriginChain ) {
-      auto reinterpretingChain =
-        llvm::filter_to_vector(chain, isAnyOp<mlir::memref::ReinterpretCastOp, mlir::memref::SubViewOp>);
+    // for ( auto &[storeOp, chain] : memrefStoreToOriginChain ) {
+    //   // auto reinterpretingChain =
+    //   //   llvm::filter_to_vector(chain, isAnyOp<mlir::memref::ReinterpretCastOp, mlir::memref::SubViewOp>);
 
-      ReinterpretChain reinterpretedChain{std::move(reinterpretingChain)};
-
-
-    }
+    //   ReinterpretChain reinterpretedChain{chain};
+    // }
 
     auto indices = storeOp.getIndices();
     MARCO_DBG() << "Memref store with " << indices.size() << " indices\n";
@@ -445,7 +579,6 @@ void DataRecomputationPass::runOnOperation() {
     if ( auto parent = v->getParentOfType<mlir::func::FuncOp>() ) {
       parentName = parent.getName();
     }
-
   }
 
   llvm::DenseMap<mlir::ptr::StoreOp, mlir::Operation *> ptrStoreToOriginOp{};
