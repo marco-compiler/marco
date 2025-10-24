@@ -98,9 +98,11 @@ namespace {
   {
     return (mlir::isa<OpTys>(op) || ...);
   }
+
 } // namespace
 
-namespace detail {
+
+namespace mlir::bmodelica::detail {
 
 using AccessSet = llvm::DenseSet<mlir::Operation *>;
 
@@ -124,7 +126,6 @@ struct GlobalDef {
 
 /// DataRecomputation Write
 struct DRWrite {
-
   using StoreVariant =
       std::variant<::mlir::memref::StoreOp, ::mlir::affine::AffineStoreOp,
                    ::mlir::ptr::StoreOp>;
@@ -151,6 +152,57 @@ struct DRWrite {
 
   bool isPtr() const {
     return std::holds_alternative<mlir::ptr::StoreOp>(storeOp);
+  }
+
+  /// Utility function to check if an mlir::Operation * fits as a DRWrite
+  static bool isStoreOp(mlir::Operation *op) {
+    return isAnyOp<mlir::memref::StoreOp,
+                  mlir::affine::AffineStoreOp,
+                  mlir::ptr::StoreOp>(op);
+  }
+};
+
+
+struct DRLoad {
+  using LoadVariant =
+    std::variant<::mlir::memref::LoadOp, ::mlir::affine::AffineLoadOp,
+      ::mlir::ptr::LoadOp>;
+
+  DRLoad(mlir::memref::LoadOp loadOp) noexcept : loadOp{loadOp} {}
+  DRLoad(mlir::affine::AffineLoadOp loadOp) noexcept : loadOp{loadOp} {}
+  DRLoad(mlir::ptr::LoadOp loadOp) noexcept : loadOp{loadOp} {}
+
+  DRLoad(const DRLoad &) = default;
+  DRLoad(DRLoad &&) = default;
+  DRLoad &operator=(const DRLoad &) = default;
+  DRLoad &operator=(DRLoad &&) = default;
+
+  LoadVariant loadOp;
+
+  // Casting to Operation *
+  operator mlir::Operation *() {
+    return std::visit([](auto &op) -> mlir::Operation * {
+      return op.getOperation();
+    }, loadOp);
+  }
+
+  bool isMemref() const {
+    return std::holds_alternative<mlir::memref::LoadOp>(loadOp);
+  }
+
+  bool isAffine() const {
+    return std::holds_alternative<mlir::affine::AffineLoadOp>(loadOp);
+  }
+
+  bool isPtr() const {
+    return std::holds_alternative<mlir::ptr::LoadOp>(loadOp);
+  }
+
+  /// Utility function to check if an mlir::Operation * fits as a DRLoad
+  static bool isLoadOp(mlir::Operation *op) {
+    return isAnyOp<mlir::memref::LoadOp,
+                  mlir::affine::AffineLoadOp,
+                  mlir::ptr::LoadOp>(op);
   }
 };
 
@@ -221,9 +273,23 @@ using GlobalAccessMap =
 using FunctionWritesVec = llvm::SmallVector<DRWrite, 4>;
 using FunctionWritesMap = llvm::DenseMap<mlir::Operation *, FunctionWritesVec>;
 
-}; // namespace detail
+}; // namespace mlir::bmodelica::detail
+
+// #include "llvm/ADT/DenseMapInfo.h"
+// namespace llvm {
+// template <>
+// struct DenseMapInfo<::mlir::bmodelica::detail::DRWrite> {
+//   static constexpr ::mlir::bmodelica::detail::DRWrite getEmptyKey() {
+//   }
+//   static constexpr T getTombstoneKey();
+//   static unsigned getHashValue(const T &Val);
+//   static bool isEqual(const T &LHS, const T &RHS);
+// };
+// }
 
 namespace {
+
+using namespace mlir::bmodelica::detail;
 
 class DataRecomputationPass final
     : public mlir::bmodelica::impl::DataRecomputationPassBase<
@@ -240,32 +306,38 @@ private:
 
   mlir::ModuleOp moduleOp;
 
-  ::detail::GlobalAccessMap prepareGlobalAccessMap(mlir::ModuleOp moduleOp);
+  ::mlir::bmodelica::detail::GlobalAccessMap prepareGlobalAccessMap(mlir::ModuleOp moduleOp);
 
   // Returns a Map of Globals and a Vector of operations accessing the globals
-  ::detail::GlobalAccessMap getGlobalReads(mlir::ModuleOp moduleOp);
-  ::detail::GlobalAccessMap getGlobalWrites(mlir::ModuleOp moduleOp);
+  GlobalAccessMap getGlobalReads(mlir::ModuleOp moduleOp);
+  GlobalAccessMap getGlobalWrites(mlir::ModuleOp moduleOp);
 
-  ::detail::FunctionWritesVec getFunctionWrites(mlir::func::FuncOp funcOp);
+  FunctionWritesVec getFunctionWrites(mlir::func::FuncOp funcOp);
 
   /// A map of functions in the module
   llvm::DenseMap<mlir::StringRef, FuncOp> functionMap;
 
-  ::detail::FunctionWritesMap functionWritesMap;
+  FunctionWritesMap functionWritesMap;
 
   mlir::func::FuncOp entrypointFuncOp;
+
+  llvm::SmallVector< std::pair<DRWrite, DRLoad>, 4> identifyOpportunities(
+    mlir::ModuleOp moduleOp,
+    mlir::func::FuncOp entrypointFuncOp,
+    mlir::SymbolTableCollection &symTabCollection
+  );
 
   mlir::FailureOr<mlir::func::FuncOp>
    selectEntrypoint(mlir::ModuleOp moduleOp);
 };
 } // namespace
 
-::detail::GlobalAccessMap
+GlobalAccessMap
 DataRecomputationPass::prepareGlobalAccessMap(mlir::ModuleOp moduleOp) {
-  ::detail::GlobalAccessMap result;
+  GlobalAccessMap result;
 
   moduleOp.walk([&result](mlir::memref::GlobalOp globalOp) {
-    ::detail::GlobalDef globalDefinition{globalOp};
+    GlobalDef globalDefinition{globalOp};
 
     result.insert(
         std::make_pair(globalDefinition.name, std::move(globalDefinition)));
@@ -274,7 +346,7 @@ DataRecomputationPass::prepareGlobalAccessMap(mlir::ModuleOp moduleOp) {
   return result;
 }
 
-::detail::GlobalAccessMap
+GlobalAccessMap
 DataRecomputationPass::getGlobalReads(mlir::ModuleOp moduleOp) {
   auto result = prepareGlobalAccessMap(moduleOp);
 
@@ -289,7 +361,7 @@ DataRecomputationPass::getGlobalReads(mlir::ModuleOp moduleOp) {
   return result;
 }
 
-::detail::GlobalAccessMap
+GlobalAccessMap
 DataRecomputationPass::getGlobalWrites(mlir::ModuleOp moduleOp) {
   auto result = prepareGlobalAccessMap(moduleOp);
 
@@ -516,7 +588,7 @@ void DataRecomputationPass::runOnOperation() {
 
   moduleOp.walk([&](mlir::memref::StoreOp storeOp) {
     auto [chain, originOp] =
-        ::detail::DataRecomputationMemrefTracer::traceStore(storeOp);
+        DataRecomputationMemrefTracer::traceStore(storeOp);
     memrefStoreToOriginOp.insert(std::make_pair(storeOp, originOp));
     memrefStoreToOriginChain.insert(std::make_pair(storeOp, std::move(chain)));
 
@@ -534,29 +606,22 @@ void DataRecomputationPass::runOnOperation() {
 
           auto range = reinterpretCastOp.getOffsets();
 
-          if ( range.size() > 1 ) {
+          if ( range.empty() || range.size() > 1 ) {
             continue; // Do not handle
             // TODO: Handle multiple offsets
           }
 
-          // TODO(Tor): Continue here
           auto val = range[0];
-
           auto *definingOp = val.getDefiningOp();
 
           mlir::FailureOr<IndexExpressionNode> result =
-              mlir::TypeSwitch<mlir::Operation *, mlir::FailureOr<IndexExpressionNode>>(definingOp)
-                  .Case<mlir::arith::AddIOp>([](mlir::arith::AddIOp addIOp) {
-                    MARCO_DBG() << "AddIOp :)\n";
-
-                    return IndexExpressionNode{};
-                  })
-                  .Default([](mlir::Operation *unhandledOp) {
-                    return mlir::failure();
-                  });
-
-
-
+            mlir::TypeSwitch<mlir::Operation *, mlir::FailureOr<IndexExpressionNode>>(definingOp)
+            .Case<mlir::arith::AddIOp>([](mlir::arith::AddIOp addIOp) {
+              return IndexExpressionNode{};
+            })
+            .Default([](mlir::Operation *unhandledOp) {
+              return mlir::failure();
+            });
         }
       }
     }
@@ -571,7 +636,6 @@ void DataRecomputationPass::runOnOperation() {
     // }
 
     auto indices = storeOp.getIndices();
-    MARCO_DBG() << "Memref store with " << indices.size() << " indices\n";
   });
 
   for (auto &[k, v] : memrefStoreToOriginOp) {
@@ -599,7 +663,7 @@ void DataRecomputationPass::runOnOperation() {
 
   moduleOp.walk([&](mlir::affine::AffineStoreOp storeOp) {
     auto [chain, originOp] =
-        ::detail::DataRecomputationMemrefTracer::traceStore(storeOp);
+        DataRecomputationMemrefTracer::traceStore(storeOp);
     affineStoreToOriginOp.insert(std::make_pair(storeOp, originOp));
     affineStoreToOriginChain.insert(std::make_pair(storeOp, std::move(chain)));
   });
@@ -610,6 +674,10 @@ void DataRecomputationPass::runOnOperation() {
     functionWritesMap.insert(
         std::make_pair(funcOp.getOperation(), getFunctionWrites(funcOp)));
   });
+
+  if ( entrypointFuncOp ) {
+    auto opportunities = identifyOpportunities(moduleOp, entrypointFuncOp, symTabCollection);
+  }
 }
 
 
@@ -660,10 +728,10 @@ DataRecomputationPass::selectEntrypoint(mlir::ModuleOp moduleOp) {
     return entrypointFuncs.front();
 }
 
-::detail::FunctionWritesVec
+FunctionWritesVec
 DataRecomputationPass::getFunctionWrites(mlir::func::FuncOp funcOp) {
 
-  ::detail::FunctionWritesVec writes{};
+  FunctionWritesVec writes{};
 
   funcOp.walk([&](mlir::Operation *op) {
     // If affine store
@@ -680,6 +748,37 @@ DataRecomputationPass::getFunctionWrites(mlir::func::FuncOp funcOp) {
   });
 
   return writes;
+}
+
+llvm::SmallVector< std::pair<DRWrite, DRLoad>, 4> DataRecomputationPass::identifyOpportunities(
+  mlir::ModuleOp moduleOp,
+  mlir::func::FuncOp entrypointFuncOp,
+  mlir::SymbolTableCollection &symTabCollection
+) {
+  // Get all function calls, stores, and loads in here. Keep track of last write.
+
+  entrypointFuncOp.walk([&](mlir::Operation *op) {
+
+    if ( auto callOp = mlir::dyn_cast<mlir::func::CallOp>(op) ) {
+      auto funcSym = callOp.getCallee();
+      auto funcSymRes = mlir::FlatSymbolRefAttr::get(&getContext(), funcSym);
+
+      mlir::Operation *potentialFuncOp = symTabCollection.lookupSymbolIn(moduleOp, funcSymRes);
+      if ( mlir::func::FuncOp funcOp = mlir::dyn_cast<mlir::func::FuncOp>(potentialFuncOp) ) {
+        MARCO_DBG() << "Would walk " << funcOp.getName() << "\n";
+        // Walk it
+      };
+
+    }
+
+
+  });
+
+  return {};
+
+
+
+
 }
 
 namespace mlir::bmodelica {
