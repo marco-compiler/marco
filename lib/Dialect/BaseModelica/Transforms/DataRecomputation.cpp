@@ -94,17 +94,14 @@ using namespace ::mlir::func;
 
 namespace {
 
-
 template <class... OpTys>
 static bool isAnyOp(mlir::Operation *op) {
   return (mlir::isa<OpTys>(op) || ...);
 }
 
 template <class... OpTys>
-struct OpTypeList{
-  static bool isAnyOp(mlir::Operation *op) {
-    return ::isAnyOp<OpTys...>(op);
-  }
+struct OpTypeList {
+  static bool isAnyOp(mlir::Operation *op) { return ::isAnyOp<OpTys...>(op); }
 
   using VariantT = std::variant<OpTys...>;
 };
@@ -133,54 +130,65 @@ struct GlobalDef {
   GlobalDef &operator=(GlobalDef &&other) = default;
 };
 
-/// DataRecomputation Write
-struct DRWrite {
+template <class OpTypeListInstance>
+struct VariantResolver {
 
-  using SupportedOpTypes = OpTypeList<::mlir::memref::StoreOp, ::mlir::affine::AffineStoreOp,
-                   ::mlir::ptr::StoreOp>;
+  using VariantT = typename OpTypeListInstance::VariantT;
+
+  template <class... OpTys>
+  static VariantT resolveImpl(mlir::Operation *op, OpTypeList<OpTys...>) {
+    VariantT result;
+
+    bool success = ([&result](mlir::Operation *op) -> bool {
+      if (OpTys resolvedOp = mlir::dyn_cast<OpTys>(op)) {
+        result = resolvedOp;
+        return true;
+      }
+      return false;
+    }(op) || ...);
+
+    if (!success) {
+      llvm_unreachable("No support for op type");
+    }
+
+    return result;
+  }
+
+  static VariantT resolve(mlir::Operation *op) {
+    return resolveImpl(op, OpTypeListInstance{});
+  }
+};
+
+/// DataRecomputation Write
+/// \see DenseMapInfo<DRWrite>
+struct DRWrite {
+  using SupportedOpTypes =
+      OpTypeList<::mlir::memref::StoreOp, ::mlir::affine::AffineStoreOp,
+                 ::mlir::ptr::StoreOp>;
 
   using StoreVariant = SupportedOpTypes::VariantT;
 
-  template <class TypeList>
-  struct ConstructionResolver;
-
-  template <class... OpTys>
-  struct ConstructionResolver<OpTypeList<OpTys...>> {
-    static StoreVariant resolve(mlir::Operation *op) {
-      StoreVariant result;
-
-      bool success = ([&result](mlir::Operation *op) -> bool {
-        if (OpTys resolvedOp = mlir::dyn_cast<OpTys>(op)) {
-          result = resolvedOp;
-          return true;
-        }
-        return false;
-      }(op) || ...);
-
-      if ( ! success ) {
-        llvm_unreachable("No support for op type");
-      }
-
-      return result;
-    }
-  };
-
   StoreVariant resolveOp(mlir::Operation *op) {
-    return ConstructionResolver<SupportedOpTypes>::resolve(op);
+    return VariantResolver<SupportedOpTypes>::resolve(op);
   }
 
-  DRWrite(mlir::Operation *op) : storeOp{resolveOp(op)} {}
-  DRWrite(mlir::memref::StoreOp storeOp) noexcept : storeOp{storeOp} {}
-  DRWrite(mlir::affine::AffineStoreOp storeOp) noexcept : storeOp{storeOp} {}
-  DRWrite(mlir::ptr::StoreOp storeOp) noexcept : storeOp{storeOp} {}
+  DRWrite(mlir::Operation *op) : storeOp{resolveOp(op)}, operation{op} {}
+  DRWrite(mlir::memref::StoreOp storeOp) noexcept
+      : storeOp{storeOp}, operation{storeOp.getOperation()} {}
+  DRWrite(mlir::affine::AffineStoreOp storeOp) noexcept
+      : storeOp{storeOp}, operation{storeOp.getOperation()} {}
+  DRWrite(mlir::ptr::StoreOp storeOp) noexcept
+      : storeOp{storeOp}, operation{storeOp.getOperation()} {}
 
   DRWrite(const DRWrite &) = default;
   DRWrite(DRWrite &&) = default;
   DRWrite &operator=(const DRWrite &) = default;
   DRWrite &operator=(DRWrite &&) = default;
-  // Discern between memref write, affine write, tensor write, etc.
+
   StoreVariant storeOp;
-  std::optional<mlir::Operation *> allocatingOperation;
+  mlir::Operation *operation;
+
+  operator mlir::Operation *() const { return operation; }
 
   bool isMemref() const {
     return std::holds_alternative<mlir::memref::StoreOp>(storeOp);
@@ -196,33 +204,96 @@ struct DRWrite {
 
   /// Utility function to check if an mlir::Operation * fits as a DRWrite
   static bool isStoreOp(mlir::Operation *op) {
-    return isAnyOp<mlir::memref::StoreOp, mlir::affine::AffineStoreOp,
-                   mlir::ptr::StoreOp>(op);
+    return SupportedOpTypes::isAnyOp(op);
   }
 };
 
-struct DRLoad {
-  using LoadVariant =
-      std::variant<::mlir::memref::LoadOp, ::mlir::affine::AffineLoadOp,
-                   ::mlir::ptr::LoadOp>;
+/// DataRecomputation Write
+/// \see DenseMapInfo<DRWrite>
+struct DRAlloc {
+  using SupportedOpTypes =
+      OpTypeList<::mlir::memref::GlobalOp, ::mlir::memref::AllocOp,
+                 ::mlir::memref::AllocaOp>;
 
-  DRLoad(mlir::memref::LoadOp loadOp) noexcept : loadOp{loadOp} {}
-  DRLoad(mlir::affine::AffineLoadOp loadOp) noexcept : loadOp{loadOp} {}
-  DRLoad(mlir::ptr::LoadOp loadOp) noexcept : loadOp{loadOp} {}
+  using AllocVariant = SupportedOpTypes::VariantT;
+
+  AllocVariant resolveOp(mlir::Operation *op) {
+    return VariantResolver<SupportedOpTypes>::resolve(op);
+  }
+
+  DRAlloc(mlir::Operation *op) : allocOp{resolveOp(op)}, operation{op} {}
+  DRAlloc(mlir::memref::AllocOp allocOp) noexcept
+      : allocOp{allocOp}, operation{allocOp.getOperation()} {}
+
+  DRAlloc(mlir::memref::AllocaOp allocaOp) noexcept
+      : allocOp{allocaOp}, operation{allocaOp.getOperation()} {}
+
+  DRAlloc(mlir::memref::GlobalOp globalOp) noexcept
+      : allocOp{globalOp}, operation{globalOp.getOperation()} {}
+
+  DRAlloc(const DRAlloc &) = default;
+  DRAlloc(DRAlloc &&) = default;
+  DRAlloc &operator=(const DRAlloc &) = default;
+  DRAlloc &operator=(DRAlloc &&) = default;
+
+  AllocVariant allocOp;
+  mlir::Operation *operation;
+
+  operator mlir::Operation *() const { return operation; }
+
+  bool isGlobal() const {
+    return std::holds_alternative<mlir::memref::GlobalOp>(allocOp);
+  }
+
+  bool isAlloc() const {
+    return std::holds_alternative<mlir::memref::AllocOp>(allocOp);
+  }
+
+  bool isAlloca() const {
+    return std::holds_alternative<mlir::memref::AllocaOp>(allocOp);
+  }
+
+  /// Utility function to check if an mlir::Operation * fits as a DRAlloc
+  static bool isAllocOp(mlir::Operation *op) {
+    return SupportedOpTypes::isAnyOp(op);
+  }
+};
+
+//! A class representing a generic load with regards to the pass.
+//! \see DenseMapInfo<DRLoad>
+struct DRLoad {
+  using SupportedOpTypes =
+      OpTypeList<::mlir::memref::LoadOp, ::mlir::affine::AffineLoadOp,
+                 ::mlir::ptr::LoadOp>;
+
+  using LoadVariant = SupportedOpTypes::VariantT;
+
+  LoadVariant resolveOp(mlir::Operation *op) {
+    return VariantResolver<SupportedOpTypes>::resolve(op);
+  }
+
+  //! A general casting constructor. Will leave things in an empty state if
+  //! failed.
+  DRLoad(mlir::Operation *op) : loadOp{resolveOp(op)}, operation{op} {}
+  DRLoad(mlir::memref::LoadOp loadOp) noexcept
+      : loadOp{loadOp}, operation{loadOp.getOperation()} {}
+  DRLoad(mlir::affine::AffineLoadOp loadOp) noexcept
+      : loadOp{loadOp}, operation{loadOp.getOperation()} {}
+  DRLoad(mlir::ptr::LoadOp loadOp) noexcept
+      : loadOp{loadOp}, operation{loadOp.getOperation()} {}
 
   DRLoad(const DRLoad &) = default;
   DRLoad(DRLoad &&) = default;
   DRLoad &operator=(const DRLoad &) = default;
   DRLoad &operator=(DRLoad &&) = default;
 
+  // Hold a pointer
   LoadVariant loadOp;
+  mlir::Operation *operation = nullptr;
+  ;
 
   // Casting to Operation *
-  operator mlir::Operation *() {
-    return std::visit(
-        [](auto &op) -> mlir::Operation * { return op.getOperation(); },
-        loadOp);
-  }
+  operator mlir::Operation *() const { return operation; }
 
   bool isMemref() const {
     return std::holds_alternative<mlir::memref::LoadOp>(loadOp);
@@ -238,8 +309,7 @@ struct DRLoad {
 
   /// Utility function to check if an mlir::Operation * fits as a DRLoad
   static bool isLoadOp(mlir::Operation *op) {
-    return isAnyOp<mlir::memref::LoadOp, mlir::affine::AffineLoadOp,
-                   mlir::ptr::LoadOp>(op);
+    return SupportedOpTypes::isAnyOp(op);
   }
 };
 
@@ -250,64 +320,10 @@ struct DRLoad {
 // originating op.
 //===============================================//
 
-struct DataRecomputationMemrefTracer {
+struct DRMemrefTracer {
 
   using Chain = llvm::SmallVector<mlir::Operation *, 4>;
   using TraceResultTy = std::pair<Chain, mlir::Operation *>;
-
-  using SupportedOpTypes = OpTypeList<mlir::memref::StoreOp, mlir::affine::AffineStoreOp, mlir::ptr::StoreOp>;
-
-  template <class... Tys>
-  static TraceResultTy
-  dispatcherImpl(mlir::Operation *op, mlir::MLIRContext *context,
-             mlir::ModuleOp moduleOp,
-             mlir::SymbolTableCollection &symTabCollection, OpTypeList<Tys...> opTys) {
-    TraceResultTy result{};
-
-    ([&](mlir::Operation *op) -> bool  {
-      if ( auto typeQualifiedOp = mlir::dyn_cast<Tys>(op) ) {
-        result = std::move(traceStore(typeQualifiedOp, context, moduleOp, symTabCollection));
-        return true;
-      }
-       return false;
-    }(op) || ...);
-
-    if ( result.second == nullptr ) {
-      llvm_unreachable("Unsupported op type used in MemrefTracer");
-    }
-
-    return result;
-  }
-
-  static TraceResultTy
-  dispatcher(mlir::Operation *op, mlir::MLIRContext *context,
-             mlir::ModuleOp moduleOp,
-             mlir::SymbolTableCollection &symTabCollection, SupportedOpTypes opTys = {} ) {
-    return dispatcherImpl(op, context, moduleOp, symTabCollection, opTys);
-  }
-
-  static  TraceResultTy
-  traceStore(mlir::Operation *op, mlir::MLIRContext *context,
-             mlir::ModuleOp moduleOp,
-             mlir::SymbolTableCollection &symTabCollection) {
-    return dispatcher(op, context, moduleOp, symTabCollection);
-  }
-
-  static TraceResultTy
-  traceStore(mlir::memref::StoreOp storeOp, mlir::MLIRContext *context,
-             mlir::ModuleOp moduleOp,
-             mlir::SymbolTableCollection &symTabCollection) {
-    auto memref = storeOp.getMemref();
-    return traceMemref(memref, context, moduleOp, symTabCollection);
-  }
-
-  static TraceResultTy
-  traceStore(mlir::affine::AffineStoreOp storeOp, mlir::MLIRContext *context,
-             mlir::ModuleOp moduleOp,
-             mlir::SymbolTableCollection &symTabCollection) {
-    auto memref = storeOp.getMemref();
-    return traceMemref(memref, context, moduleOp, symTabCollection);
-  }
 
   static TraceResultTy
   traceMemref(mlir::TypedValue<mlir::MemRefType> memrefValue,
@@ -370,6 +386,187 @@ struct DataRecomputationMemrefTracer {
   }
 };
 
+struct DRLoadTracer {
+
+private:
+  mlir::MLIRContext *context;
+  mlir::ModuleOp moduleOp;
+  mlir::SymbolTableCollection &symTabCollection;
+
+public:
+
+  using Self = DRLoadTracer;
+
+  using SupportedLoadOpTypes =
+      OpTypeList<::mlir::memref::LoadOp, ::mlir::affine::AffineLoadOp>;
+
+  using TraceResultTy = DRMemrefTracer::TraceResultTy;
+
+  DRLoadTracer( mlir::MLIRContext *context, mlir::ModuleOp moduleOp,
+  mlir::SymbolTableCollection &symTabCollection
+  ) : context{context}, moduleOp{moduleOp}, symTabCollection{symTabCollection} {}
+
+
+
+  /// Dispatch helper. The static member infrastructure
+  /// takes care of efficient dispatch.
+  template <class T>
+  TraceResultTy trace(T op) {
+    return Self::trace(op, context, moduleOp, symTabCollection);
+  }
+
+
+  ///===== STATIC MEMBERS ====== //
+public:
+
+  /// A variadic dispatch. Will try to cast each supported type in order, and
+  /// dispatch to the correct instance.
+  template <class... Tys>
+  static TraceResultTy traceDispatcherImpl(
+      mlir::Operation *op, mlir::MLIRContext *context, mlir::ModuleOp moduleOp,
+      mlir::SymbolTableCollection &symTabCollection, OpTypeList<Tys...> opTys) {
+    TraceResultTy result{};
+
+    ([&](mlir::Operation *op) -> bool {
+      if (auto typeQualifiedOp = mlir::dyn_cast<Tys>(op)) {
+        result = std::move(
+            trace(typeQualifiedOp, context, moduleOp, symTabCollection));
+        return true;
+      }
+      return false;
+    }(op) || ...);
+
+    if (result.second == nullptr) {
+      llvm_unreachable("Unsupported op type used in MemrefTracer");
+    }
+
+    return result;
+  }
+
+  static TraceResultTy
+  traceDispatcher(mlir::Operation *op, mlir::MLIRContext *context,
+                      mlir::ModuleOp moduleOp,
+                      mlir::SymbolTableCollection &symTabCollection,
+                      SupportedLoadOpTypes opTys = {}) {
+    return traceDispatcherImpl(op, context, moduleOp, symTabCollection,
+                                   opTys);
+  }
+
+  static TraceResultTy
+  trace(mlir::Operation *op, mlir::MLIRContext *context,
+            mlir::ModuleOp moduleOp,
+            mlir::SymbolTableCollection &symTabCollection) {
+    return traceDispatcher(op, context, moduleOp, symTabCollection);
+  }
+
+  static TraceResultTy
+  trace(mlir::memref::LoadOp loadOp, mlir::MLIRContext *context,
+            mlir::ModuleOp moduleOp,
+            mlir::SymbolTableCollection &symTabCollection) {
+    auto memref = loadOp.getMemref();
+    return DRMemrefTracer::traceMemref(memref, context, moduleOp,
+                                       symTabCollection);
+  }
+
+  static TraceResultTy
+  trace(mlir::affine::AffineLoadOp loadOp, mlir::MLIRContext *context,
+            mlir::ModuleOp moduleOp,
+            mlir::SymbolTableCollection &symTabCollection) {
+    auto memref = loadOp.getMemref();
+    return DRMemrefTracer::traceMemref(memref, context, moduleOp,
+                                       symTabCollection);
+  }
+};
+
+struct DRStoreTracer {
+
+private:
+  mlir::MLIRContext *context;
+  mlir::ModuleOp moduleOp;
+  mlir::SymbolTableCollection &symTabCollection;
+
+public:
+
+  using Self = DRStoreTracer;
+  using SupportedStoreOpTypes =
+      OpTypeList<mlir::memref::StoreOp, mlir::affine::AffineStoreOp>;
+
+  using TraceResultTy = DRMemrefTracer::TraceResultTy;
+
+  DRStoreTracer( mlir::MLIRContext *context, mlir::ModuleOp moduleOp,
+  mlir::SymbolTableCollection &symTabCollection
+  ) : context{context}, moduleOp{moduleOp}, symTabCollection{symTabCollection} {}
+
+
+  /// Dispatch helper. The static member infrastructure
+  /// takes care of efficient dispatch.
+  template <class T>
+  TraceResultTy trace(T op) {
+    return Self::trace(op, context, moduleOp, symTabCollection);
+  }
+
+///===== STATIC MEMBERS ====== //
+public:
+
+  /// A variadic dispatch. Will try to cast each supported type in order, and
+  /// dispatch to the correct instance.
+  template <class... Tys>
+  static TraceResultTy traceDispatcherImpl(
+      mlir::Operation *op, mlir::MLIRContext *context, mlir::ModuleOp moduleOp,
+      mlir::SymbolTableCollection &symTabCollection, OpTypeList<Tys...> opTys) {
+    TraceResultTy result{};
+
+    ([&](mlir::Operation *op) -> bool {
+      if (auto typeQualifiedOp = mlir::dyn_cast<Tys>(op)) {
+        result = std::move(
+            trace(typeQualifiedOp, context, moduleOp, symTabCollection));
+        return true;
+      }
+      return false;
+    }(op) || ...);
+
+    if (result.second == nullptr) {
+      llvm_unreachable("Unsupported op type used in MemrefTracer");
+    }
+
+    return result;
+  }
+
+  static TraceResultTy
+  traceDispatcher(mlir::Operation *op, mlir::MLIRContext *context,
+                       mlir::ModuleOp moduleOp,
+                       mlir::SymbolTableCollection &symTabCollection,
+                       SupportedStoreOpTypes opTys = {}) {
+    return traceDispatcherImpl(op, context, moduleOp, symTabCollection,
+                                    opTys);
+  }
+
+  static TraceResultTy
+  trace(mlir::Operation *op, mlir::MLIRContext *context,
+             mlir::ModuleOp moduleOp,
+             mlir::SymbolTableCollection &symTabCollection) {
+    return traceDispatcher(op, context, moduleOp, symTabCollection);
+  }
+
+  static TraceResultTy
+  trace(mlir::memref::StoreOp storeOp, mlir::MLIRContext *context,
+             mlir::ModuleOp moduleOp,
+             mlir::SymbolTableCollection &symTabCollection) {
+    auto memref = storeOp.getMemref();
+    return DRMemrefTracer::traceMemref(memref, context, moduleOp,
+                                       symTabCollection);
+  }
+
+  static TraceResultTy
+  trace(mlir::affine::AffineStoreOp storeOp, mlir::MLIRContext *context,
+             mlir::ModuleOp moduleOp,
+             mlir::SymbolTableCollection &symTabCollection) {
+    auto memref = storeOp.getMemref();
+    return DRMemrefTracer::traceMemref(memref, context, moduleOp,
+                                       symTabCollection);
+  }
+};
+
 struct CallInfo {
   bool insideLoop = false;
 };
@@ -412,6 +609,59 @@ struct CallGraph {
 
 }; // namespace mlir::bmodelica::detail
 
+namespace llvm {
+template <>
+struct DenseMapInfo<::mlir::bmodelica::detail::DRLoad> {
+  using KeyT = ::mlir::bmodelica::detail::DRLoad;
+  static constexpr mlir::Operation *getEmptyKey() { return nullptr; }
+  static constexpr mlir::Operation *getTombstoneKey() {
+    return std::numeric_limits<mlir::Operation *>::max();
+  }
+  static unsigned getHashValue(const KeyT &Val) {
+    return DenseMapInfo<mlir::Operation *>::getHashValue(
+        static_cast<mlir::Operation *>(Val));
+  }
+  static bool isEqual(const KeyT &LHS, const KeyT &RHS) {
+    return static_cast<mlir::Operation *>(LHS) ==
+           static_cast<mlir::Operation *>(RHS);
+  }
+};
+
+template <>
+struct DenseMapInfo<::mlir::bmodelica::detail::DRWrite> {
+  using KeyT = ::mlir::bmodelica::detail::DRWrite;
+  static constexpr mlir::Operation *getEmptyKey() { return nullptr; }
+  static constexpr mlir::Operation *getTombstoneKey() {
+    return std::numeric_limits<mlir::Operation *>::max();
+  }
+  static unsigned getHashValue(const KeyT &Val) {
+    return DenseMapInfo<mlir::Operation *>::getHashValue(
+        static_cast<mlir::Operation *>(Val));
+  }
+  static bool isEqual(const KeyT &LHS, const KeyT &RHS) {
+    return static_cast<mlir::Operation *>(LHS) ==
+           static_cast<mlir::Operation *>(RHS);
+  }
+};
+
+template <>
+struct DenseMapInfo<::mlir::bmodelica::detail::DRAlloc> {
+  using KeyT = ::mlir::bmodelica::detail::DRAlloc;
+  static constexpr mlir::Operation *getEmptyKey() { return nullptr; }
+  static constexpr mlir::Operation *getTombstoneKey() {
+    return std::numeric_limits<mlir::Operation *>::max();
+  }
+  static unsigned getHashValue(const KeyT &Val) {
+    return DenseMapInfo<mlir::Operation *>::getHashValue(
+        static_cast<mlir::Operation *>(Val));
+  }
+  static bool isEqual(const KeyT &LHS, const KeyT &RHS) {
+    return static_cast<mlir::Operation *>(LHS) ==
+           static_cast<mlir::Operation *>(RHS);
+  }
+};
+} // namespace llvm
+
 namespace {
 
 using namespace mlir::bmodelica::detail;
@@ -432,6 +682,7 @@ private:
 
   FunctionWritesVec getFunctionWrites(mlir::func::FuncOp funcOp);
 
+
   /// A map of functions in the module
   llvm::DenseMap<mlir::StringRef, FuncOp> functionMap;
 
@@ -440,8 +691,8 @@ private:
   mlir::func::FuncOp entrypointFuncOp;
 
   mlir::LogicalResult identifyOpportunitiesAux(
-      mlir::ModuleOp moduleOp, mlir::MLIRContext *context, mlir::func::FuncOp funcOp,
-      mlir::SymbolTableCollection &symTabCollection,
+      mlir::ModuleOp moduleOp, mlir::MLIRContext *context,
+      mlir::func::FuncOp funcOp, mlir::SymbolTableCollection &symTabCollection,
       llvm::SmallVector<std::pair<DRWrite, DRLoad>, 4> &foundOpportunities,
       llvm::SmallSet<std::pair<mlir::func::FuncOp, mlir::func::FuncOp>, 8>
           &visitSet);
@@ -543,9 +794,12 @@ struct ReinterpretChainAnalysis {};
 void DataRecomputationPass::runOnOperation() {
   // Gather all global statics
   moduleOp = this->getOperation();
-
   mlir::MLIRContext *context = &getContext();
   mlir::SymbolTableCollection symTabCollection{};
+
+
+  DRLoadTracer loadTracer{context, moduleOp, symTabCollection};
+  DRStoreTracer storeTracer{context, moduleOp, symTabCollection};
 
   // IMPORTANT NOTE:
   // This selection is for an IPO-analysis. In the final pass,
@@ -580,8 +834,7 @@ void DataRecomputationPass::runOnOperation() {
   };
 
   moduleOp.walk([&](mlir::memref::StoreOp storeOp) {
-    auto [chain, originOp] = DataRecomputationMemrefTracer::traceStore(
-        storeOp, context, moduleOp, symTabCollection);
+    auto [chain, originOp] = storeTracer.trace(storeOp);
     memrefStoreToOriginOp.insert(std::make_pair(storeOp, originOp));
     memrefStoreToOriginChain.insert(std::make_pair(storeOp, std::move(chain)));
 
@@ -635,8 +888,7 @@ void DataRecomputationPass::runOnOperation() {
       affineStoreToOriginChain{};
 
   moduleOp.walk([&](mlir::affine::AffineStoreOp storeOp) {
-    auto [chain, originOp] = DataRecomputationMemrefTracer::traceStore(
-        storeOp, context, moduleOp, symTabCollection);
+    auto [chain, originOp] = storeTracer.trace(storeOp);
     affineStoreToOriginOp.insert(std::make_pair(storeOp, originOp));
     affineStoreToOriginChain.insert(std::make_pair(storeOp, std::move(chain)));
   });
@@ -653,8 +905,8 @@ void DataRecomputationPass::runOnOperation() {
     auto callGraph =
         buildCallGraph(moduleOp, entrypointFuncOp, symTabCollection);
 
-    auto opportunities =
-        identifyOpportunities(moduleOp, context, entrypointFuncOp, symTabCollection);
+    auto opportunities = identifyOpportunities(
+        moduleOp, context, entrypointFuncOp, symTabCollection);
   }
 }
 
@@ -729,32 +981,33 @@ DataRecomputationPass::getFunctionWrites(mlir::func::FuncOp funcOp) {
 
 mlir::FailureOr<llvm::SmallVector<std::pair<DRWrite, DRLoad>, 4>>
 DataRecomputationPass::identifyOpportunities(
-        mlir::ModuleOp moduleOp, mlir::MLIRContext *context,
-                        mlir::func::FuncOp entrypointFuncOp,
-                        mlir::SymbolTableCollection &symTabCollection) {
+    mlir::ModuleOp moduleOp, mlir::MLIRContext *context,
+    mlir::func::FuncOp entrypointFuncOp,
+    mlir::SymbolTableCollection &symTabCollection) {
   // Get all function calls, stores, and loads in here. Keep track of last
   // write.
 
   llvm::SmallVector<std::pair<DRWrite, DRLoad>, 4> result{};
   llvm::SmallSet<std::pair<mlir::func::FuncOp, mlir::func::FuncOp>, 8>
       visitSet{};
-  return identifyOpportunitiesAux(moduleOp, context, entrypointFuncOp, symTabCollection,
-                                  result, visitSet);
+  auto report = identifyOpportunitiesAux(moduleOp, context, entrypointFuncOp,
+                                  symTabCollection, result, visitSet);
 
+  if ( report.failed() ) return mlir::failure();
   return result;
 }
 
 mlir::LogicalResult DataRecomputationPass::identifyOpportunitiesAux(
-    mlir::ModuleOp moduleOp, mlir::MLIRContext *context, mlir::func::FuncOp funcOp,
-    mlir::SymbolTableCollection &symTabCollection,
+    mlir::ModuleOp moduleOp, mlir::MLIRContext *context,
+    mlir::func::FuncOp funcOp, mlir::SymbolTableCollection &symTabCollection,
     llvm::SmallVector<std::pair<DRWrite, DRLoad>, 4> &foundOpportunities,
     llvm::SmallSet<std::pair<mlir::func::FuncOp, mlir::func::FuncOp>, 8>
         &visitSet) {
 
-
-  llvm::DenseMap</*OriginOp*/mlir::Operation *, DRWrite> lastWrites{};
+  llvm::DenseMap</*OriginOp*/ mlir::Operation *, DRWrite> lastWrites{};
   // TODO(Tor): Implement Dense Map traits for DRWrite and DRLoad
-  // llvm::DenseMap<DRWrite, llvm::SmallVector<mlir::Operation *>> candidateLoads{};
+  llvm::DenseMap<DRWrite, llvm::SmallVector<DRLoad, 4>> candidateLoads{};
+  // candidateLoads{};
 
   // Keep track of how deep we're going at the point of visit
   llvm::SmallVector<mlir::func::FuncOp, 4> callStack{};
@@ -788,13 +1041,23 @@ mlir::LogicalResult DataRecomputationPass::identifyOpportunitiesAux(
       }
 
       // Collect writes
-      if ( DRWrite::isStoreOp(op) ) {
+      if (DRWrite::isStoreOp(op)) {
         // We have a store
-        // traceStore(mlir::memref::StoreOp storeOp, mlir::MLIRContext *context, mlir::ModuleOp moduleOp, mlir::SymbolTableCollection &symTabCollection) -> std::pair<llvm::SmallVector<mlir::Operation *, 4>, mlir::Operation *>
-        auto [resChain, originOp] = DataRecomputationMemrefTracer::traceStore(op, context, moduleOp, symTabCollection);
+        // trace(mlir::memref::StoreOp storeOp, mlir::MLIRContext *context,
+        // mlir::ModuleOp moduleOp, mlir::SymbolTableCollection
+        // &symTabCollection) -> std::pair<llvm::SmallVector<mlir::Operation *,
+        // 4>, mlir::Operation *>
+        auto [resChain, originOp] =
+            DRStoreTracer::trace(op, context, moduleOp, symTabCollection);
 
         lastWrites.insert(std::make_pair(originOp, DRWrite{op}));
         MARCO_DBG() << originOp->getName() << "\n";
+      }
+
+      if (DRLoad::isLoadOp(op)) {
+        // Trace it back
+        // TODO(Tor): Segfaults
+        // auto [resChain, originOp] = DRLoadTracer::trace(op, context, moduleOp, symTabCollection);
       }
     });
 
