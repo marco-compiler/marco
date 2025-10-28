@@ -16,6 +16,7 @@
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/Ptr/IR/PtrOps.h"
 #include "mlir/Dialect/Vector/IR/VectorDialect.h.inc"
+#include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/Types.h"
 #include "mlir/IR/Value.h"
@@ -200,24 +201,40 @@ struct DRLoad {
   }
 };
 
+//===============================================//
+// Memref Tracing Utility
+//-----------------------------------------------//
+// Allows you to trace back a memref to its
+// originating op.
+//===============================================//
+
 struct DataRecomputationMemrefTracer {
 
   using Chain = llvm::SmallVector<mlir::Operation *, 4>;
 
   static std::pair<llvm::SmallVector<mlir::Operation *, 4>, mlir::Operation *>
-  traceStore(mlir::memref::StoreOp storeOp) {
+  traceStore(mlir::memref::StoreOp storeOp,
+             mlir::MLIRContext *context,
+             mlir::ModuleOp moduleOp,
+             mlir::SymbolTableCollection &symTabCollection) {
     auto memref = storeOp.getMemref();
-    return traceMemref(memref);
+    return traceMemref(memref, context, moduleOp, symTabCollection);
   }
 
   static std::pair<llvm::SmallVector<mlir::Operation *, 4>, mlir::Operation *>
-  traceStore(mlir::affine::AffineStoreOp storeOp) {
+  traceStore(mlir::affine::AffineStoreOp storeOp,
+             mlir::MLIRContext *context,
+             mlir::ModuleOp moduleOp,
+             mlir::SymbolTableCollection &symTabCollection) {
     auto memref = storeOp.getMemref();
-    return traceMemref(memref);
+    return traceMemref(memref, context, moduleOp, symTabCollection);
   }
 
   static std::pair<llvm::SmallVector<mlir::Operation *, 4>, mlir::Operation *>
-  traceMemref(mlir::TypedValue<mlir::MemRefType> memrefValue) {
+  traceMemref(mlir::TypedValue<mlir::MemRefType> memrefValue,
+             mlir::MLIRContext *context,
+             mlir::ModuleOp moduleOp,
+              mlir::SymbolTableCollection &symTabCollection) {
     // Walk it back to where the memref originated
     auto *definingOp = memrefValue.getDefiningOp();
 
@@ -227,7 +244,7 @@ struct DataRecomputationMemrefTracer {
     // If the value comes from an argument, we need to look at inbounds
 
     for (bool finishFlag = false; !finishFlag;) {
-      auto [finish, op] = traceOnce(memrefChain.back());
+      auto [finish, op] = traceOnce(memrefChain.back(), context, moduleOp, symTabCollection);
       memrefChain.emplace_back(op);
       finishFlag = finish;
     }
@@ -236,10 +253,12 @@ struct DataRecomputationMemrefTracer {
   }
 
   using TraceReturnTy = std::pair<bool, mlir::Operation *>;
-  static TraceReturnTy traceOnce(mlir::Operation *op) {
+  static TraceReturnTy traceOnce(mlir::Operation *op,
+             mlir::MLIRContext *context,
+             mlir::ModuleOp moduleOp, mlir::SymbolTableCollection &symTabCollection) {
 
     // Check if the operation should terminate the chain
-    if (isAnyOp<mlir::memref::GetGlobalOp, mlir::memref::AllocOp>(op)) {
+    if (isAnyOp<mlir::memref::GlobalOp, mlir::memref::AllocOp>(op)) {
       return std::make_pair(true, op);
     }
 
@@ -249,6 +268,20 @@ struct DataRecomputationMemrefTracer {
               const auto source = reinterpretCastOp.getSource();
               auto *definingOp = source.getDefiningOp();
               return std::make_pair(false, definingOp);
+            })
+        .Case<mlir::memref::GetGlobalOp>(
+            [&](mlir::memref::GetGlobalOp getGlobalOp) {
+              auto symbolRef = getGlobalOp.getName();
+              mlir::Operation *resultOp = nullptr;
+              mlir::SymbolRefAttr symbolReference = FlatSymbolRefAttr::get(context, symbolRef);
+              auto *symbolOp = symTabCollection.lookupSymbolIn(moduleOp.getOperation(), symbolReference);
+
+              if ( auto globalOp = mlir::dyn_cast<mlir::memref::GlobalOp>(symbolOp) ) {
+                return std::make_pair(true, symbolOp);
+              }
+
+              llvm_unreachable("A GetGlobalOp shouldn't resolve to anything other than GlobalOp!");
+
             })
         .Default(
             [](mlir::Operation *op) { return std::make_pair(true, nullptr); });
@@ -261,6 +294,7 @@ struct CallInfo {
 
 using FunctionWritesVec = llvm::SmallVector<DRWrite, 4>;
 using FunctionWritesMap = llvm::DenseMap<mlir::Operation *, FunctionWritesVec>;
+
 
 struct CallGraph {
 
@@ -328,7 +362,8 @@ private:
       mlir::ModuleOp moduleOp, mlir::func::FuncOp funcOp,
       mlir::SymbolTableCollection &symTabCollection,
       llvm::SmallVector<std::pair<DRWrite, DRLoad>, 4> &foundOpportunities,
-      llvm::SmallSet<std::pair<mlir::func::FuncOp, mlir::func::FuncOp>, 8> &visitSet);
+      llvm::SmallSet<std::pair<mlir::func::FuncOp, mlir::func::FuncOp>, 8>
+          &visitSet);
 
   mlir::FailureOr<llvm::SmallVector<std::pair<DRWrite, DRLoad>, 4>>
   identifyOpportunities(mlir::ModuleOp moduleOp,
@@ -426,12 +461,16 @@ void DataRecomputationPass::runOnOperation() {
   // Gather all global statics
   moduleOp = this->getOperation();
 
+  mlir::MLIRContext *context = &getContext();
   mlir::SymbolTableCollection symTabCollection{};
 
   // IMPORTANT NOTE:
   // This selection is for an IPO-analysis. In the final pass,
   // the selection should not be informed by a _dynamic prefix, but rather
   // something more general.
+  //
+  // Later idea: Disjoint set analysis. Refine and split clusters based on
+  // feasibility. Can be costly, so amortized and cached information necessary.
 
   auto entrypointFuncOption = selectEntrypoint(moduleOp);
   if (mlir::failed(entrypointFuncOption)) {
@@ -453,15 +492,12 @@ void DataRecomputationPass::runOnOperation() {
     llvm::SmallVector<int64_t, 4> stridesBefore;
     int64_t offsetBefore;
 
-    // mlir::MemRefType before;
-    // mlir::MemRefType after;
-
     llvm::SmallVector<int64_t, 4> stridesAfter;
     int64_t offsetAfter;
   };
 
   moduleOp.walk([&](mlir::memref::StoreOp storeOp) {
-    auto [chain, originOp] = DataRecomputationMemrefTracer::traceStore(storeOp);
+    auto [chain, originOp] = DataRecomputationMemrefTracer::traceStore(storeOp, context, moduleOp, symTabCollection);
     memrefStoreToOriginOp.insert(std::make_pair(storeOp, originOp));
     memrefStoreToOriginChain.insert(std::make_pair(storeOp, std::move(chain)));
 
@@ -470,6 +506,10 @@ void DataRecomputationPass::runOnOperation() {
 
     llvm::DenseMap<mlir::memref::ReinterpretCastOp, Accessor>
         reinterpretExpressions;
+
+    if ( auto globalOp = mlir::dyn_cast<mlir::memref::GlobalOp>(memrefStoreToOriginOp[storeOp]) ) {
+      MARCO_DBG() << "Traced a memref back to " << globalOp.getName() << "\n";
+    }
 
     for (auto &[storeOp, chain] : memrefStoreToOriginChain) {
       for (auto *op : chain) {
@@ -511,7 +551,7 @@ void DataRecomputationPass::runOnOperation() {
       affineStoreToOriginChain{};
 
   moduleOp.walk([&](mlir::affine::AffineStoreOp storeOp) {
-    auto [chain, originOp] = DataRecomputationMemrefTracer::traceStore(storeOp);
+    auto [chain, originOp] = DataRecomputationMemrefTracer::traceStore(storeOp, context, moduleOp, symTabCollection);
     affineStoreToOriginOp.insert(std::make_pair(storeOp, originOp));
     affineStoreToOriginChain.insert(std::make_pair(storeOp, std::move(chain)));
   });
@@ -610,7 +650,8 @@ DataRecomputationPass::identifyOpportunities(
   // write.
 
   llvm::SmallVector<std::pair<DRWrite, DRLoad>, 4> result{};
-  llvm::SmallSet<std::pair<mlir::func::FuncOp, mlir::func::FuncOp>, 8> visitSet{};
+  llvm::SmallSet<std::pair<mlir::func::FuncOp, mlir::func::FuncOp>, 8>
+      visitSet{};
   return identifyOpportunitiesAux(moduleOp, entrypointFuncOp, symTabCollection,
                                   result, visitSet);
 
@@ -621,15 +662,18 @@ mlir::LogicalResult DataRecomputationPass::identifyOpportunitiesAux(
     mlir::ModuleOp moduleOp, mlir::func::FuncOp funcOp,
     mlir::SymbolTableCollection &symTabCollection,
     llvm::SmallVector<std::pair<DRWrite, DRLoad>, 4> &foundOpportunities,
-    llvm::SmallSet<std::pair<mlir::func::FuncOp, mlir::func::FuncOp>, 8> &visitSet) {
+    llvm::SmallSet<std::pair<mlir::func::FuncOp, mlir::func::FuncOp>, 8>
+        &visitSet) {
 
   llvm::DenseMap<mlir::MemRefType, DRWrite> lastWrites;
 
   // Keep track of how deep we're going at the point of visit
   llvm::SmallVector<mlir::func::FuncOp, 4> callStack{};
   // Build a stack of visits
-  llvm::SmallVector<std::pair<mlir::func::FuncOp, mlir::func::FuncOp>, 4> visitStack{};
-  visitStack.emplace_back(funcOp);
+  llvm::SmallVector<std::pair<mlir::func::FuncOp, mlir::func::FuncOp>, 4>
+      visitStack{};
+  // Mark it as a self-visit.
+  visitStack.emplace_back(std::make_pair(funcOp, funcOp));
 
   // If we encounter a previously visited function, we should access some
   // cached data instead of walking it again.
@@ -639,7 +683,7 @@ mlir::LogicalResult DataRecomputationPass::identifyOpportunitiesAux(
     auto [inboundFuncOp, current] = visitStack.back();
     visitStack.pop_back();
 
-    if ( visitSet.contains(std::make_pair(inboundFuncOp, current)) ) {
+    if (visitSet.contains(std::make_pair(inboundFuncOp, current))) {
       // Get cached info
       // TODO: Add some kind of marker value to indicate that the memref
       // needs further tracing.
@@ -862,3 +906,22 @@ std::unique_ptr<mlir::Pass> createDataRecomputationPass() {
 //   mlir::TypedValue<mlir::MemRefType> getValue();
 //   mlir::TypedValue<mlir::MemRefType> getOriginalValue();
 // };
+//
+// template <class Pass>
+// class PassContextBundle {
+// public:
+//   PassContextBundle(Pass &pass)
+//     : context{pass.getContext()},
+//       symTabCollection{}
+//   {
+//
+//   }
+//
+//   mlir::MLIRContext *getContext() { return context; }
+//   mlir::SymbolTableCollection &getSymTabCollection() { return symTabCollection; }
+//
+// private:
+//   mlir::MLIRContext *context = nullptr;
+//   mlir::SymbolTableCollection symTabCollection;
+// };
+// //
