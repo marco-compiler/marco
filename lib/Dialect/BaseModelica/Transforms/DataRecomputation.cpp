@@ -93,10 +93,19 @@ using namespace ::mlir::func;
 #define MARCO_DBG() llvm::dbgs() << R"(==== DataRecomputation: )"
 
 namespace {
+
+
 template <class... OpTys>
 static bool isAnyOp(mlir::Operation *op) {
   return (mlir::isa<OpTys>(op) || ...);
 }
+
+template <class... OpTys>
+struct OpTypeList{
+  static bool isAnyOp(mlir::Operation *op) {
+    return ::isAnyOp<OpTys...>(op);
+  }
+};
 
 } // namespace
 
@@ -124,10 +133,51 @@ struct GlobalDef {
 
 /// DataRecomputation Write
 struct DRWrite {
-  using StoreVariant =
-      std::variant<::mlir::memref::StoreOp, ::mlir::affine::AffineStoreOp,
+
+  using SupportedOpTypes = OpTypeList<::mlir::memref::StoreOp, ::mlir::affine::AffineStoreOp,
                    ::mlir::ptr::StoreOp>;
 
+  template <class TypeList>
+  struct VariantTypeMetaConstructor;
+
+  template <class... OpTys>
+  struct VariantTypeMetaConstructor<OpTypeList<OpTys...>> {
+    using type = std::variant<OpTys...>;
+  };
+
+
+  using StoreVariant = VariantTypeMetaConstructor<SupportedOpTypes>::type;
+
+  template <class TypeList>
+  struct ConstructionResolver;
+
+  template <class... OpTys>
+  struct ConstructionResolver<OpTypeList<OpTys...>> {
+    static StoreVariant resolve(mlir::Operation *op) {
+
+      StoreVariant result;
+
+      bool success = ([&result](mlir::Operation *op) -> bool {
+        if (OpTys resolvedOp = mlir::dyn_cast<OpTys>(op)) {
+          result = resolvedOp;
+          return true;
+        }
+        return false;
+      }(op) || ...);
+
+      if ( ! success ) {
+        llvm_unreachable("No support for op type");
+      }
+
+      return result;
+    }
+  };
+
+  StoreVariant resolveOp(mlir::Operation *op) {
+    return ConstructionResolver<SupportedOpTypes>::resolve(op);
+  }
+
+  DRWrite(mlir::Operation *op) : storeOp{resolveOp(op)} {}
   DRWrite(mlir::memref::StoreOp storeOp) noexcept : storeOp{storeOp} {}
   DRWrite(mlir::affine::AffineStoreOp storeOp) noexcept : storeOp{storeOp} {}
   DRWrite(mlir::ptr::StoreOp storeOp) noexcept : storeOp{storeOp} {}
@@ -211,29 +261,65 @@ struct DRLoad {
 struct DataRecomputationMemrefTracer {
 
   using Chain = llvm::SmallVector<mlir::Operation *, 4>;
+  using TraceResultTy = std::pair<Chain, mlir::Operation *>;
 
-  static std::pair<llvm::SmallVector<mlir::Operation *, 4>, mlir::Operation *>
-  traceStore(mlir::memref::StoreOp storeOp,
-             mlir::MLIRContext *context,
+  using SupportedOpTypes = OpTypeList<mlir::memref::StoreOp, mlir::affine::AffineStoreOp, mlir::ptr::StoreOp>;
+
+  template <class... Tys>
+  static TraceResultTy
+  dispatcherImpl(mlir::Operation *op, mlir::MLIRContext *context,
+             mlir::ModuleOp moduleOp,
+             mlir::SymbolTableCollection &symTabCollection, OpTypeList<Tys...> opTys) {
+    TraceResultTy result{};
+
+    ([&](mlir::Operation *op) -> bool  {
+      if ( auto typeQualifiedOp = mlir::dyn_cast<Tys>(op) ) {
+        result = std::move(traceStore(typeQualifiedOp, context, moduleOp, symTabCollection));
+        return true;
+      }
+       return false;
+    }(op) || ...);
+
+    if ( result.second == nullptr ) {
+      llvm_unreachable("Unsupported op type used in MemrefTracer");
+    }
+
+    return result;
+  }
+
+  static TraceResultTy
+  dispatcher(mlir::Operation *op, mlir::MLIRContext *context,
+             mlir::ModuleOp moduleOp,
+             mlir::SymbolTableCollection &symTabCollection, SupportedOpTypes opTys = {} ) {
+    return dispatcherImpl(op, context, moduleOp, symTabCollection, opTys);
+  }
+
+  static  TraceResultTy
+  traceStore(mlir::Operation *op, mlir::MLIRContext *context,
+             mlir::ModuleOp moduleOp,
+             mlir::SymbolTableCollection &symTabCollection) {
+    return dispatcher(op, context, moduleOp, symTabCollection);
+  }
+
+  static TraceResultTy
+  traceStore(mlir::memref::StoreOp storeOp, mlir::MLIRContext *context,
              mlir::ModuleOp moduleOp,
              mlir::SymbolTableCollection &symTabCollection) {
     auto memref = storeOp.getMemref();
     return traceMemref(memref, context, moduleOp, symTabCollection);
   }
 
-  static std::pair<llvm::SmallVector<mlir::Operation *, 4>, mlir::Operation *>
-  traceStore(mlir::affine::AffineStoreOp storeOp,
-             mlir::MLIRContext *context,
+  static TraceResultTy
+  traceStore(mlir::affine::AffineStoreOp storeOp, mlir::MLIRContext *context,
              mlir::ModuleOp moduleOp,
              mlir::SymbolTableCollection &symTabCollection) {
     auto memref = storeOp.getMemref();
     return traceMemref(memref, context, moduleOp, symTabCollection);
   }
 
-  static std::pair<llvm::SmallVector<mlir::Operation *, 4>, mlir::Operation *>
+  static TraceResultTy
   traceMemref(mlir::TypedValue<mlir::MemRefType> memrefValue,
-             mlir::MLIRContext *context,
-             mlir::ModuleOp moduleOp,
+              mlir::MLIRContext *context, mlir::ModuleOp moduleOp,
               mlir::SymbolTableCollection &symTabCollection) {
     // Walk it back to where the memref originated
     auto *definingOp = memrefValue.getDefiningOp();
@@ -244,7 +330,8 @@ struct DataRecomputationMemrefTracer {
     // If the value comes from an argument, we need to look at inbounds
 
     for (bool finishFlag = false; !finishFlag;) {
-      auto [finish, op] = traceOnce(memrefChain.back(), context, moduleOp, symTabCollection);
+      auto [finish, op] =
+          traceOnce(memrefChain.back(), context, moduleOp, symTabCollection);
       memrefChain.emplace_back(op);
       finishFlag = finish;
     }
@@ -253,9 +340,10 @@ struct DataRecomputationMemrefTracer {
   }
 
   using TraceReturnTy = std::pair<bool, mlir::Operation *>;
-  static TraceReturnTy traceOnce(mlir::Operation *op,
-             mlir::MLIRContext *context,
-             mlir::ModuleOp moduleOp, mlir::SymbolTableCollection &symTabCollection) {
+  static TraceReturnTy
+  traceOnce(mlir::Operation *op, mlir::MLIRContext *context,
+            mlir::ModuleOp moduleOp,
+            mlir::SymbolTableCollection &symTabCollection) {
 
     // Check if the operation should terminate the chain
     if (isAnyOp<mlir::memref::GlobalOp, mlir::memref::AllocOp>(op)) {
@@ -272,16 +360,18 @@ struct DataRecomputationMemrefTracer {
         .Case<mlir::memref::GetGlobalOp>(
             [&](mlir::memref::GetGlobalOp getGlobalOp) {
               auto symbolRef = getGlobalOp.getName();
-              mlir::Operation *resultOp = nullptr;
-              mlir::SymbolRefAttr symbolReference = FlatSymbolRefAttr::get(context, symbolRef);
-              auto *symbolOp = symTabCollection.lookupSymbolIn(moduleOp.getOperation(), symbolReference);
+              mlir::SymbolRefAttr symbolReference =
+                  FlatSymbolRefAttr::get(context, symbolRef);
+              auto *symbolOp = symTabCollection.lookupSymbolIn(
+                  moduleOp.getOperation(), symbolReference);
 
-              if ( auto globalOp = mlir::dyn_cast<mlir::memref::GlobalOp>(symbolOp) ) {
+              if (auto globalOp =
+                      mlir::dyn_cast<mlir::memref::GlobalOp>(symbolOp)) {
                 return std::make_pair(true, symbolOp);
               }
 
-              llvm_unreachable("A GetGlobalOp shouldn't resolve to anything other than GlobalOp!");
-
+              llvm_unreachable("A GetGlobalOp shouldn't resolve to anything "
+                               "other than GlobalOp!");
             })
         .Default(
             [](mlir::Operation *op) { return std::make_pair(true, nullptr); });
@@ -294,7 +384,6 @@ struct CallInfo {
 
 using FunctionWritesVec = llvm::SmallVector<DRWrite, 4>;
 using FunctionWritesMap = llvm::DenseMap<mlir::Operation *, FunctionWritesVec>;
-
 
 struct CallGraph {
 
@@ -359,14 +448,14 @@ private:
   mlir::func::FuncOp entrypointFuncOp;
 
   mlir::LogicalResult identifyOpportunitiesAux(
-      mlir::ModuleOp moduleOp, mlir::func::FuncOp funcOp,
+      mlir::ModuleOp moduleOp, mlir::MLIRContext *context, mlir::func::FuncOp funcOp,
       mlir::SymbolTableCollection &symTabCollection,
       llvm::SmallVector<std::pair<DRWrite, DRLoad>, 4> &foundOpportunities,
       llvm::SmallSet<std::pair<mlir::func::FuncOp, mlir::func::FuncOp>, 8>
           &visitSet);
 
   mlir::FailureOr<llvm::SmallVector<std::pair<DRWrite, DRLoad>, 4>>
-  identifyOpportunities(mlir::ModuleOp moduleOp,
+  identifyOpportunities(mlir::ModuleOp moduleOp, mlir::MLIRContext *context,
                         mlir::func::FuncOp entrypointFuncOp,
                         mlir::SymbolTableCollection &symTabCollection);
 
@@ -443,6 +532,8 @@ struct AccessorInterpreter {
       if (stack.empty())
         break;
     }
+    // TODO(Tor): This is incomplete.
+    return {};
   }
 };
 
@@ -497,7 +588,8 @@ void DataRecomputationPass::runOnOperation() {
   };
 
   moduleOp.walk([&](mlir::memref::StoreOp storeOp) {
-    auto [chain, originOp] = DataRecomputationMemrefTracer::traceStore(storeOp, context, moduleOp, symTabCollection);
+    auto [chain, originOp] = DataRecomputationMemrefTracer::traceStore(
+        storeOp, context, moduleOp, symTabCollection);
     memrefStoreToOriginOp.insert(std::make_pair(storeOp, originOp));
     memrefStoreToOriginChain.insert(std::make_pair(storeOp, std::move(chain)));
 
@@ -507,7 +599,9 @@ void DataRecomputationPass::runOnOperation() {
     llvm::DenseMap<mlir::memref::ReinterpretCastOp, Accessor>
         reinterpretExpressions;
 
-    if ( auto globalOp = mlir::dyn_cast<mlir::memref::GlobalOp>(memrefStoreToOriginOp[storeOp]) ) {
+    // NOTE(TOR): DEBUG OUTPUT
+    if (auto globalOp = mlir::dyn_cast<mlir::memref::GlobalOp>(
+            memrefStoreToOriginOp[storeOp])) {
       MARCO_DBG() << "Traced a memref back to " << globalOp.getName() << "\n";
     }
 
@@ -539,8 +633,6 @@ void DataRecomputationPass::runOnOperation() {
         }
       }
     }
-
-    auto indices = storeOp.getIndices();
   });
 
   llvm::DenseMap<mlir::affine::AffineStoreOp, mlir::Operation *>
@@ -551,7 +643,8 @@ void DataRecomputationPass::runOnOperation() {
       affineStoreToOriginChain{};
 
   moduleOp.walk([&](mlir::affine::AffineStoreOp storeOp) {
-    auto [chain, originOp] = DataRecomputationMemrefTracer::traceStore(storeOp, context, moduleOp, symTabCollection);
+    auto [chain, originOp] = DataRecomputationMemrefTracer::traceStore(
+        storeOp, context, moduleOp, symTabCollection);
     affineStoreToOriginOp.insert(std::make_pair(storeOp, originOp));
     affineStoreToOriginChain.insert(std::make_pair(storeOp, std::move(chain)));
   });
@@ -569,7 +662,7 @@ void DataRecomputationPass::runOnOperation() {
         buildCallGraph(moduleOp, entrypointFuncOp, symTabCollection);
 
     auto opportunities =
-        identifyOpportunities(moduleOp, entrypointFuncOp, symTabCollection);
+        identifyOpportunities(moduleOp, context, entrypointFuncOp, symTabCollection);
   }
 }
 
@@ -644,28 +737,32 @@ DataRecomputationPass::getFunctionWrites(mlir::func::FuncOp funcOp) {
 
 mlir::FailureOr<llvm::SmallVector<std::pair<DRWrite, DRLoad>, 4>>
 DataRecomputationPass::identifyOpportunities(
-    mlir::ModuleOp moduleOp, mlir::func::FuncOp entrypointFuncOp,
-    mlir::SymbolTableCollection &symTabCollection) {
+        mlir::ModuleOp moduleOp, mlir::MLIRContext *context,
+                        mlir::func::FuncOp entrypointFuncOp,
+                        mlir::SymbolTableCollection &symTabCollection) {
   // Get all function calls, stores, and loads in here. Keep track of last
   // write.
 
   llvm::SmallVector<std::pair<DRWrite, DRLoad>, 4> result{};
   llvm::SmallSet<std::pair<mlir::func::FuncOp, mlir::func::FuncOp>, 8>
       visitSet{};
-  return identifyOpportunitiesAux(moduleOp, entrypointFuncOp, symTabCollection,
+  return identifyOpportunitiesAux(moduleOp, context, entrypointFuncOp, symTabCollection,
                                   result, visitSet);
 
   return result;
 }
 
 mlir::LogicalResult DataRecomputationPass::identifyOpportunitiesAux(
-    mlir::ModuleOp moduleOp, mlir::func::FuncOp funcOp,
+    mlir::ModuleOp moduleOp, mlir::MLIRContext *context, mlir::func::FuncOp funcOp,
     mlir::SymbolTableCollection &symTabCollection,
     llvm::SmallVector<std::pair<DRWrite, DRLoad>, 4> &foundOpportunities,
     llvm::SmallSet<std::pair<mlir::func::FuncOp, mlir::func::FuncOp>, 8>
         &visitSet) {
 
-  llvm::DenseMap<mlir::MemRefType, DRWrite> lastWrites;
+
+  llvm::DenseMap</*OriginOp*/mlir::Operation *, DRWrite> lastWrites{};
+  // TODO(Tor): Implement Dense Map traits for DRWrite and DRLoad
+  // llvm::DenseMap<DRWrite, llvm::SmallVector<mlir::Operation *>> candidateLoads{};
 
   // Keep track of how deep we're going at the point of visit
   llvm::SmallVector<mlir::func::FuncOp, 4> callStack{};
@@ -685,16 +782,27 @@ mlir::LogicalResult DataRecomputationPass::identifyOpportunitiesAux(
 
     if (visitSet.contains(std::make_pair(inboundFuncOp, current))) {
       // Get cached info
-      // TODO: Add some kind of marker value to indicate that the memref
+      // TODO(Tor): Add some kind of marker value to indicate that the memref
       // needs further tracing.
+      continue; // Exactly this avenue has already been explored
     }
 
     llvm::SmallVector<mlir::Operation *, 8> nestedCallOps{};
 
-    // Collect all nested calls
     current.walk([&](mlir::Operation *op) {
+      // Collect all nested calls
       if (mlir::isa<mlir::CallOpInterface>(op)) {
         nestedCallOps.emplace_back(op);
+      }
+
+      // Collect writes
+      if ( DRWrite::isStoreOp(op) ) {
+        // We have a store
+        // traceStore(mlir::memref::StoreOp storeOp, mlir::MLIRContext *context, mlir::ModuleOp moduleOp, mlir::SymbolTableCollection &symTabCollection) -> std::pair<llvm::SmallVector<mlir::Operation *, 4>, mlir::Operation *>
+        auto [resChain, originOp] = DataRecomputationMemrefTracer::traceStore(op, context, moduleOp, symTabCollection);
+
+        lastWrites.insert(std::make_pair(originOp, DRWrite{op}));
+        MARCO_DBG() << originOp->getName() << "\n";
       }
     });
 
@@ -918,7 +1026,8 @@ std::unique_ptr<mlir::Pass> createDataRecomputationPass() {
 //   }
 //
 //   mlir::MLIRContext *getContext() { return context; }
-//   mlir::SymbolTableCollection &getSymTabCollection() { return symTabCollection; }
+//   mlir::SymbolTableCollection &getSymTabCollection() { return
+//   symTabCollection; }
 //
 // private:
 //   mlir::MLIRContext *context = nullptr;
