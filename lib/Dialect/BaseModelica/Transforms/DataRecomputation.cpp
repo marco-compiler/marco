@@ -105,6 +105,8 @@ struct OpTypeList{
   static bool isAnyOp(mlir::Operation *op) {
     return ::isAnyOp<OpTys...>(op);
   }
+
+  using VariantT = std::variant<OpTys...>;
 };
 
 } // namespace
@@ -137,16 +139,7 @@ struct DRWrite {
   using SupportedOpTypes = OpTypeList<::mlir::memref::StoreOp, ::mlir::affine::AffineStoreOp,
                    ::mlir::ptr::StoreOp>;
 
-  template <class TypeList>
-  struct VariantTypeMetaConstructor;
-
-  template <class... OpTys>
-  struct VariantTypeMetaConstructor<OpTypeList<OpTys...>> {
-    using type = std::variant<OpTys...>;
-  };
-
-
-  using StoreVariant = VariantTypeMetaConstructor<SupportedOpTypes>::type;
+  using StoreVariant = SupportedOpTypes::VariantT;
 
   template <class TypeList>
   struct ConstructionResolver;
@@ -154,7 +147,6 @@ struct DRWrite {
   template <class... OpTys>
   struct ConstructionResolver<OpTypeList<OpTys...>> {
     static StoreVariant resolve(mlir::Operation *op) {
-
       StoreVariant result;
 
       bool success = ([&result](mlir::Operation *op) -> bool {
