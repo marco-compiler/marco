@@ -394,7 +394,6 @@ private:
   mlir::SymbolTableCollection &symTabCollection;
 
 public:
-
   using Self = DRLoadTracer;
 
   using SupportedLoadOpTypes =
@@ -402,11 +401,10 @@ public:
 
   using TraceResultTy = DRMemrefTracer::TraceResultTy;
 
-  DRLoadTracer( mlir::MLIRContext *context, mlir::ModuleOp moduleOp,
-  mlir::SymbolTableCollection &symTabCollection
-  ) : context{context}, moduleOp{moduleOp}, symTabCollection{symTabCollection} {}
-
-
+  DRLoadTracer(mlir::MLIRContext *context, mlir::ModuleOp moduleOp,
+               mlir::SymbolTableCollection &symTabCollection)
+      : context{context}, moduleOp{moduleOp},
+        symTabCollection{symTabCollection} {}
 
   /// Dispatch helper. The static member infrastructure
   /// takes care of efficient dispatch.
@@ -415,10 +413,8 @@ public:
     return Self::trace(op, context, moduleOp, symTabCollection);
   }
 
-
   ///===== STATIC MEMBERS ====== //
 public:
-
   /// A variadic dispatch. Will try to cast each supported type in order, and
   /// dispatch to the correct instance.
   template <class... Tys>
@@ -445,33 +441,31 @@ public:
 
   static TraceResultTy
   traceDispatcher(mlir::Operation *op, mlir::MLIRContext *context,
-                      mlir::ModuleOp moduleOp,
-                      mlir::SymbolTableCollection &symTabCollection,
-                      SupportedLoadOpTypes opTys = {}) {
-    return traceDispatcherImpl(op, context, moduleOp, symTabCollection,
-                                   opTys);
+                  mlir::ModuleOp moduleOp,
+                  mlir::SymbolTableCollection &symTabCollection,
+                  SupportedLoadOpTypes opTys = {}) {
+    return traceDispatcherImpl(op, context, moduleOp, symTabCollection, opTys);
   }
 
-  static TraceResultTy
-  trace(mlir::Operation *op, mlir::MLIRContext *context,
-            mlir::ModuleOp moduleOp,
-            mlir::SymbolTableCollection &symTabCollection) {
+  static TraceResultTy trace(mlir::Operation *op, mlir::MLIRContext *context,
+                             mlir::ModuleOp moduleOp,
+                             mlir::SymbolTableCollection &symTabCollection) {
     return traceDispatcher(op, context, moduleOp, symTabCollection);
   }
 
-  static TraceResultTy
-  trace(mlir::memref::LoadOp loadOp, mlir::MLIRContext *context,
-            mlir::ModuleOp moduleOp,
-            mlir::SymbolTableCollection &symTabCollection) {
+  static TraceResultTy trace(mlir::memref::LoadOp loadOp,
+                             mlir::MLIRContext *context,
+                             mlir::ModuleOp moduleOp,
+                             mlir::SymbolTableCollection &symTabCollection) {
     auto memref = loadOp.getMemref();
     return DRMemrefTracer::traceMemref(memref, context, moduleOp,
                                        symTabCollection);
   }
 
-  static TraceResultTy
-  trace(mlir::affine::AffineLoadOp loadOp, mlir::MLIRContext *context,
-            mlir::ModuleOp moduleOp,
-            mlir::SymbolTableCollection &symTabCollection) {
+  static TraceResultTy trace(mlir::affine::AffineLoadOp loadOp,
+                             mlir::MLIRContext *context,
+                             mlir::ModuleOp moduleOp,
+                             mlir::SymbolTableCollection &symTabCollection) {
     auto memref = loadOp.getMemref();
     return DRMemrefTracer::traceMemref(memref, context, moduleOp,
                                        symTabCollection);
@@ -486,17 +480,16 @@ private:
   mlir::SymbolTableCollection &symTabCollection;
 
 public:
-
   using Self = DRStoreTracer;
   using SupportedStoreOpTypes =
       OpTypeList<mlir::memref::StoreOp, mlir::affine::AffineStoreOp>;
 
   using TraceResultTy = DRMemrefTracer::TraceResultTy;
 
-  DRStoreTracer( mlir::MLIRContext *context, mlir::ModuleOp moduleOp,
-  mlir::SymbolTableCollection &symTabCollection
-  ) : context{context}, moduleOp{moduleOp}, symTabCollection{symTabCollection} {}
-
+  DRStoreTracer(mlir::MLIRContext *context, mlir::ModuleOp moduleOp,
+                mlir::SymbolTableCollection &symTabCollection)
+      : context{context}, moduleOp{moduleOp},
+        symTabCollection{symTabCollection} {}
 
   /// Dispatch helper. The static member infrastructure
   /// takes care of efficient dispatch.
@@ -505,9 +498,8 @@ public:
     return Self::trace(op, context, moduleOp, symTabCollection);
   }
 
-///===== STATIC MEMBERS ====== //
+  ///===== STATIC MEMBERS ====== //
 public:
-
   /// A variadic dispatch. Will try to cast each supported type in order, and
   /// dispatch to the correct instance.
   template <class... Tys>
@@ -534,37 +526,182 @@ public:
 
   static TraceResultTy
   traceDispatcher(mlir::Operation *op, mlir::MLIRContext *context,
-                       mlir::ModuleOp moduleOp,
-                       mlir::SymbolTableCollection &symTabCollection,
-                       SupportedStoreOpTypes opTys = {}) {
-    return traceDispatcherImpl(op, context, moduleOp, symTabCollection,
-                                    opTys);
+                  mlir::ModuleOp moduleOp,
+                  mlir::SymbolTableCollection &symTabCollection,
+                  SupportedStoreOpTypes opTys = {}) {
+    return traceDispatcherImpl(op, context, moduleOp, symTabCollection, opTys);
   }
 
-  static TraceResultTy
-  trace(mlir::Operation *op, mlir::MLIRContext *context,
-             mlir::ModuleOp moduleOp,
-             mlir::SymbolTableCollection &symTabCollection) {
+  static TraceResultTy trace(mlir::Operation *op, mlir::MLIRContext *context,
+                             mlir::ModuleOp moduleOp,
+                             mlir::SymbolTableCollection &symTabCollection) {
     return traceDispatcher(op, context, moduleOp, symTabCollection);
   }
 
-  static TraceResultTy
-  trace(mlir::memref::StoreOp storeOp, mlir::MLIRContext *context,
-             mlir::ModuleOp moduleOp,
-             mlir::SymbolTableCollection &symTabCollection) {
+  static TraceResultTy trace(mlir::memref::StoreOp storeOp,
+                             mlir::MLIRContext *context,
+                             mlir::ModuleOp moduleOp,
+                             mlir::SymbolTableCollection &symTabCollection) {
     auto memref = storeOp.getMemref();
     return DRMemrefTracer::traceMemref(memref, context, moduleOp,
                                        symTabCollection);
   }
 
-  static TraceResultTy
-  trace(mlir::affine::AffineStoreOp storeOp, mlir::MLIRContext *context,
-             mlir::ModuleOp moduleOp,
-             mlir::SymbolTableCollection &symTabCollection) {
+  static TraceResultTy trace(mlir::affine::AffineStoreOp storeOp,
+                             mlir::MLIRContext *context,
+                             mlir::ModuleOp moduleOp,
+                             mlir::SymbolTableCollection &symTabCollection) {
     auto memref = storeOp.getMemref();
     return DRMemrefTracer::traceMemref(memref, context, moduleOp,
                                        symTabCollection);
   }
+};
+
+struct CallGraphNode;
+
+// bool operator==(const CallGraphNode &, const CallGraphNode &);
+
+// TODO(Tor): Add argument value / op set?
+/// Represents a call from one function to another
+struct CallGraphEdge {
+  mlir::func::FuncOp caller;
+  mlir::func::FuncOp callee;
+  CallGraphNode *targetNode;
+
+  friend bool operator==(const CallGraphEdge &lhs, const CallGraphEdge &rhs) {
+    CallGraphEdge *ncLHS = const_cast<CallGraphEdge *>(&lhs);
+    CallGraphEdge *ncRHS = const_cast<CallGraphEdge *>(&rhs);
+
+    return ncLHS->caller == ncRHS->caller
+        && ncLHS->callee == ncRHS->callee;
+  }
+
+  bool isEqualTo(const CallGraphEdge &other) const {
+    return *this == other;
+  }
+};
+
+struct CallGraphNode {
+
+  explicit CallGraphNode(mlir::func::FuncOp funcOp) : funcOp{funcOp}, edges{} {}
+
+  friend bool operator==(const CallGraphNode &lhs, mlir::func::FuncOp rhs) {
+    return lhs.funcOp == rhs;
+  }
+
+  friend bool operator==(const CallGraphNode &lhs, const CallGraphNode &rhs) {
+    return lhs.funcOp == rhs.funcOp;
+  }
+
+  bool findEdgesTo(const CallGraphNode &otherNode,
+                   ::mlir::SmallVectorImpl<CallGraphEdge *> &resEdges) {
+
+    llvm::for_each(edges, [&](CallGraphEdge &edge) {
+      if (edge.callee == otherNode.funcOp) {
+        resEdges.emplace_back(&edge);
+      }
+    });
+
+    return !resEdges.empty();
+  }
+
+  void clear() {
+    edges.clear();
+  }
+
+  /// The function this node represents
+  mlir::func::FuncOp funcOp;
+
+  bool isEqualTo(const CallGraphNode &other) const {
+    return ::mlir::operator==(funcOp, other.funcOp);
+  }
+
+  bool addEdge(CallGraphEdge &edge) {
+    edges.emplace_back(edge);
+    return true;
+  }
+
+  void removeEdge(CallGraphEdge &edge) {
+    // Use erase as it is stable.
+    // Erase-remove if not necessary.
+    llvm::erase_if(
+        edges, [&edge](CallGraphEdge &other) { return other.isEqualTo(edge); });
+  }
+
+  llvm::SmallVector<CallGraphEdge> edges;
+};
+
+class CallGraphNew : public llvm::DirectedGraph<CallGraphNode, CallGraphEdge> {
+
+  using StorageTy = llvm::SmallVector<CallGraphNode, 10>;
+  using Base = llvm::DirectedGraph<CallGraphNode, CallGraphEdge>;
+
+  using iterator = StorageTy::iterator;
+  using const_iterator = StorageTy::const_iterator;
+
+public:
+  iterator findNodeByOp(mlir::func::FuncOp funcOp) {
+    return llvm::find(nodeStorage, funcOp);
+  }
+
+  bool addNodeByFuncOp(mlir::func::FuncOp funcOp) {
+    if (findNodeByOp(funcOp) != nodeStorage.end()) {
+      return false;
+    }
+    auto &node = nodeStorage.emplace_back(funcOp);
+    Nodes.emplace_back(&node);
+
+    return true;
+  }
+
+  void removeNode(mlir::func::FuncOp funcOp) {
+    // Remove the pointer first
+    iterator storedNode = llvm::find_if(
+        nodeStorage, [&](CallGraphNode &n) { return n == funcOp; });
+    if (storedNode == nodeStorage.end()) {
+      return;
+    }
+
+    // Found it, now get its pointer
+    this->Base::removeNode(*storedNode);
+    llvm::erase(nodeStorage, funcOp);
+  }
+
+  bool connect(mlir::func::FuncOp caller, mlir::func::FuncOp callee)
+  {
+    // Check if funcOp exists
+    addNodeByFuncOp(caller);
+    addNodeByFuncOp(callee);
+
+    auto *first = findNodeByOp(caller);
+    auto *second = findNodeByOp(callee);
+
+    CallGraphEdge edge{};
+    edge.targetNode = second;
+    edge.caller = caller;
+    edge.callee = callee;
+    return Base::connect(*first, *second, edge);
+  }
+
+  llvm::SmallVector<CallGraphEdge *> getCallers(mlir::func::FuncOp funcOp) {
+    // Find the node
+    auto *iterNode = llvm::find(nodeStorage, funcOp);
+    if ( iterNode == nodeStorage.end() ) {
+      return {};
+    }
+
+    llvm::SmallVector<CallGraphEdge *> edges;
+    findIncomingEdgesToNode(*iterNode, edges);
+
+    return edges;
+  }
+
+  iterator begin() { return nodeStorage.begin(); }
+  iterator end() { return nodeStorage.end(); }
+  const_iterator begin() const { return nodeStorage.begin(); }
+  const_iterator end() const { return nodeStorage.end(); }
+
+  StorageTy nodeStorage;
 };
 
 struct CallInfo {
@@ -617,13 +754,13 @@ struct DenseMapInfo<::mlir::bmodelica::detail::DRLoad> {
   static constexpr mlir::Operation *getTombstoneKey() {
     return std::numeric_limits<mlir::Operation *>::max();
   }
-  static unsigned getHashValue(const KeyT &Val) {
+  static unsigned getHashValue(const KeyT &val) {
     return DenseMapInfo<mlir::Operation *>::getHashValue(
-        static_cast<mlir::Operation *>(Val));
+        static_cast<mlir::Operation *>(val));
   }
-  static bool isEqual(const KeyT &LHS, const KeyT &RHS) {
-    return static_cast<mlir::Operation *>(LHS) ==
-           static_cast<mlir::Operation *>(RHS);
+  static bool isEqual(const KeyT &lhs, const KeyT &rhs) {
+    return static_cast<mlir::Operation *>(lhs) ==
+           static_cast<mlir::Operation *>(rhs);
   }
 };
 
@@ -634,13 +771,13 @@ struct DenseMapInfo<::mlir::bmodelica::detail::DRWrite> {
   static constexpr mlir::Operation *getTombstoneKey() {
     return std::numeric_limits<mlir::Operation *>::max();
   }
-  static unsigned getHashValue(const KeyT &Val) {
+  static unsigned getHashValue(const KeyT &val) {
     return DenseMapInfo<mlir::Operation *>::getHashValue(
-        static_cast<mlir::Operation *>(Val));
+        static_cast<mlir::Operation *>(val));
   }
-  static bool isEqual(const KeyT &LHS, const KeyT &RHS) {
-    return static_cast<mlir::Operation *>(LHS) ==
-           static_cast<mlir::Operation *>(RHS);
+  static bool isEqual(const KeyT &lhs, const KeyT &rhs) {
+    return static_cast<mlir::Operation *>(lhs) ==
+           static_cast<mlir::Operation *>(rhs);
   }
 };
 
@@ -651,13 +788,13 @@ struct DenseMapInfo<::mlir::bmodelica::detail::DRAlloc> {
   static constexpr mlir::Operation *getTombstoneKey() {
     return std::numeric_limits<mlir::Operation *>::max();
   }
-  static unsigned getHashValue(const KeyT &Val) {
+  static unsigned getHashValue(const KeyT &val) {
     return DenseMapInfo<mlir::Operation *>::getHashValue(
-        static_cast<mlir::Operation *>(Val));
+        static_cast<mlir::Operation *>(val));
   }
-  static bool isEqual(const KeyT &LHS, const KeyT &RHS) {
-    return static_cast<mlir::Operation *>(LHS) ==
-           static_cast<mlir::Operation *>(RHS);
+  static bool isEqual(const KeyT &lhs, const KeyT &rhs) {
+    return static_cast<mlir::Operation *>(lhs) ==
+           static_cast<mlir::Operation *>(rhs);
   }
 };
 } // namespace llvm
@@ -682,7 +819,6 @@ private:
 
   FunctionWritesVec getFunctionWrites(mlir::func::FuncOp funcOp);
 
-
   /// A map of functions in the module
   llvm::DenseMap<mlir::StringRef, FuncOp> functionMap;
 
@@ -704,7 +840,7 @@ private:
 
   mlir::FailureOr<mlir::func::FuncOp> selectEntrypoint(mlir::ModuleOp moduleOp);
 
-  ::mlir::bmodelica::detail::CallGraph
+  ::mlir::bmodelica::detail::CallGraphNew
   buildCallGraph(mlir::ModuleOp moduleOp, mlir::func::FuncOp entrypointFuncOp,
                  mlir::SymbolTableCollection &symTabCollection);
 };
@@ -796,7 +932,6 @@ void DataRecomputationPass::runOnOperation() {
   moduleOp = this->getOperation();
   mlir::MLIRContext *context = &getContext();
   mlir::SymbolTableCollection symTabCollection{};
-
 
   DRLoadTracer loadTracer{context, moduleOp, symTabCollection};
   DRStoreTracer storeTracer{context, moduleOp, symTabCollection};
@@ -991,9 +1126,10 @@ DataRecomputationPass::identifyOpportunities(
   llvm::SmallSet<std::pair<mlir::func::FuncOp, mlir::func::FuncOp>, 8>
       visitSet{};
   auto report = identifyOpportunitiesAux(moduleOp, context, entrypointFuncOp,
-                                  symTabCollection, result, visitSet);
+                                         symTabCollection, result, visitSet);
 
-  if ( report.failed() ) return mlir::failure();
+  if (report.failed())
+    return mlir::failure();
   return result;
 }
 
@@ -1057,7 +1193,8 @@ mlir::LogicalResult DataRecomputationPass::identifyOpportunitiesAux(
       if (DRLoad::isLoadOp(op)) {
         // Trace it back
         // TODO(Tor): Segfaults
-        // auto [resChain, originOp] = DRLoadTracer::trace(op, context, moduleOp, symTabCollection);
+        // auto [resChain, originOp] = DRLoadTracer::trace(op, context,
+        // moduleOp, symTabCollection);
       }
     });
 
@@ -1096,7 +1233,7 @@ mlir::LogicalResult DataRecomputationPass::identifyOpportunitiesAux(
   return mlir::success();
 }
 
-::mlir::bmodelica::detail::CallGraph DataRecomputationPass::buildCallGraph(
+::mlir::bmodelica::detail::CallGraphNew DataRecomputationPass::buildCallGraph(
     mlir::ModuleOp moduleOp, mlir::func::FuncOp entrypointFuncOp,
     mlir::SymbolTableCollection &symTabCollection) {
   llvm::SmallSet<mlir::func::FuncOp, 8> visitedSet{};
@@ -1104,7 +1241,7 @@ mlir::LogicalResult DataRecomputationPass::identifyOpportunitiesAux(
 
   visitStack.emplace_back(entrypointFuncOp);
 
-  ::mlir::bmodelica::detail::CallGraph callGraph;
+  ::mlir::bmodelica::detail::CallGraphNew callGraph;
 
   while (!visitStack.empty()) {
     llvm::SmallVector<mlir::func::FuncOp, 4> nestedCallees{};
@@ -1117,7 +1254,7 @@ mlir::LogicalResult DataRecomputationPass::identifyOpportunitiesAux(
 
     // Mark visited
     visitedSet.insert(currentFuncOp);
-    callGraph.addNode(currentFuncOp);
+    callGraph.addNodeByFuncOp(currentFuncOp);
 
     currentFuncOp.walk([&](mlir::Operation *op) {
       if (auto callOpInterface = mlir::dyn_cast<mlir::CallOpInterface>(op)) {
@@ -1139,20 +1276,29 @@ mlir::LogicalResult DataRecomputationPass::identifyOpportunitiesAux(
     });
 
     llvm::for_each(nestedCallees, [&](mlir::func::FuncOp funcOp) {
+      assert(funcOp != currentFuncOp && "Whaat");
       callGraph.connect(currentFuncOp, funcOp);
     });
   }
 
-  llvm::for_each(callGraph, [&callGraph](mlir::func::FuncOp funcOp) {
-    auto callees = callGraph.getCallers(funcOp);
+  llvm::for_each(callGraph, [&callGraph](CallGraphNode &node) {
 
-    MARCO_DBG() << funcOp.getName() << " is called by " << callees.size()
-                << " functions:\n";
+    auto callers = callGraph.getCallers(node.funcOp);
 
-    for (auto &callee : callees) {
-      MARCO_DBG() << "-- " << callee.getName() << "\n";
+    for ( auto *caller : callers ) {
+      MARCO_DBG() << node.funcOp.getName() << " is called by: " << caller->caller.getName() << "\n";
     }
+
+    //auto callees = callGraph.getCallers(funcOp);
+
+    // MARCO_DBG() << funcOp.getName() << " is called by " << callees.size()
+    //             << " functions:\n";
+
+    // for (auto &callee : callees) {
+    //   MARCO_DBG() << "-- " << callee.getName() << "\n";
+    // }
   });
+
 
   return callGraph;
 }
