@@ -1053,10 +1053,10 @@ void DataRecomputationPass::runOnOperation() {
         reinterpretExpressions;
 
     // NOTE(TOR): DEBUG OUTPUT
-    if (auto globalOp = mlir::dyn_cast<mlir::memref::GlobalOp>(
-            memrefStoreToOriginOp[storeOp])) {
-      MARCO_DBG() << "Traced a memref back to " << globalOp.getName() << "\n";
-    }
+    // if (auto globalOp = mlir::dyn_cast<mlir::memref::GlobalOp>(
+    //         memrefStoreToOriginOp[storeOp])) {
+    //   MARCO_DBG() << "Traced a memref back to " << globalOp.getName() << "\n";
+    // }
 
     for (auto &[storeOp, chain] : memrefStoreToOriginChain) {
       for (auto *op : chain) {
@@ -1109,7 +1109,6 @@ void DataRecomputationPass::runOnOperation() {
   });
 
   if (entrypointFuncOp) {
-
     auto callGraph =
         buildCallGraph(context, moduleOp, entrypointFuncOp, symTabCollection);
 
@@ -1327,18 +1326,19 @@ mlir::LogicalResult DataRecomputationPass::identifyOpportunitiesAux(
     auto &calleeFuncOp = currentCallSite.second;
     visitStack.pop_back();
 
-    // Skip the already visited function
-    if (visitedSet.contains(std::make_pair(callerFuncOp, calleeFuncOp)))
-      continue;
-
 
     MARCO_DBG() << "Handling arc from " << callerFuncOp.getName() << " to " << calleeFuncOp.getName() << "\n";
+    // Skip the already visited function
+    if (visitedSet.contains(std::make_pair(callerFuncOp, calleeFuncOp))) {
+      MARCO_DBG() << "Arc already seen! Skipping iteration\n";
+      continue;
+    }
 
     // Mark visited
     visitedSet.insert(std::make_pair(callerFuncOp, calleeFuncOp));
     callGraph.addNodeByFuncOp(callerFuncOp);
 
-    callerFuncOp.walk([&](mlir::CallOpInterface callOpInterface) {
+    calleeFuncOp.walk([&](mlir::CallOpInterface callOpInterface) {
         auto callable = callOpInterface.getCallableForCallee();
 
         // TODO(Tor): Investigate parameter list
@@ -1358,6 +1358,7 @@ mlir::LogicalResult DataRecomputationPass::identifyOpportunitiesAux(
             callGraph.connectEnriched(calleeFuncOp, nestedCalleeFuncOp, std::move(bindings));
 
             // TODO(Tor): Debug why the same arcs are investigated multiple times.
+            MARCO_DBG() << "Pushing (" << calleeFuncOp.getName() << ", " << nestedCalleeFuncOp.getName() << ") onto the stack\n";
             visitStack.push_back(std::make_pair(calleeFuncOp, nestedCalleeFuncOp));
           } else if (calleeOp->getName().getStringRef() == llvm::StringRef{"runtime.function"}) {
             // TODO(Tor): This is incredibly hacky. For the time being, add the runtime dialect as a
