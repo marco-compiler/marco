@@ -471,6 +471,10 @@ def DataRecomputationPass : Pass<"data-recomputation", "mlir::ModuleOp">
     // TODO
   }];
 
+  let options = [
+    Option<"drTestDiagnostics", "dr-test-diagnostics", "bool", "false", "Enables test output">
+  ];
+
   let dependentDialects = [
     "memref::MemRefDialect", "vector::VectorDialect", "affine::AffineDialect", "ptr::PtrDialect"
   ];
