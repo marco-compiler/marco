@@ -66,7 +66,7 @@ def Runtime_SchedulerOp : Runtime_Op<"scheduler",
     let assemblyFormat = "$sym_name attr-dict";
 }
 
-def Runtime_SchedulerCreateOp : Runtime_Op<"scheduler_create",
+def Runtime_SchedulerCreateOp : Runtime_Op<"scheduler.create",
     [MemoryEffects<[MemWrite]>]>
 {
     let summary = "Create a scheduler instance.";
@@ -77,7 +77,7 @@ def Runtime_SchedulerCreateOp : Runtime_Op<"scheduler_create",
         Example:
 
         ```mlir
-        runtime.scheduler_create @scheduler
+        runtime.scheduler.create @scheduler
         ```
     }];
 
@@ -86,7 +86,7 @@ def Runtime_SchedulerCreateOp : Runtime_Op<"scheduler_create",
     let assemblyFormat = "$scheduler attr-dict";
 }
 
-def Runtime_SchedulerDestroyOp : Runtime_Op<"scheduler_destroy",
+def Runtime_SchedulerDestroyOp : Runtime_Op<"scheduler.destroy",
     [MemoryEffects<[MemWrite]>]>
 {
     let summary = "Destroy a scheduler instance.";
@@ -97,7 +97,7 @@ def Runtime_SchedulerDestroyOp : Runtime_Op<"scheduler_destroy",
         Example:
 
         ```mlir
-        runtime.scheduler_destroy @scheduler
+        runtime.scheduler.destroy @scheduler
         ```
     }];
 
@@ -106,7 +106,7 @@ def Runtime_SchedulerDestroyOp : Runtime_Op<"scheduler_destroy",
     let assemblyFormat = "$scheduler attr-dict";
 }
 
-def Runtime_SchedulerAddEquationOp : Runtime_Op<"scheduler_add_equation",
+def Runtime_SchedulerAddEquationOp : Runtime_Op<"scheduler.add_equation",
     [MemoryEffects<[MemWrite]>]>
 {
     let summary = "Add an equation to a scheduler.";
@@ -118,7 +118,7 @@ def Runtime_SchedulerAddEquationOp : Runtime_Op<"scheduler_add_equation",
         Example:
 
         ```mlir
-        runtime.scheduler_add_equation @scheduler {ranges : #modeling<multidim_range [0,7][0,13]>}
+        runtime.scheduler.add_equation @scheduler {ranges : #modeling<multidim_range [0,7][0,13]>}
         ```
     }];
 
@@ -132,7 +132,7 @@ def Runtime_SchedulerAddEquationOp : Runtime_Op<"scheduler_add_equation",
     let assemblyFormat = "$scheduler `,` $function custom<SchedulerEquationIndices>($indices) attr-dict";
 }
 
-def Runtime_SchedulerRunOp : Runtime_Op<"scheduler_run",
+def Runtime_SchedulerRunOp : Runtime_Op<"scheduler.run",
     [MemoryEffects<[MemWrite]>]>
 {
     let summary = "Run the equations owned by a scheduler.";
@@ -143,7 +143,7 @@ def Runtime_SchedulerRunOp : Runtime_Op<"scheduler_run",
         Example:
 
         ```mlir
-        runtime.run @scheduler
+        runtime.scheduler.run @scheduler
         ```
     }];
 

@@ -4,7 +4,7 @@
 // CHECK-NEXT:      bmodelica.dynamic {
 // CHECK-NEXT:          bmodelica.parallel_schedule_blocks {
 // CHECK-NEXT:              bmodelica.schedule_block writtenVariables = [@x, @y], readVariables = [] {
-// CHECK-NEXT:                  runtime.scheduler_run @[[scheduler:.*]]
+// CHECK-NEXT:                  runtime.scheduler.run @[[scheduler:.*]]
 // CHECK-NEXT:              }
 // CHECK-NEXT:          }
 // CHECK-NEXT:      }
@@ -13,9 +13,9 @@
 // CHECK:       runtime.scheduler @[[scheduler]]
 
 // CHECK:       runtime.dynamic_model_begin {
-// CHECK-NEXT:      runtime.scheduler_create @[[scheduler]]
-// CHECK-NEXT:      runtime.scheduler_add_equation @[[scheduler]], @[[equation_0_wrapper:.*]] {}
-// CHECK-NEXT:      runtime.scheduler_add_equation @[[scheduler]], @[[equation_1_wrapper:.*]] {}
+// CHECK-NEXT:      runtime.scheduler.create @[[scheduler]]
+// CHECK-NEXT:      runtime.scheduler.add_equation @[[scheduler]], @[[equation_0_wrapper:.*]] {}
+// CHECK-NEXT:      runtime.scheduler.add_equation @[[scheduler]], @[[equation_1_wrapper:.*]] {}
 // CHECK-NEXT:  }
 
 // CHECK:       runtime.equation_function @[[equation_0_wrapper]]() {
@@ -29,7 +29,7 @@
 // CHECK-NEXT:  }
 
 // CHECK:       runtime.dynamic_model_end {
-// CHECK-NEXT:      runtime.scheduler_destroy @[[scheduler]]
+// CHECK-NEXT:      runtime.scheduler.destroy @[[scheduler]]
 // CHECK-NEXT:  }
 
 module {

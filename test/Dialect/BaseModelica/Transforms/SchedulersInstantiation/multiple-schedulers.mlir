@@ -4,12 +4,12 @@
 // CHECK-NEXT:      bmodelica.dynamic {
 // CHECK-NEXT:          bmodelica.parallel_schedule_blocks {
 // CHECK-NEXT:              bmodelica.schedule_block writtenVariables = [<@x, {[0,9]}>], readVariables = [] {
-// CHECK-NEXT:                  runtime.scheduler_run @[[scheduler_0:.*]]
+// CHECK-NEXT:                  runtime.scheduler.run @[[scheduler_0:.*]]
 // CHECK-NEXT:              }
 // CHECK-NEXT:          }
 // CHECK-NEXT:          bmodelica.parallel_schedule_blocks {
 // CHECK-NEXT:              bmodelica.schedule_block writtenVariables = [<@y, {[0,9]}>], readVariables = [] {
-// CHECK-NEXT:                  runtime.scheduler_run @[[scheduler_1:.*]]
+// CHECK-NEXT:                  runtime.scheduler.run @[[scheduler_1:.*]]
 // CHECK-NEXT:              }
 // CHECK-NEXT:          }
 // CHECK-NEXT:      }
@@ -18,8 +18,8 @@
 // CHECK:       runtime.scheduler @[[scheduler_0]]
 
 // CHECK:       runtime.dynamic_model_begin {
-// CHECK-NEXT:      runtime.scheduler_create @[[scheduler_0]]
-// CHECK-NEXT:      runtime.scheduler_add_equation @[[scheduler_0]], @[[equation_0_wrapper:.*]] {[0,9]}
+// CHECK-NEXT:      runtime.scheduler.create @[[scheduler_0]]
+// CHECK-NEXT:      runtime.scheduler.add_equation @[[scheduler_0]], @[[equation_0_wrapper:.*]] {[0,9]}
 // CHECK-NEXT:  }
 
 // CHECK:       runtime.equation_function @[[equation_0_wrapper]](%[[i0_lb:.*]]: index, %[[i0_ub:.*]]: index) {
@@ -28,14 +28,14 @@
 // CHECK-NEXT:  }
 
 // CHECK:       runtime.dynamic_model_end {
-// CHECK-NEXT:      runtime.scheduler_destroy @[[scheduler_0]]
+// CHECK-NEXT:      runtime.scheduler.destroy @[[scheduler_0]]
 // CHECK-NEXT:  }
 
 // CHECK:       runtime.scheduler @[[scheduler_1]]
 
 // CHECK:       runtime.dynamic_model_begin {
-// CHECK-NEXT:      runtime.scheduler_create @[[scheduler_1]]
-// CHECK-NEXT:      runtime.scheduler_add_equation @[[scheduler_1]], @[[equation_1_wrapper:.*]] {[0,9]}
+// CHECK-NEXT:      runtime.scheduler.create @[[scheduler_1]]
+// CHECK-NEXT:      runtime.scheduler.add_equation @[[scheduler_1]], @[[equation_1_wrapper:.*]] {[0,9]}
 // CHECK-NEXT:  }
 
 // CHECK:       runtime.equation_function @[[equation_1_wrapper]](%[[i0_lb:.*]]: index, %[[i0_ub:.*]]: index) {
@@ -44,7 +44,7 @@
 // CHECK-NEXT:  }
 
 // CHECK:       runtime.dynamic_model_end {
-// CHECK-NEXT:      runtime.scheduler_destroy @[[scheduler_1]]
+// CHECK-NEXT:      runtime.scheduler.destroy @[[scheduler_1]]
 // CHECK-NEXT:  }
 
 module {
