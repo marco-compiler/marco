@@ -15,11 +15,8 @@ module {
 
   func.func @main() attributes{} {
     %alloc = memref.get_global @mystuff : memref<32xi32>
-
     %c1 = arith.constant 1 : i32
-
     %idx = arith.constant 1 : index
-
     memref.store %c1, %alloc[%idx] : memref<32xi32>
 
     %res = func.call @consumes_memref(%c1, %alloc) : (i32, memref<32xi32>) -> i32
