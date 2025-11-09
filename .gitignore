@@ -103,3 +103,6 @@ sundials_libraries/sundials*
 # Doxygen
 docs/html/
 docs/latex/
+
+# macOS
+.DS_Store
