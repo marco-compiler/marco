@@ -1,5 +1,11 @@
 // RUN: modelica-opt %s --pass-pipeline='builtin.module(data-recomputation{dr-test-diagnostics})' | FileCheck %s
 
+// CHECK: Write: memref.store %c1_i32, %[[memref:.*]][%c1] : memref<32xi32>
+// CHECK-NEXT: Load:
+// CHECK-SAME: memref.load{{.*}}
+// CHECK-NEXT: Origin Allocation
+// CHECK-SAME: memref.global @mystuff{{.*}}
+
 module {
   memref.global @mystuff : memref<32xi32> = uninitialized
 
@@ -12,7 +18,7 @@ module {
         offset: [2], sizes: [32], strides: [0]
         : memref<32xi32> to memref<32xi32, strided<[0], offset: 2>>
 
-    memref.store %val, %reinterpret_cast[%idxt] : memref<32xi32, strided<[0], offset: 2>>
+    %loaded_val = memref.load %reinterpret_cast[%idxt] : memref<32xi32, strided<[0], offset: 2>>
 
     return %cst1 : i32
   }
@@ -24,7 +30,6 @@ module {
     memref.store %c1, %alloc[%idx] : memref<32xi32>
 
     %res = func.call @consumes_memref(%c1, %alloc) : (i32, memref<32xi32>) -> i32
-
 
     return
   }
