@@ -375,10 +375,10 @@ struct DRMemrefTracer {
     // Walk it back to where the memref originated
     auto *definingOp = memrefValue.getDefiningOp();
 
+    // Handle the case where the value is directly sourced from a block argument
     if ( definingOp == nullptr ) {
-      MARCO_DBG() << "Defining op is NULL\n";
-    } else {
-      definingOp->dump();
+      // Return the value from the trace
+      return std::make_pair(memrefChain, memrefValue);
     }
 
     memrefChain.emplace_back(definingOp);
@@ -1365,7 +1365,6 @@ mlir::LogicalResult DataRecomputationPass::findOpportunitiesAux(
         if ( auto valueOpt = traceResult.getValue() ) {
           auto value = valueOpt.value();
           if ( auto arg = mlir::dyn_cast<mlir::BlockArgument>(value) ) {
-            MARCO_DBG() << "RESOLVING STORE ARGUMENT MEMREF\n";
             resolvedOriginOp = callGraph.resolveBlockArgument(arg, inboundFuncOp);
           }
 
@@ -1392,7 +1391,6 @@ mlir::LogicalResult DataRecomputationPass::findOpportunitiesAux(
         if ( auto valueOpt = originOp.getValue() ) {
           auto value = valueOpt.value();
           if ( auto arg = mlir::dyn_cast<mlir::BlockArgument>(value) ) {
-            MARCO_DBG() << "RESOLVING LOAD ARGUMENT MEMREF\n";
             resolvedOriginOp = callGraph.resolveBlockArgument(arg, inboundFuncOp);
           }
         } else if ( auto opOpt = originOp.getOperation() ) {
@@ -1443,9 +1441,6 @@ mlir::LogicalResult DataRecomputationPass::findOpportunitiesAux(
         return mlir::failure();
         // llvm_unreachable("Loop-bound function calls are not handled");
       }
-
-      MARCO_DBG() << "Nested function call to " << callableSymbol
-                  << " is NOT inside a loop!\n";
     }
   }
 
