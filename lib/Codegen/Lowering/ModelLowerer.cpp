@@ -146,6 +146,11 @@ bool ModelLowerer::lower(const ast::bmodelica::Model &model) {
     }
   }
 
+  // Lower experiment annotation
+  if (!lowerExperimentAnnotation(modelOp, model)) {
+    return false;
+  }
+
   return true;
 }
 
@@ -267,6 +272,86 @@ bool ModelLowerer::lowerVariableAttributes(
     }
   }
 
+  return true;
+}
+
+bool ModelLowerer::lowerExperimentAnnotation(
+    mlir::bmodelica::ModelOp modelOp, const ast::bmodelica::Model &model) {
+  if (!model.hasAnnotation()) {
+    return true;
+  }
+
+  const auto *const annotation = model.getAnnotation();
+  const auto *const classModification = annotation->getProperties();
+
+  std::optional<double> startTime, stopTime;
+  for (const auto &argumentNode : classModification->getArguments()) {
+    const auto *const elementModification =
+        argumentNode->cast<ast::bmodelica::Argument>()
+            ->dyn_cast<ast::bmodelica::ElementModification>();
+
+    if (!elementModification) {
+      continue;
+    }
+    if (elementModification->getName() != "experiment") {
+      continue;
+    }
+    if (!elementModification->hasModification()) {
+      continue;
+    }
+
+    const auto *const experimentModification =
+        elementModification->getModification();
+    if (!experimentModification->hasClassModification()) {
+      continue;
+    }
+    const auto *const experimentClassModification =
+        experimentModification->getClassModification();
+
+    for (const auto &experimentArgumentNode :
+         experimentClassModification->getArguments()) {
+      const auto *const argument =
+          experimentArgumentNode->cast<ast::bmodelica::Argument>()
+              ->dyn_cast<ast::bmodelica::ElementModification>();
+
+      const auto argumentName = argument->getName();
+      if (argumentName != "StartTime" && argumentName != "StopTime") {
+        continue;
+      }
+
+      if (!argument->hasModification()) {
+        continue;
+      }
+      const auto *const argumentModification = argument->getModification();
+
+      if (!argumentModification->hasExpression()) {
+        continue;
+      }
+      const auto *const constant = argumentModification->getExpression()
+                                       ->dyn_cast<ast::bmodelica::Constant>();
+      if (!constant) {
+        continue;
+      }
+
+      const auto value = constant->as<double>();
+      if (argumentName == "StartTime") {
+        startTime = value;
+      } else if (argumentName == "StopTime") {
+        stopTime = value;
+      }
+    }
+  }
+
+  if (startTime.has_value()) {
+    modelOp->setAttr(modelOp.getExperimentStartTimeAttrName(),
+                     builder().getF64FloatAttr(startTime.value()));
+  }
+  if (stopTime.has_value()) {
+    modelOp->setAttr(modelOp.getExperimentEndTimeAttrName(),
+                     builder().getF64FloatAttr(stopTime.value()));
+  }
+
+  // TODO: actually handle errors; right now we are *very* permissive
   return true;
 }
 } // namespace marco::codegen::lowering::bmodelica

@@ -7,6 +7,7 @@
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/IR/IRMapping.h"
 #include "mlir/Transforms/DialectConversion.h"
+#include <functional>
 
 namespace mlir {
 #define GEN_PASS_DEF_RUNTIMETOFUNCCONVERSIONPASS
@@ -52,6 +53,22 @@ protected:
     return builder.create<mlir::LLVM::GEPOp>(
         loc, mlir::LLVM::LLVMPointerType::get(builder.getContext()), type,
         globalPtr, llvm::ArrayRef<mlir::LLVM::GEPArg>{0, 0});
+  }
+
+  void createConstantFunc(
+      mlir::OpBuilder &builder, mlir::Location loc, llvm::StringRef name,
+      mlir::Type returnType,
+      std::function<mlir::Value(mlir::OpBuilder &, mlir::Location)>
+          valueConstructor) const {
+    mlir::OpBuilder::InsertionGuard guard(builder);
+
+    auto funcType = builder.getFunctionType({}, returnType);
+    auto funcOp = builder.create<mlir::func::FuncOp>(loc, name, funcType);
+    mlir::Block *entryBlock = funcOp.addEntryBlock();
+    builder.setInsertionPointToEnd(entryBlock);
+
+    auto value = valueConstructor(builder, loc);
+    builder.create<mlir::func::ReturnOp>(loc, value);
   }
 };
 } // namespace
@@ -163,6 +180,65 @@ public:
 
     rewriter.setInsertionPoint(terminator);
     rewriter.replaceOpWithNewOp<mlir::func::ReturnOp>(terminator);
+
+    rewriter.eraseOp(op);
+    return mlir::success();
+  }
+};
+
+class StartTimeOpLowering : public RuntimeOpRewritePattern<StartTimeOp> {
+public:
+  using RuntimeOpRewritePattern<StartTimeOp>::RuntimeOpRewritePattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(StartTimeOp op,
+                  mlir::PatternRewriter &rewriter) const override {
+
+    const auto isPresent = op.getStartTime().has_value();
+    createConstantFunc(
+        rewriter, op->getLoc(), "hasExperimentStartTime", rewriter.getI1Type(),
+        [&isPresent](auto &builder, auto loc) {
+          return builder.template create<mlir::arith::ConstantOp>(
+              loc, builder.getBoolAttr(isPresent));
+        });
+
+    const auto startTime =
+        isPresent ? op.getStartTime().value().convertToDouble() : 0;
+    createConstantFunc(
+        rewriter, op.getLoc(), "getExperimentStartTime", rewriter.getF64Type(),
+        [&startTime](auto &builder, auto loc) {
+          return builder.template create<mlir::arith::ConstantOp>(
+              loc, builder.getF64FloatAttr(startTime));
+        });
+
+    rewriter.eraseOp(op);
+    return mlir::success();
+  }
+};
+
+class EndTimeOpLowering : public RuntimeOpRewritePattern<EndTimeOp> {
+public:
+  using RuntimeOpRewritePattern<EndTimeOp>::RuntimeOpRewritePattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(EndTimeOp op,
+                  mlir::PatternRewriter &rewriter) const override {
+    const auto isPresent = op.getEndTime().has_value();
+    createConstantFunc(
+        rewriter, op->getLoc(), "hasExperimentEndTime", rewriter.getI1Type(),
+        [&isPresent](auto &builder, auto loc) {
+          return builder.template create<mlir::arith::ConstantOp>(
+              loc, builder.getBoolAttr(isPresent));
+        });
+
+    const auto endTime =
+        isPresent ? op.getEndTime().value().convertToDouble() : 0;
+    createConstantFunc(
+        rewriter, op->getLoc(), "getExperimentEndTime", rewriter.getF64Type(),
+        [&endTime](auto &builder, auto loc) {
+          return builder.template create<mlir::arith::ConstantOp>(
+              loc, builder.getF64FloatAttr(endTime));
+        });
 
     rewriter.eraseOp(op);
     return mlir::success();
@@ -475,8 +551,9 @@ mlir::LogicalResult RuntimeToFuncConversionPass::convertOps() {
   mlir::ConversionTarget target(getContext());
 
   target.addIllegalOp<VariableGetterOp, InitFunctionOp, DeinitFunctionOp,
-                      ICModelBeginOp, ICModelEndOp, DynamicModelBeginOp,
-                      DynamicModelEndOp, EquationFunctionOp, ReturnOp>();
+                      StartTimeOp, EndTimeOp, ICModelBeginOp, ICModelEndOp,
+                      DynamicModelBeginOp, DynamicModelEndOp,
+                      EquationFunctionOp, ReturnOp>();
 
   target.addDynamicallyLegalOp<FunctionOp>(
       [](FunctionOp op) { return op.isDeclaration(); });
@@ -486,11 +563,13 @@ mlir::LogicalResult RuntimeToFuncConversionPass::convertOps() {
 
   mlir::RewritePatternSet patterns(&getContext());
 
-  patterns.insert<VariableGetterOpLowering, InitFunctionOpLowering,
-                  DeinitFunctionOpLowering, ICModelBeginOpLowering,
-                  ICModelEndOpLowering, DynamicModelBeginOpLowering,
-                  DynamicModelEndOpLowering, EquationFunctionOpLowering,
-                  FunctionOpLowering, ReturnOpLowering>(&getContext());
+  patterns
+      .insert<VariableGetterOpLowering, InitFunctionOpLowering,
+              DeinitFunctionOpLowering, StartTimeOpLowering, EndTimeOpLowering,
+              ICModelBeginOpLowering, ICModelEndOpLowering,
+              DynamicModelBeginOpLowering, DynamicModelEndOpLowering,
+              EquationFunctionOpLowering, FunctionOpLowering, ReturnOpLowering>(
+          &getContext());
 
   return applyPartialConversion(getOperation(), target, std::move(patterns));
 }
