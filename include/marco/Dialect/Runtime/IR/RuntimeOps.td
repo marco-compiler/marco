@@ -529,6 +529,20 @@ def Runtime_YieldOp : Runtime_Op<"yield",
     ];
 }
 
+def Runtime_StartTimeOp : Runtime_Op<"start_time",
+    [HasParent<"mlir::ModuleOp">]>
+{
+    let arguments = (ins OptionalAttr<F64Attr>:$start_time);
+    let assemblyFormat = "($start_time^)? attr-dict";
+}
+
+def Runtime_EndTimeOp : Runtime_Op<"end_time",
+    [HasParent<"mlir::ModuleOp">]>
+{
+    let arguments = (ins OptionalAttr<F64Attr>:$end_time);
+    let assemblyFormat = "($end_time^)? attr-dict";
+}
+
 def Runtime_ICModelBeginOp : Runtime_Op<"ic_model_begin",
     [HasParent<"mlir::ModuleOp">,
     SingleBlock,
