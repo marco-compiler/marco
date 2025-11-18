@@ -202,7 +202,7 @@ public:
         });
 
     const auto startTime =
-        isPresent ? op.getStartTime().value().convertToDouble() : 0;
+        isPresent ? op.getStartTime().value().convertToDouble() : 0xDEADBEEF;
     createConstantFunc(
         rewriter, op.getLoc(), "getExperimentStartTime", rewriter.getF64Type(),
         [&startTime](auto &builder, auto loc) {
@@ -231,7 +231,7 @@ public:
         });
 
     const auto endTime =
-        isPresent ? op.getEndTime().value().convertToDouble() : 0;
+        isPresent ? op.getEndTime().value().convertToDouble() : 0xDEADBEEF;
     createConstantFunc(
         rewriter, op->getLoc(), "getExperimentEndTime", rewriter.getF64Type(),
         [&endTime](auto &builder, auto loc) {
