@@ -7,4 +7,4 @@
 // CHECK:           return %[[cst]] : i1
 // CHECK:       }
 
-runtime.start_time
+runtime.start_time unspecified

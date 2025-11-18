@@ -18,7 +18,7 @@ module @BothStartAndEndTime {
 
 // CHECK-LABEL: module @OnlyStartTime
 // CHECK:       runtime.start_time 5.000000e-01
-// CHECK:       runtime.end_time
+// CHECK:       runtime.end_time unspecified
 
 module @OnlyStartTime {
   bmodelica.model @Test attributes {
@@ -31,7 +31,7 @@ module @OnlyStartTime {
 // COM: Model with only end time annotation.
 
 // CHECK-LABEL: module @OnlyEndTime
-// CHECK:       runtime.start_time
+// CHECK:       runtime.start_time unspecified
 // CHECK:       runtime.end_time 2.000000e+00
 
 module @OnlyEndTime {
@@ -45,8 +45,8 @@ module @OnlyEndTime {
 // COM: Model without experiment annotations.
 
 // CHECK-LABEL: module @NoExperimentAnnotations
-// CHECK:       runtime.start_time
-// CHECK:       runtime.end_time
+// CHECK:       runtime.start_time unspecified
+// CHECK:       runtime.end_time unspecified
 
 module @NoExperimentAnnotations {
   bmodelica.model @Test {}
