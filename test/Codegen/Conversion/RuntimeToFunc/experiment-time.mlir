@@ -22,7 +22,7 @@ runtime.start_time 0.0
 // CHECK:           return %[[cst]] : i1
 // CHECK:       }
 
-runtime.start_time
+runtime.start_time unspecified
 
 // -----
 
@@ -48,7 +48,7 @@ runtime.end_time 1.0
 // CHECK:           return %[[cst]] : i1
 // CHECK:       }
 
-runtime.end_time
+runtime.end_time unspecified
 
 // -----
 
