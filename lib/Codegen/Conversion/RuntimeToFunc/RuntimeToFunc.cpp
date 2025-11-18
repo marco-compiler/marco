@@ -7,7 +7,6 @@
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/IR/IRMapping.h"
 #include "mlir/Transforms/DialectConversion.h"
-#include <functional>
 
 namespace mlir {
 #define GEN_PASS_DEF_RUNTIMETOFUNCCONVERSIONPASS
@@ -58,7 +57,7 @@ protected:
   void createConstantFunc(
       mlir::OpBuilder &builder, mlir::Location loc, llvm::StringRef name,
       mlir::Type returnType,
-      std::function<mlir::Value(mlir::OpBuilder &, mlir::Location)>
+      llvm::function_ref<mlir::Value(mlir::OpBuilder &, mlir::Location)>
           valueConstructor) const {
     mlir::OpBuilder::InsertionGuard guard(builder);
 
