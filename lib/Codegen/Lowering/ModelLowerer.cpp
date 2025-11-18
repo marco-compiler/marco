@@ -281,8 +281,9 @@ bool ModelLowerer::lowerExperimentAnnotation(
     return true;
   }
 
-  const auto *const annotation = model.getAnnotation();
-  const auto *const classModification = annotation->getProperties();
+  const ast::bmodelica::Annotation *const annotation = model.getAnnotation();
+  const ast::bmodelica::ClassModification *const classModification =
+      annotation->getProperties();
 
   std::optional<double> startTime, stopTime;
   for (const auto &argumentNode : classModification->getArguments()) {
@@ -300,12 +301,12 @@ bool ModelLowerer::lowerExperimentAnnotation(
       continue;
     }
 
-    const auto *const experimentModification =
+    const ast::bmodelica::Modification *const experimentModification =
         elementModification->getModification();
     if (!experimentModification->hasClassModification()) {
       continue;
     }
-    const auto *const experimentClassModification =
+    const ast::bmodelica::ClassModification *const experimentClassModification =
         experimentModification->getClassModification();
 
     for (const auto &experimentArgumentNode :
@@ -314,7 +315,7 @@ bool ModelLowerer::lowerExperimentAnnotation(
           experimentArgumentNode->cast<ast::bmodelica::Argument>()
               ->dyn_cast<ast::bmodelica::ElementModification>();
 
-      const auto argumentName = argument->getName();
+      const llvm::StringRef argumentName = argument->getName();
       if (argumentName != "StartTime" && argumentName != "StopTime") {
         continue;
       }
@@ -322,7 +323,8 @@ bool ModelLowerer::lowerExperimentAnnotation(
       if (!argument->hasModification()) {
         continue;
       }
-      const auto *const argumentModification = argument->getModification();
+      const ast::bmodelica::Modification *const argumentModification =
+          argument->getModification();
 
       if (!argumentModification->hasExpression()) {
         continue;
@@ -333,7 +335,7 @@ bool ModelLowerer::lowerExperimentAnnotation(
         continue;
       }
 
-      const auto value = constant->as<double>();
+      const double value = constant->as<double>();
       if (argumentName == "StartTime") {
         startTime = value;
       } else if (argumentName == "StopTime") {

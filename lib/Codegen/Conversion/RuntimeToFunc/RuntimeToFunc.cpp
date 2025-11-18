@@ -61,12 +61,13 @@ protected:
           valueConstructor) const {
     mlir::OpBuilder::InsertionGuard guard(builder);
 
-    auto funcType = builder.getFunctionType({}, returnType);
-    auto funcOp = builder.create<mlir::func::FuncOp>(loc, name, funcType);
+    mlir::FunctionType funcType = builder.getFunctionType({}, returnType);
+    mlir::func::FuncOp funcOp =
+        builder.create<mlir::func::FuncOp>(loc, name, funcType);
     mlir::Block *entryBlock = funcOp.addEntryBlock();
     builder.setInsertionPointToEnd(entryBlock);
 
-    auto value = valueConstructor(builder, loc);
+    mlir::Value value = valueConstructor(builder, loc);
     builder.create<mlir::func::ReturnOp>(loc, value);
   }
 };
@@ -193,19 +194,19 @@ public:
   matchAndRewrite(StartTimeOp op,
                   mlir::PatternRewriter &rewriter) const override {
 
-    const auto isPresent = op.getStartTime().has_value();
+    const bool isPresent = op.getStartTime().has_value();
     createConstantFunc(
         rewriter, op->getLoc(), "hasExperimentStartTime", rewriter.getI1Type(),
-        [&isPresent](auto &builder, auto loc) {
+        [&isPresent](mlir::OpBuilder &builder, mlir::Location loc) {
           return builder.template create<mlir::arith::ConstantOp>(
               loc, builder.getBoolAttr(isPresent));
         });
 
-    const auto startTime =
+    const double startTime =
         isPresent ? op.getStartTime().value().convertToDouble() : 0xDEADBEEF;
     createConstantFunc(
         rewriter, op.getLoc(), "getExperimentStartTime", rewriter.getF64Type(),
-        [&startTime](auto &builder, auto loc) {
+        [&startTime](mlir::OpBuilder &builder, mlir::Location loc) {
           return builder.template create<mlir::arith::ConstantOp>(
               loc, builder.getF64FloatAttr(startTime));
         });
@@ -222,19 +223,19 @@ public:
   mlir::LogicalResult
   matchAndRewrite(EndTimeOp op,
                   mlir::PatternRewriter &rewriter) const override {
-    const auto isPresent = op.getEndTime().has_value();
+    const bool isPresent = op.getEndTime().has_value();
     createConstantFunc(
         rewriter, op->getLoc(), "hasExperimentEndTime", rewriter.getI1Type(),
-        [&isPresent](auto &builder, auto loc) {
+        [&isPresent](mlir::OpBuilder &builder, mlir::Location loc) {
           return builder.template create<mlir::arith::ConstantOp>(
               loc, builder.getBoolAttr(isPresent));
         });
 
-    const auto endTime =
+    const double endTime =
         isPresent ? op.getEndTime().value().convertToDouble() : 0xDEADBEEF;
     createConstantFunc(
         rewriter, op->getLoc(), "getExperimentEndTime", rewriter.getF64Type(),
-        [&endTime](auto &builder, auto loc) {
+        [&endTime](mlir::OpBuilder &builder, mlir::Location loc) {
           return builder.template create<mlir::arith::ConstantOp>(
               loc, builder.getF64FloatAttr(endTime));
         });
