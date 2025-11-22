@@ -1,4 +1,4 @@
-// RUN: marco %s --omc-bypass --model=Robertson --solver=ida -o %basename_t -L %runtime_lib_dir -Wl,-rpath %runtime_lib_dir
+// RUN: marco %s --omc-bypass --model=Robertson --solver=ida -o %basename_t %link_flags -L %runtime_lib_dir -Wl,-rpath %runtime_lib_dir
 // RUN: ./%basename_t --end-time=400 --time-step=1 --precision=4 | FileCheck %s
 
 // CHECK: "time","y1","y2","y3"

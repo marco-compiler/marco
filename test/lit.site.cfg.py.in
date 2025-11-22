@@ -46,6 +46,10 @@ config.marco_libs_dir = "@MARCO_LIBS_DIR@"
 config.marco_runtime_found = "@MARCORuntime_FOUND@"
 config.marco_runtime_lib_dir = "@MARCORuntime_LIB_PATH@"
 
+config.marco_runtime_mpi_enabled = "@MARCORuntime_MPI_ENABLE@"
+config.marco_runtime_mpi_cxx_link_flags = "@MARCORuntime_MPI_CXX_LINK_FLAGS@"
+config.marco_runtime_mpi_cxx_libraries = "@MARCORuntime_MPI_CXX_LIBRARIES@"
+
 config.marco_runtime_ida_enabled = "@MARCORuntime_IDA_ENABLE@"
 
 import lit.llvm

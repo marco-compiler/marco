@@ -45,6 +45,10 @@ config.substitutions.append(('%runtime_lib_dir', config.marco_runtime_lib_dir))
 if config.marco_runtime_found == "1":
     config.available_features.add("runtime-library")
 
+# Check if MPI is enabled.
+if config.marco_runtime_mpi_enabled == "ON":
+    config.available_features.add("runtime-mpi")
+
 # Check if the IDA solver is enabled.
 if config.marco_runtime_ida_enabled == "ON":
     config.available_features.add("runtime-ida")

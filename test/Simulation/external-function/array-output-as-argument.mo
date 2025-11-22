@@ -1,5 +1,5 @@
 // RUN: cc -c %S/array-output-as-argument.c -o %basename_t_lib.o
-// RUN: marco %s %basename_t_lib.o --omc-bypass --model=Test --solver=euler-forward -o %basename_t -L %runtime_lib_dir -Wl,-rpath %runtime_lib_dir
+// RUN: marco %s %basename_t_lib.o --omc-bypass --model=Test --solver=euler-forward -o %basename_t %link_flags -L %runtime_lib_dir -Wl,-rpath %runtime_lib_dir
 // RUN: ./%basename_t --end-time=1 --time-step=0.5 --precision=6 | FileCheck %s
 
 // CHECK: "time","x[1,1]","x[1,2]","x[1,3]","x[1,4]","x[1,5]","x[2,1]","x[2,2]","x[2,3]","x[2,4]","x[2,5]","y[1,1]","y[1,2]","y[1,3]","y[1,4]","y[1,5]","y[2,1]","y[2,2]","y[2,3]","y[2,4]","y[2,5]"
