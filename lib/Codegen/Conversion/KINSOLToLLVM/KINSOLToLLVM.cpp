@@ -347,14 +347,14 @@ struct InstanceOpLowering : public KINSOLOpConversion<InstanceOp> {
                   mlir::ConversionPatternRewriter &rewriter) const override {
     auto moduleOp = op->getParentOfType<mlir::ModuleOp>();
     mlir::SymbolTable &symbolTable = symbolTables.getSymbolTable(moduleOp);
+    symbolTable.remove(op);
 
     // Create the global variable.
     auto newOp = rewriter.create<mlir::LLVM::GlobalOp>(
         op.getLoc(), getPtrType(), false, mlir::LLVM::Linkage::Private,
         op.getSymName(), nullptr);
 
-    symbolTable.remove(op);
-    rewriter.replaceOp(op, newOp);
+    symbolTable.insert(newOp, rewriter.getInsertionPoint());
     return mlir::success();
   }
 };

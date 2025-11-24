@@ -118,7 +118,7 @@ struct EquationFunctionOpLowering
         op.getLoc(), op.getSymName(), functionType);
 
     symbolTable.remove(op);
-    symbolTable.insert(funcOp);
+    symbolTable.insert(funcOp, rewriter.getInsertionPoint());
 
     rewriter.inlineRegionBefore(op.getBody(), funcOp.getFunctionBody(),
                                 funcOp.end());
@@ -210,7 +210,7 @@ struct RawFunctionOpLowering : public FunctionLoweringPattern<RawFunctionOp> {
         op.getLoc(), op.getSymName(), functionType);
 
     symbolTable.remove(op);
-    symbolTable.insert(funcOp);
+    symbolTable.insert(funcOp, rewriter.getInsertionPoint());
 
     rewriter.inlineRegionBefore(op.getBody(), funcOp.getFunctionBody(),
                                 funcOp.end());

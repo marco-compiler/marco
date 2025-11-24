@@ -248,11 +248,13 @@ public:
       return rewriter.notifyMatchFailure(op, "Unknown attribute data type");
     }
 
-    rewriter.replaceOpWithNewOp<mlir::memref::GlobalOp>(
+    symbolTable.remove(op);
+
+    auto newOp = rewriter.replaceOpWithNewOp<mlir::memref::GlobalOp>(
         op, op.getSymName(), rewriter.getStringAttr("private"), memRefType,
         denseAttr, false, nullptr);
 
-    symbolTable.remove(op);
+    symbolTable.insert(newOp, rewriter.getInsertionPoint());
     return mlir::success();
   }
 
