@@ -31,7 +31,9 @@
 #include "mlir/Parser/Parser.h"
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Target/LLVMIR/Dialect/Builtin/BuiltinToLLVMIRTranslation.h"
+#include "mlir/Target/LLVMIR/Dialect/GPU/GPUToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h"
+#include "mlir/Target/LLVMIR/Dialect/NVVM/NVVMToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Dialect/OpenMP/OpenMPToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Import.h"
 #include "mlir/Target/LLVMIR/ModuleTranslation.h"
@@ -535,6 +537,10 @@ void CodeGenAction::registerMLIRDialects() {
 void CodeGenAction::registerMLIRExtensions() {
   mlir::registerAllExtensions(mlirDialectRegistry);
 
+  // Extension required for translating GPU offloading operations.
+  mlir::gpu::registerOffloadingLLVMTranslationInterfaceExternalModels(
+      mlirDialectRegistry);
+
   // Register the extensions of custom dialects.
   mlir::bmodelica::registerAllDialectInterfaceImplementations(
       mlirDialectRegistry);
@@ -691,6 +697,11 @@ bool CodeGenAction::generateMLIRLLVM() {
   if (!generateMLIR()) {
     return false;
   }
+
+  // Register the MLIR translations to obtain LLVM-IR. This is performed even in
+  // case the action does not generate LLVM-IR, because other passes may
+  // require it (e.g., compilation of GPU code).
+  registerMLIRToLLVMIRTranslations();
 
   mlir::PassManager pm(&getMLIRContext());
   CompilerInstance &ci = getInstance();
@@ -1331,7 +1342,9 @@ CodeGenAction::createMLIRPromoteBuffersToStackPass() {
 
 void CodeGenAction::registerMLIRToLLVMIRTranslations() {
   mlir::registerBuiltinDialectTranslation(getMLIRContext());
+  mlir::registerGPUDialectTranslation(getMLIRContext());
   mlir::registerLLVMDialectTranslation(getMLIRContext());
+  mlir::registerNVVMDialectTranslation(getMLIRContext());
   mlir::registerOpenMPDialectTranslation(getMLIRContext());
 }
 
@@ -1359,9 +1372,6 @@ bool CodeGenAction::generateLLVMIR() {
     if (!generateMLIRLLVM()) {
       return false;
     }
-
-    // Register the MLIR translations to obtain LLVM-IR.
-    registerMLIRToLLVMIRTranslations();
 
     // Translate to LLVM-IR.
     std::optional<llvm::StringRef> moduleName = mlirModule->getName();
