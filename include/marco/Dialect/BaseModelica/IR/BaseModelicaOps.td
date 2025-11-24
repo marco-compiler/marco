@@ -4064,7 +4064,8 @@ def BaseModelica_EquationCallOp : BaseModelica_Op<"equation_call", []>
     let arguments = (ins
         SymbolNameAttr:$callee,
         IndexSetProperty:$indices,
-        DefaultValuedAttr<BoolAttr, "false">:$parallelizable);
+        DefaultValuedAttr<BoolAttr, "false">:$parallelizable,
+        DefaultValuedAttr<StrArrayAttr, "{\"cpu\"}">:$targets);
 
     let results = (outs);
     let assemblyFormat = "$callee custom<EquationCallIndices>($indices) attr-dict";

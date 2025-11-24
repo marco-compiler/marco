@@ -22,6 +22,7 @@
 #include "mlir/Dialect/Bufferization/Transforms/Passes.h"
 #include "mlir/Dialect/DLTI/DLTI.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/Dialect/GPU/Transforms/Passes.h"
 #include "mlir/Dialect/LLVMIR/Transforms/LegalizeForExport.h"
 #include "mlir/Dialect/Linalg/Passes.h"
 #include "mlir/Dialect/MemRef/Transforms/Passes.h"
@@ -1007,6 +1008,11 @@ void CodeGenAction::buildMLIRModelSolvingPipeline(mlir::PassManager &pm) {
 void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
   CompilerInstance &ci = getInstance();
 
+  // Try to offload equations to specialized hardware.
+  pm.nest<mlir::bmodelica::ModelOp>()
+      .addNestedPass<mlir::bmodelica::ScheduleOp>(
+          createMLIREquationOffloadingAttachTargetsPass());
+
   // Parallelize the scheduled blocks.
   pm.addPass(mlir::bmodelica::createScheduleParallelizationPass());
 
@@ -1081,10 +1087,14 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
   if (ci.getCodeGenOptions().vectorization) {
     pm.addNestedPass<mlir::func::FuncOp>(
         createMLIREquationFunctionPeelingPass());
+  }
 
+  if (ci.getCodeGenOptions().vectorization || ci.getCodeGenOptions().hasGPU()) {
     pm.addNestedPass<mlir::func::FuncOp>(
         mlir::bmodelica::createEquationFunctionAffineRaisePass());
+  }
 
+  if (ci.getCodeGenOptions().vectorization) {
     pm.addNestedPass<mlir::func::FuncOp>(createMLIRAffineVectorizePass());
   }
 
@@ -1123,6 +1133,8 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
   }
 
   // Lower to LLVM dialect.
+  pm.addNestedPass<mlir::func::FuncOp>(mlir::createConvertAffineForToGPUPass());
+
   pm.addNestedPass<mlir::func::FuncOp>(
       mlir::memref::createExpandStridedMetadataPass());
 
@@ -1130,7 +1142,19 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
     pm.addPass(mlir::createConvertVectorToSCFPass());
   }
 
+  if (ci.getCodeGenOptions().hasGPU()) {
+    pm.addPass(mlir::createGpuKernelOutliningPass());
+  }
+
   pm.addNestedPass<mlir::func::FuncOp>(mlir::createLowerAffinePass());
+
+  if (ci.getCodeGenOptions().hasGPU()) {
+    pm.addNestedPass<mlir::func::FuncOp>(mlir::createGpuDecomposeMemrefsPass());
+
+    pm.addNestedPass<mlir::func::FuncOp>(
+        mlir::memref::createExpandStridedMetadataPass());
+  }
+
   pm.addNestedPass<mlir::func::FuncOp>(mlir::createSCFToControlFlowPass());
   pm.addPass(mlir::createRuntimeModelMetadataConversionPass());
 
@@ -1148,6 +1172,22 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
 
   // Finalization passes.
   pm.addPass(mlir::runtime::createHeapFunctionsReplacementPass());
+
+  if (ci.getCodeGenOptions().hasGPU()) {
+    pm.addPass(mlir::memref::createNormalizeMemRefsPass());
+  }
+
+  if (ci.getCodeGenOptions().getGPUVendor() == GPUVendor::NVIDIA) {
+    pm.addNestedPass<mlir::gpu::GPUModuleOp>(
+        createMLIRGpuToNVVMConversionPass());
+
+    pm.addPass(createMLIRNVVMAttachTargetPass());
+    pm.addPass(mlir::createConvertNVVMToLLVMPass());
+  }
+
+  if (ci.getCodeGenOptions().hasGPU()) {
+    pm.addPass(createMLIRGpuToLLVMConversionPass());
+  }
 
   pm.addNestedPass<mlir::LLVM::LLVMFuncOp>(
       mlir::createReconcileUnrealizedCastsPass());
@@ -1347,6 +1387,18 @@ CodeGenAction::createMLIREquationFunctionPeelingPass() {
   return mlir::bmodelica::createEquationFunctionPeelingPass(options);
 }
 
+std::unique_ptr<mlir::Pass>
+CodeGenAction::createMLIREquationOffloadingAttachTargetsPass() {
+  CompilerInstance &ci = getInstance();
+  mlir::bmodelica::EquationOffloadingAttachTargetsPassOptions options;
+
+  if (ci.getCodeGenOptions().hasGPU()) {
+    options.targets.push_back("gpu");
+  }
+
+  return mlir::bmodelica::createEquationOffloadingAttachTargetsPass(options);
+}
+
 std::unique_ptr<mlir::Pass> CodeGenAction::createMLIRAffineVectorizePass() {
   CompilerInstance &ci = getInstance();
   mlir::affine::AffineVectorizeOptions options;
@@ -1369,6 +1421,28 @@ CodeGenAction::createMLIRVectorToLLVMConversionPass() {
   }
 
   return mlir::createConvertVectorToLLVMPass(options);
+}
+
+std::unique_ptr<mlir::Pass> CodeGenAction::createMLIRGpuToNVVMConversionPass() {
+  mlir::ConvertGpuOpsToNVVMOpsOptions options;
+  options.useBarePtrCallConv = true;
+  return mlir::createConvertGpuOpsToNVVMOps(options);
+}
+
+std::unique_ptr<mlir::Pass> CodeGenAction::createMLIRNVVMAttachTargetPass() {
+  CompilerInstance &ci = getInstance();
+  mlir::GpuNVVMAttachTargetOptions options;
+  options.triple = ci.getCodeGenOptions().gpuTriple;
+  options.chip = ci.getCodeGenOptions().gpuChip;
+  options.optLevel = ci.getCodeGenOptions().optLevel.getSpeedupLevel();
+  options.features = ci.getCodeGenOptions().gpuFeatures;
+}
+
+std::unique_ptr<mlir::Pass> CodeGenAction::createMLIRGpuToLLVMConversionPass() {
+  mlir::GpuToLLVMConversionPassOptions options;
+  options.hostBarePtrCallConv = true;
+  options.kernelBarePtrCallConv = true;
+  return mlir::createGpuToLLVMConversionPass(options);
 }
 
 void CodeGenAction::registerMLIRToLLVMIRTranslations() {

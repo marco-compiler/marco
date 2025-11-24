@@ -376,6 +376,31 @@ def EquationFunctionLoopHoistingPass
     let constructor = "mlir::bmodelica::createEquationFunctionLoopHoistingPass()";
 }
 
+def EquationOffloadingAttachTargetsPass
+    : Pass<"equation-offloading-attach-targets", "ScheduleOp">
+{
+    let dependentDialects = [
+        "mlir::bmodelica::BaseModelicaDialect"
+    ];
+
+    let options = [
+        ListOption<"targets", "targets", "std::string",
+                   "List of enabled targets.">
+    ];
+
+    let constructor = "mlir::bmodelica::createEquationOffloadingAttachTargetsPass()";
+}
+
+def EquationGPUOffloadingPass
+    : Pass<"equation-offloading-gpu", "mlir::ModuleOp">
+{
+    let dependentDialects = [
+        "mlir::bmodelica::BaseModelicaDialect"
+    ];
+
+    let constructor = "mlir::bmodelica::createEquationGPUOffloadingPass()";
+}
+
 def CallCSEPass
     : Pass<"call-cse", "mlir::ModuleOp">
 {

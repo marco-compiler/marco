@@ -10,4 +10,8 @@ CodegenOptions::CodegenOptions() : clang::CodeGenOptions() {
 bool CodegenOptions::hasFeature(llvm::StringRef feature) const {
   return llvm::find(features, feature) != features.end();
 }
+
+bool CodegenOptions::hasGPU() const { return gpuVendor != GPUVendor::None; }
+
+GPUVendor CodegenOptions::getGPUVendor() const { return gpuVendor; }
 } // namespace marco::frontend
