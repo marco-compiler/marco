@@ -319,6 +319,24 @@ def ViewAccessFoldingPass : Pass<"fold-view-accesses", "mlir::ModuleOp">
 // Optimizations
 //===---------------------------------------------------------------------===//
 
+def AccessAffineRaisePass
+    : Pass<"access-affine-raise", "mlir::func::FuncOp">
+{
+    let summary = "Raise memory accesses to affine representation";
+
+    let description = [{
+        Traverse the affine loops inside a function and convert the
+        `memref.load` and `memref.store` operations into `affine.load` and
+        `affine.store` ones.
+    }];
+
+    let dependentDialects = [
+        "mlir::affine::AffineDialect"
+    ];
+
+    let constructor = "mlir::bmodelica::createAccessAffineRaisePass()";
+}
+
 def CallCSEPass
     : Pass<"call-cse", "mlir::ModuleOp">
 {
