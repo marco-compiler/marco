@@ -6,6 +6,7 @@ add_mlir_dialect_library(MLIRBaseModelicaTransforms
     Modeling/SCCBridge.cpp
     Modeling/VariableBridge.cpp
     Solvers/SUNDIALS.cpp
+    AccessAffineRaise.cpp
     AccessReplacementTest.cpp
     AffineLikeOpInterfaceImpl.cpp
     AllInterfaces.cpp
