@@ -1,8 +1,8 @@
 #include "marco/Dialect/BaseModelica/Transforms/EquationExplicitation.h"
 #include "marco/Dialect/BaseModelica/Analysis/VariableAccessAnalysis.h"
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
+#include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
-#include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 
@@ -365,13 +365,11 @@ EquationFunctionOp EquationExplicitationPass::createEquationFunction(
 
     llvm::SmallVector<mlir::Value> inductions;
 
-    mlir::Value oneValue = rewriter.create<mlir::arith::ConstantOp>(
-        equation.getLoc(), rewriter.getIndexAttr(1));
-
     for (int64_t i = 0; i < rank; ++i) {
-      auto forOp = rewriter.create<mlir::scf::ForOp>(
-          equation.getLoc(), eqFunc.getLowerBound(i), eqFunc.getUpperBound(i),
-          oneValue);
+      auto forOp = rewriter.create<mlir::affine::AffineForOp>(
+          equation.getLoc(), eqFunc.getLowerBound(i),
+          rewriter.getMultiDimIdentityMap(1), eqFunc.getUpperBound(i),
+          rewriter.getMultiDimIdentityMap(1));
 
       inductions.push_back(forOp.getInductionVar());
       rewriter.setInsertionPointToStart(forOp.getBody());
