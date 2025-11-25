@@ -15,6 +15,7 @@
 #include "marco/Dialect/BaseModelica/Transforms/EquationFunctionLoopHoisting.h"
 #include "marco/Dialect/BaseModelica/Transforms/EquationFunctionPeeling.h"
 #include "marco/Dialect/BaseModelica/Transforms/EquationInductionsExplicitation.h"
+#include "marco/Dialect/BaseModelica/Transforms/EquationOffloadingAttachTargets.h"
 #include "marco/Dialect/BaseModelica/Transforms/EquationSidesSplit.h"
 #include "marco/Dialect/BaseModelica/Transforms/EquationTemplatesCreation.h"
 #include "marco/Dialect/BaseModelica/Transforms/EulerForward.h"

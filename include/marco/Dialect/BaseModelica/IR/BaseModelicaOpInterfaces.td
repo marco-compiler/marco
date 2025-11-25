@@ -310,4 +310,15 @@ def AffineLikeOpInterface
     ];
 }
 
+def GPUOffloadInterface
+    : BaseModelica_OpInterface<"OffloadInterface">
+{
+    let methods = [
+        InterfaceMethod<
+            "Check if the operation is offloadable to a given target.",
+            "bool", "isOffloadable",
+            (ins "llvm::StringRef":$target)>
+    ];
+}
+
 #endif // MARCO_DIALECT_BASEMODELICA_IR_BASEMODELICAOPINTERFACES_TD

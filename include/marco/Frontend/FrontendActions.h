@@ -182,6 +182,8 @@ protected:
 
   std::unique_ptr<mlir::Pass> createMLIREquationFunctionPeelingPass();
 
+  std::unique_ptr<mlir::Pass> createMLIREquationOffloadingAttachTargetsPass();
+
   /// }
   /// @name Conversion passes.
   /// {
@@ -202,6 +204,10 @@ protected:
 
   std::unique_ptr<mlir::Pass> createMLIRAffineVectorizePass();
   std::unique_ptr<mlir::Pass> createMLIRVectorToLLVMConversionPass();
+  std::unique_ptr<mlir::Pass> createMLIRGpuToNVVMConversionPass();
+  std::unique_ptr<mlir::Pass> createMLIRNVVMAttachTargetPass();
+  std::unique_ptr<mlir::Pass> createMLIRGpuToLLVMConversionPass();
+  std::unique_ptr<mlir::Pass> createMLIRGpuModuleToBinaryPass();
 
   /// }
   /// @name LLVM-IR

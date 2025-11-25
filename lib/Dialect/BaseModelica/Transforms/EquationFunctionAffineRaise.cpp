@@ -179,7 +179,7 @@ mlir::LogicalResult
 EquationFunctionAffineRaisePass::processFuncOp(mlir::func::FuncOp) {
   mlir::RewritePatternSet patterns(&getContext());
   patterns.insert<LoadOpPattern, StoreOpPattern>(&getContext());
-  return applyPatternsAndFoldGreedily(getOperation(), std::move(patterns));
+  return mlir::applyPatternsGreedily(getOperation(), std::move(patterns));
 }
 
 namespace mlir::bmodelica {

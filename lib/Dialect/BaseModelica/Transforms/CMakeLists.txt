@@ -27,6 +27,7 @@ add_mlir_dialect_library(MLIRBaseModelicaTransforms
     EquationFunctionLoopHoisting.cpp
     EquationFunctionPeeling.cpp
     EquationInductionsExplicitation.cpp
+    EquationOffloadingAttachTargets.cpp
     EquationSidesSplit.cpp
     EquationTemplatesCreation.cpp
     EulerForward.cpp
