@@ -957,8 +957,7 @@ void DimOp::getCanonicalizationPatterns(mlir::RewritePatternSet &patterns,
 // LoadOp
 
 namespace {
-struct MergeSubscriptionsIntoLoadPattern
-    : public mlir::OpRewritePattern<LoadOp> {
+struct LoadOpMergeSubscriptionPattern : public mlir::OpRewritePattern<LoadOp> {
   using mlir::OpRewritePattern<LoadOp>::OpRewritePattern;
 
   mlir::LogicalResult
@@ -969,28 +968,25 @@ struct MergeSubscriptionsIntoLoadPattern
       return mlir::failure();
     }
 
-    llvm::SmallVector<SubscriptionOp> subscriptionOps;
-
-    while (subscriptionOp) {
-      subscriptionOps.push_back(subscriptionOp);
-
-      subscriptionOp =
-          subscriptionOp.getSource().getDefiningOp<SubscriptionOp>();
+    if (llvm::any_of(
+            subscriptionOp.getIndices().getTypes(),
+            [](mlir::Type type) { return mlir::isa<RangeType>(type); })) {
+      return mlir::failure();
     }
 
-    assert(!subscriptionOps.empty());
-    mlir::Value source = subscriptionOps.back().getSource();
-    llvm::SmallVector<mlir::Value, 3> indices;
+    llvm::SmallVector<mlir::Value> subscripts;
 
-    while (!subscriptionOps.empty()) {
-      SubscriptionOp current = subscriptionOps.pop_back_val();
-      indices.append(current.getIndices().begin(), current.getIndices().end());
-    }
+    auto subscriptionIndices = subscriptionOp.getIndices();
+    subscripts.append(subscriptionIndices.begin(), subscriptionIndices.end());
 
-    indices.append(op.getIndices().begin(), op.getIndices().end());
-    rewriter.replaceOpWithNewOp<LoadOp>(op, source, indices);
+    auto storeIndices = op.getIndices();
+    subscripts.append(storeIndices.begin(), storeIndices.end());
+
+    rewriter.replaceOpWithNewOp<LoadOp>(op, subscriptionOp.getSource(),
+                                        subscripts);
+
     return mlir::success();
-  }
+  };
 };
 } // namespace
 
@@ -1045,7 +1041,7 @@ mlir::LogicalResult LoadOp::verify() {
 
 void LoadOp::getCanonicalizationPatterns(mlir::RewritePatternSet &patterns,
                                          mlir::MLIRContext *context) {
-  patterns.add<MergeSubscriptionsIntoLoadPattern>(context);
+  patterns.add<LoadOpMergeSubscriptionPattern>(context);
 }
 
 void LoadOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<
