@@ -661,8 +661,8 @@ def EquationExplicitationPass
 
     let dependentDialects = [
         "mlir::bmodelica::BaseModelicaDialect",
-        "mlir::arith::ArithDialect",
-        "mlir::scf::SCFDialect"
+        "mlir::affine::AffineDialect",
+        "mlir::arith::ArithDialect"
     ];
 
     let constructor = "mlir::bmodelica::createEquationExplicitationPass()";
