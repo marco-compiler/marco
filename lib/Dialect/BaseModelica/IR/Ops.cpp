@@ -1058,6 +1058,41 @@ void LoadOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<
 //===---------------------------------------------------------------------===//
 // StoreOp
 
+namespace {
+struct StoreOpMergeSubscriptionPattern
+    : public mlir::OpRewritePattern<StoreOp> {
+  using mlir::OpRewritePattern<StoreOp>::OpRewritePattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(StoreOp op, mlir::PatternRewriter &rewriter) const override {
+    auto subscriptionOp = op.getArray().getDefiningOp<SubscriptionOp>();
+
+    if (!subscriptionOp) {
+      return mlir::failure();
+    }
+
+    if (llvm::any_of(
+            subscriptionOp.getIndices().getTypes(),
+            [](mlir::Type type) { return mlir::isa<RangeType>(type); })) {
+      return mlir::failure();
+    }
+
+    llvm::SmallVector<mlir::Value> subscripts;
+
+    auto subscriptionIndices = subscriptionOp.getIndices();
+    subscripts.append(subscriptionIndices.begin(), subscriptionIndices.end());
+
+    auto storeIndices = op.getIndices();
+    subscripts.append(storeIndices.begin(), storeIndices.end());
+
+    rewriter.replaceOpWithNewOp<StoreOp>(
+        op, op.getValue(), subscriptionOp.getSource(), subscripts);
+
+    return mlir::success();
+  };
+};
+} // namespace
+
 namespace mlir::bmodelica {
 void StoreOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
                     mlir::Value value, mlir::Value array,
@@ -1104,6 +1139,11 @@ mlir::LogicalResult StoreOp::verify() {
   }
 
   return mlir::success();
+}
+
+void StoreOp::getCanonicalizationPatterns(mlir::RewritePatternSet &patterns,
+                                          mlir::MLIRContext *context) {
+  patterns.add<StoreOpMergeSubscriptionPattern>(context);
 }
 
 void StoreOp::getEffects(
