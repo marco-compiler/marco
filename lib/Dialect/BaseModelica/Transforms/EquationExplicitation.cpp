@@ -60,7 +60,8 @@ private:
   createEquationFunction(mlir::RewriterBase &rewriter,
                          mlir::SymbolTableCollection &symbolTableCollection,
                          mlir::ModuleOp moduleOp, ModelOp modelOp,
-                         EquationInstanceOp equation, int64_t rank);
+                         EquationInstanceOp equation, int64_t rank,
+                         bool parallel);
 
   mlir::LogicalResult cloneEquationTemplateIntoFunction(
       mlir::RewriterBase &rewriter,
@@ -290,9 +291,18 @@ mlir::LogicalResult EquationExplicitationPass::createEquationBlocks(
     mlir::RewriterBase &rewriter,
     mlir::SymbolTableCollection &symbolTableCollection, mlir::ModuleOp moduleOp,
     ModelOp modelOp, SCCOp sccOp, EquationInstanceOp equationOp) {
+  bool independentIndices = !equationOp.getProperties().schedule.empty();
+
+  if (independentIndices) {
+    independentIndices &= llvm::all_of(
+        equationOp.getProperties().schedule, [](Schedule schedule) {
+          return schedule == marco::modeling::scheduling::Direction::Any;
+        });
+  }
+
   EquationFunctionOp eqFunc = createEquationFunction(
       rewriter, symbolTableCollection, moduleOp, modelOp, equationOp,
-      equationOp.getProperties().indices.rank());
+      equationOp.getProperties().indices.rank(), independentIndices);
 
   if (!eqFunc) {
     return mlir::failure();
@@ -314,18 +324,8 @@ mlir::LogicalResult EquationExplicitationPass::createEquationBlocks(
   rewriter.createBlock(&scheduleBlockOp.getBodyRegion());
   rewriter.setInsertionPointToStart(scheduleBlockOp.getBody());
 
-  bool independentIndices = !equationOp.getProperties().schedule.empty();
-
-  if (independentIndices) {
-    independentIndices &= llvm::all_of(
-        equationOp.getProperties().schedule, [](Schedule schedule) {
-          return schedule == marco::modeling::scheduling::Direction::Any;
-        });
-  }
-
   rewriter.create<EquationCallOp>(eqFunc.getLoc(), eqFunc.getSymName(),
-                                  equationOp.getProperties().indices,
-                                  independentIndices);
+                                  equationOp.getProperties().indices);
 
   return mlir::success();
 }
@@ -333,12 +333,13 @@ mlir::LogicalResult EquationExplicitationPass::createEquationBlocks(
 EquationFunctionOp EquationExplicitationPass::createEquationFunction(
     mlir::RewriterBase &rewriter,
     mlir::SymbolTableCollection &symbolTableCollection, mlir::ModuleOp moduleOp,
-    ModelOp modelOp, EquationInstanceOp equation, int64_t rank) {
+    ModelOp modelOp, EquationInstanceOp equation, int64_t rank, bool parallel) {
   mlir::OpBuilder::InsertionGuard guard(rewriter);
   rewriter.setInsertionPointToEnd(moduleOp.getBody());
 
   auto eqFunc = rewriter.create<EquationFunctionOp>(
-      equation.getLoc(), "equation", equation.getInductionVariables().size());
+      equation.getLoc(), "equation", equation.getInductionVariables().size(),
+      parallel);
 
   symbolTableCollection.getSymbolTable(moduleOp).insert(eqFunc);
 
