@@ -9,6 +9,7 @@ get_property(conversion_libs GLOBAL PROPERTY MLIR_CONVERSION_LIBS)
 
 set(LIBS
     marco::codegen
+    marco::frontend
     ${dialect_libs}
     ${extension_libs}
     ${conversion_libs}
