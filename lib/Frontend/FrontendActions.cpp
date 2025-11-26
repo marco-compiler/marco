@@ -13,7 +13,7 @@
 #include "marco/Dialect/Runtime/Transforms/Passes.h"
 #include "marco/Frontend/CompilerInstance.h"
 #include "marco/Frontend/Instrumentation/VerificationModelEmitter.h"
-#include "marco/Frontend/Passes/Verifier.h"
+#include "marco/Frontend/Passes.h"
 #include "marco/IO/Command.h"
 #include "marco/Parser/BaseModelica/Parser.h"
 #include "mlir/Conversion/Passes.h"

@@ -9,6 +9,7 @@ set(SOURCES
     FrontendActions.cpp
     FrontendOptions.cpp
     LanguageOptions.cpp
+    Passes.cpp
     SimulationOptions.cpp)
 
 get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
@@ -38,7 +39,10 @@ marco_add_library(frontend
 
     LINK_COMPONENTS
     Option
-    Support)
+    Support
+
+    DEPENDS
+    MLIRFrontendPassesIncGen)
 
 clang_target_link_libraries(frontend
     PRIVATE
