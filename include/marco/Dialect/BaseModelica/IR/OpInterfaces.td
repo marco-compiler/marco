@@ -320,20 +320,4 @@ def AffineLikeOpInterface
     ];
 }
 
-def AffineLikeOpInterface
-    : BaseModelica_OpInterface<"AffineLikeOpInterface">
-{
-    let description = [{
-        This interface is used to represent an operation that can be represent
-        in the affine domain.
-    }];
-
-    let methods = [
-        InterfaceMethod<
-            "Get the affine expression.",
-            "std::optional<mlir::AffineExpr>", "getAffineExpression",
-            (ins "const ::llvm::DenseMap<::mlir::Value, int64_t>&":$inductionsPosMap)>
-    ];
-}
-
 #endif // MARCO_DIALECT_BASEMODELICA_IR_OPINTERFACES_TD

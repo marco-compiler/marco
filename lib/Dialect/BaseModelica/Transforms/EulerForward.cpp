@@ -281,7 +281,7 @@ void createStateUpdateFunctionCall(mlir::OpBuilder &builder,
   builder.setInsertionPointToStart(blockOp.getBody());
 
   builder.create<EquationCallOp>(equationFuncOp.getLoc(),
-                                 equationFuncOp.getSymName(), indices, true);
+                                 equationFuncOp.getSymName(), indices);
 }
 } // namespace
 
@@ -299,7 +299,8 @@ mlir::LogicalResult EulerForwardPass::createRangedStateVariableUpdateBlocks(
 
   auto equationFuncOp = builder.create<EquationFunctionOp>(
       stateVariable.getLoc(),
-      "euler_state_update_" + stateVariable.getSymName().str(), variableRank);
+      "euler_state_update_" + stateVariable.getSymName().str(), variableRank,
+      true);
 
   symbolTableCollection.getSymbolTable(moduleOp).insert(equationFuncOp);
   mlir::Block *equationFuncBody = equationFuncOp.addEntryBlock();

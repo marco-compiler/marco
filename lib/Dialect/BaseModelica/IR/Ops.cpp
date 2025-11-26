@@ -9134,6 +9134,7 @@ void EquationFunctionOp::print(OpAsmPrinter &printer) {
 void EquationFunctionOp::build(mlir::OpBuilder &builder,
                                mlir::OperationState &state,
                                llvm::StringRef name, uint64_t numOfInductions,
+                               bool parallelizable,
                                llvm::ArrayRef<mlir::NamedAttribute> attrs,
                                llvm::ArrayRef<mlir::DictionaryAttr> argAttrs) {
   state.addAttribute(mlir::SymbolTable::getSymbolAttrName(),
@@ -9146,6 +9147,9 @@ void EquationFunctionOp::build(mlir::OpBuilder &builder,
 
   state.addAttribute(getFunctionTypeAttrName(state.name),
                      mlir::TypeAttr::get(functionType));
+
+  state.addAttribute(getParallelizableAttrName(state.name),
+                     builder.getBoolAttr(parallelizable));
 
   state.attributes.append(attrs.begin(), attrs.end());
   state.addRegion();

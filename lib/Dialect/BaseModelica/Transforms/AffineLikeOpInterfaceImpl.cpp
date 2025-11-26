@@ -1,4 +1,4 @@
-#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
+#include "marco/Dialect/BaseModelica/IR/Dialect.h"
 #include "marco/Dialect/BaseModelica/Transforms/EquationExpressionOpInterfaceImpl.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 
