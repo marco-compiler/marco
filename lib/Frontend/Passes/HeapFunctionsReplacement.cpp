@@ -1,20 +1,18 @@
-#include "marco/Dialect/Runtime/Transforms/HeapFunctionsReplacement.h"
+#include "marco/Frontend/Passes/HeapFunctionsReplacement.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/IR/Threading.h"
-#include "mlir/Transforms/DialectConversion.h"
 
-namespace mlir::runtime {
+namespace marco::frontend {
 #define GEN_PASS_DEF_HEAPFUNCTIONSREPLACEMENTPASS
-#include "marco/Dialect/Runtime/Transforms/Passes.h.inc"
-} // namespace mlir::runtime
+#include "marco/Frontend/Passes.h.inc"
+} // namespace marco::frontend
 
 namespace {
 class HeapFunctionsReplacementPass
-    : public mlir::runtime::impl::HeapFunctionsReplacementPassBase<
+    : public marco::frontend::impl::HeapFunctionsReplacementPassBase<
           HeapFunctionsReplacementPass> {
 public:
-  using HeapFunctionsReplacementPassBase<
-      HeapFunctionsReplacementPass>::HeapFunctionsReplacementPassBase;
+  using HeapFunctionsReplacementPassBase::HeapFunctionsReplacementPassBase;
 
   void runOnOperation() override;
 };
@@ -57,8 +55,8 @@ void HeapFunctionsReplacementPass::runOnOperation() {
   });
 }
 
-namespace mlir::runtime {
+namespace marco::frontend {
 std::unique_ptr<mlir::Pass> createHeapFunctionsReplacementPass() {
   return std::make_unique<HeapFunctionsReplacementPass>();
 }
-} // namespace mlir::runtime
+} // namespace marco::frontend

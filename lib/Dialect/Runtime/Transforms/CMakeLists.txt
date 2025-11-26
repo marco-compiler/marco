@@ -1,7 +1,6 @@
 add_mlir_dialect_library(MLIRRuntimeTransforms
     AllInterfaces.cpp
     BufferizableOpInterfaceImpl.cpp
-    HeapFunctionsReplacement.cpp
     Passes.cpp
 
     #    ADDITIONAL_HEADER_DIRS

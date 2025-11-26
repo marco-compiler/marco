@@ -1,5 +1,6 @@
 set(SOURCES
     Instrumentation/VerificationModelEmitter.cpp
+    Passes/HeapFunctionsReplacement.cpp
     Passes/Verifier.cpp
     CompilerInstance.cpp
     CompilerInvocation.cpp

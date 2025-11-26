@@ -1126,7 +1126,7 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
   pm.addPass(mlir::createConvertToLLVMPass());
 
   // Finalization passes.
-  pm.addPass(mlir::runtime::createHeapFunctionsReplacementPass());
+  pm.addPass(createHeapFunctionsReplacementPass());
 
   pm.addNestedPass<mlir::LLVM::LLVMFuncOp>(
       mlir::createReconcileUnrealizedCastsPass());
