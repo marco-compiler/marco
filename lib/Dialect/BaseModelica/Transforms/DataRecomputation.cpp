@@ -244,8 +244,8 @@ struct DRAlloc {
   }
 };
 
-//! A class representing a generic load with regards to the pass.
-//! \see DenseMapInfo<DRLoad>
+/// A class representing a generic load with regards to the pass.
+/// \see DenseMapInfo<DRLoad>
 struct DRLoad {
   using SupportedOpTypes =
       OpTypeList<::mlir::memref::LoadOp, ::mlir::affine::AffineLoadOp,
@@ -299,7 +299,6 @@ struct DRLoad {
 };
 
 struct DRCandidate {
-
   DRCandidate() = delete;
   DRCandidate(DRWrite write, DRLoad load, DRAlloc allocation)
     : write{write}, load{load}, allocation{allocation} {}
@@ -347,6 +346,21 @@ struct DRMemrefTracerResult
     return std::holds_alternative<DRMemrefTracerFailureMarker>(*this);
   }
 
+  void dump() {
+    llvm::outs() << "TraceResult: ";
+    if ( isFailure() ) {
+      llvm::outs() << "FAILURE";
+    } else if ( auto valueOpt = getValue() ) {
+      llvm::outs() << "VALUE ";
+      valueOpt->dump();
+    } else {
+      llvm::outs() << "OPERATION ";
+      (*getOperation())->dump();
+    }
+
+    llvm::outs() << "\n";
+  }
+
 private:
   static constexpr std::size_t operationIdx = 0;
   static constexpr std::size_t valueIdx = 1;
@@ -387,8 +401,16 @@ struct DRMemrefTracer {
             traceOnce(backOp, context, moduleOp, symTabCollection);
         memrefChain.emplace_back(singleTraceResult);
         finishFlag = finish;
-      } else {
-        // We may have a value here.
+      } else if(auto valueOpt = back.getValue()) {
+        auto extractor = [](auto &mr) -> mlir::Operation * {
+          return mr.getDefiningOp();
+        };
+
+        memrefChain.emplace_back(DRMemrefTracerResult{extractor(valueOpt.value())});
+
+      }
+      else {
+        MARCO_DBG() << "Untraced value\n";
         break;
       }
     }
@@ -1262,7 +1284,6 @@ mlir::LogicalResult DataRecomputationPass::findOpportunitiesAux(
     currentFuncOp.walk([&](mlir::Operation *op) {
       // Collect all nested calls
       if (mlir::isa<mlir::CallOpInterface>(op)) {
-        op->dump();
         nestedCallOps.emplace_back(op);
       }
 
@@ -1274,22 +1295,31 @@ mlir::LogicalResult DataRecomputationPass::findOpportunitiesAux(
         auto [resChain, traceResult] =
             DRStoreTracer::trace(op, context, moduleOp, symTabCollection);
 
+        for ( auto &cc : resChain ) {
+          cc.dump();
+        }
         if ( auto valueOpt = traceResult.getValue() ) {
+
           auto value = valueOpt.value();
           if ( auto arg = mlir::dyn_cast<mlir::BlockArgument>(value) ) {
             resolvedOriginOp = callGraph.resolveBlockArgument(arg, inboundFuncOp);
+          } else {
+            MARCO_DBG() << "Got a value but it wasn't a block argument?!" << "\n";
+            llvm::dbgs().flush();
           }
 
         } else if ( auto opOpt = traceResult.getOperation() ){
           resolvedOriginOp = opOpt.value();
         } else if (traceResult.isFailure()) {
-          MARCO_DBG() << "Tracing returned a Failure Marker!";
+          MARCO_DBG() << "Trace failed on: "; op->dump();
+          assert(!traceResult.isFailure() && "Failed trace!");
         }
 
+        if ( resolvedOriginOp == nullptr ) {
+          op->dump();
+          assert(false && "Unable, but let's dump it");
+        }
         assert(resolvedOriginOp != nullptr && "Unable to resolve bound memref");
-
-        MARCO_DBG() << "Inserting a store on ";
-        resolvedOriginOp->dump();
 
         lastWrites.insert(std::make_pair(resolvedOriginOp, DRWrite{op}));
       }
@@ -1313,14 +1343,10 @@ mlir::LogicalResult DataRecomputationPass::findOpportunitiesAux(
           resolvedOriginOp = opOpt.value();
         }
 
-        MARCO_DBG() << "Trying to resolve load on ";
-        resolvedOriginOp->dump();
-
-
         // Try to find
         if ( ! lastWrites.contains(resolvedOriginOp) ) {
           // Skip this one. Not a candidate
-          return;
+          return mlir::WalkResult::skip();
         }
 
         DRAlloc allocation{resolvedOriginOp};
@@ -1329,6 +1355,8 @@ mlir::LogicalResult DataRecomputationPass::findOpportunitiesAux(
 
         foundOpportunities.emplace_back(DRCandidate{write, load, allocation});
       }
+
+      return mlir::WalkResult::advance();
     });
 
     for (auto *callOp : nestedCallOps) {
@@ -1364,7 +1392,6 @@ mlir::LogicalResult DataRecomputationPass::findOpportunitiesAux(
                      << "\n";
         signalPassFailure();
         return mlir::failure();
-        // llvm_unreachable("Loop-bound function calls are not handled");
       }
     }
   }
@@ -1391,11 +1418,8 @@ mlir::LogicalResult DataRecomputationPass::findOpportunitiesAux(
     auto &calleeFuncOp = currentCallSite.second;
     visitStack.pop_back();
 
-    MARCO_DBG() << "Handling arc from " << callerFuncOp.getName() << " to "
-                << calleeFuncOp.getName() << "\n";
     // Skip the already visited function
     if (visitedSet.contains(std::make_pair(callerFuncOp, calleeFuncOp))) {
-      MARCO_DBG() << "Arc already seen! Skipping iteration\n";
       continue;
     }
 
@@ -1416,15 +1440,15 @@ mlir::LogicalResult DataRecomputationPass::findOpportunitiesAux(
           auto bindings = DRFunctionArgumentBinder::findBindings(
               callOpInterface, moduleOp, context, symTabCollection);
 
-          MARCO_DBG() << "Adding call to CallGraph from"
-                      << callerFuncOp.getName() << " to "
-                      << nestedCalleeFuncOp.getName() << " with "
-                      << bindings.size() << " bindings\n";
+          // MARCO_DBG() << "Adding call to CallGraph from"
+          //             << callerFuncOp.getName() << " to "
+          //             << nestedCalleeFuncOp.getName() << " with "
+          //             << bindings.size() << " bindings\n";
           callGraph.connectEnriched(calleeFuncOp, nestedCalleeFuncOp,
                                     std::move(bindings));
 
-          MARCO_DBG() << "Pushing (" << calleeFuncOp.getName() << ", "
-                      << nestedCalleeFuncOp.getName() << ") onto the stack\n";
+          // MARCO_DBG() << "Pushing (" << calleeFuncOp.getName() << ", "
+          //             << nestedCalleeFuncOp.getName() << ") onto the stack\n";
           visitStack.push_back(
               std::make_pair(calleeFuncOp, nestedCalleeFuncOp));
         } else if (calleeOp->getName().getStringRef() ==
