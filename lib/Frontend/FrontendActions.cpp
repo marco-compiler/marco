@@ -1,7 +1,6 @@
 #include "marco/Frontend/FrontendActions.h"
 #include "marco/Codegen/Conversion/Passes.h"
 #include "marco/Codegen/Lowering/BaseModelica/Bridge.h"
-#include "marco/Codegen/Verifier.h"
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "marco/Dialect/BaseModelica/Transforms/AllInterfaces.h"
 #include "marco/Dialect/BaseModelica/Transforms/DerivativesMaterialization.h"
@@ -14,6 +13,7 @@
 #include "marco/Dialect/Runtime/Transforms/Passes.h"
 #include "marco/Frontend/CompilerInstance.h"
 #include "marco/Frontend/Instrumentation/VerificationModelEmitter.h"
+#include "marco/Frontend/Passes/Verifier.h"
 #include "marco/IO/Command.h"
 #include "marco/Parser/BaseModelica/Parser.h"
 #include "mlir/Conversion/Passes.h"
@@ -667,7 +667,7 @@ bool CodeGenAction::generateMLIR() {
 
   // Verify the IR.
   mlir::PassManager pm(&getMLIRContext());
-  pm.addPass(std::make_unique<codegen::lowering::VerifierPass>());
+  pm.addPass(std::make_unique<VerifierPass>());
 
   if (!mlir::succeeded(pm.run(*mlirModule))) {
     auto &diag = ci.getDiagnostics();

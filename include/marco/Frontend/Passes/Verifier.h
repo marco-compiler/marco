@@ -1,10 +1,10 @@
-#ifndef MARCO_CODEGEN_VERIFIER_H
-#define MARCO_CODEGEN_VERIFIER_H
+#ifndef MARCO_FRONTEND_PASSES_VERIFIER_H
+#define MARCO_FRONTEND_PASSES_VERIFIER_H
 
 #include "mlir/IR/Verifier.h"
 #include "mlir/Pass/Pass.h"
 
-namespace marco::codegen::lowering {
+namespace marco::frontend {
 /// A verification pass to verify the output from the bridge. This provides a
 /// little bit of glue to run a verifier pass directly.
 class VerifierPass
@@ -12,6 +12,6 @@ class VerifierPass
   void runOnOperation() override;
 };
 
-} // namespace marco::codegen::lowering
+} // namespace marco::frontend
 
-#endif // MARCO_CODEGEN_VERIFIER_H
+#endif // MARCO_FRONTEND_PASSES_VERIFIER_H

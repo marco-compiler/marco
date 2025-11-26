@@ -1,6 +1,5 @@
 set(SOURCES
-    Runtime.cpp
-    Verifier.cpp)
+    Runtime.cpp)
 
 get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
 

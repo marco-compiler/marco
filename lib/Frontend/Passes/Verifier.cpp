@@ -1,6 +1,6 @@
-#include "marco/Codegen/Verifier.h"
+#include "marco/Frontend/Passes/Verifier.h"
 
-namespace marco::codegen::lowering {
+namespace marco::frontend {
 void VerifierPass::runOnOperation() {
   if (mlir::failed(mlir::verify(getOperation()))) {
     signalPassFailure();
@@ -8,4 +8,4 @@ void VerifierPass::runOnOperation() {
 
   markAllAnalysesPreserved();
 }
-} // namespace marco::codegen::lowering
+} // namespace marco::frontend
