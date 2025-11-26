@@ -398,9 +398,13 @@ mlir::LogicalResult SchedulersInstantiationPass::configureScheduler(
       return mlir::failure();
     }
 
+    EquationFunctionOp equationFunctionOp =
+        symbolTableCollection.lookupSymbolIn<EquationFunctionOp>(
+            moduleOp, callOp.getCalleeAttr());
+
     builder.create<mlir::runtime::SchedulerAddEquationOp>(
         callOp.getLoc(), schedulerName, wrapperFunction.getSymName(),
-        callOp.getProperties().indices, callOp.getParallelizable());
+        callOp.getProperties().indices, equationFunctionOp.getParallelizable());
   }
 
   return mlir::success();

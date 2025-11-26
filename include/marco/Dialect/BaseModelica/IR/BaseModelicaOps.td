@@ -3997,7 +3997,8 @@ def BaseModelica_EquationFunctionOp : BaseModelica_Op<"equation_function",
         TypeAttrOf<FunctionType>:$function_type,
         OptionalAttr<StrAttr>:$sym_visibility,
         OptionalAttr<DictArrayAttr>:$arg_attrs,
-        OptionalAttr<DictArrayAttr>:$res_attrs);
+        OptionalAttr<DictArrayAttr>:$res_attrs,
+        DefaultValuedAttr<BoolAttr, "false">:$parallelizable);
 
     let regions = (region AnyRegion:$body);
 
@@ -4007,6 +4008,7 @@ def BaseModelica_EquationFunctionOp : BaseModelica_Op<"equation_function",
         OpBuilder<(ins
             "llvm::StringRef":$name,
             "uint64_t":$numOfInductions,
+            CArg<"bool", "true">:$parallelizable,
             CArg<"ArrayRef<NamedAttribute>", "{}">:$attrs,
             CArg<"ArrayRef<DictionaryAttr>", "{}">:$argAttrs)>
     ];
@@ -4066,8 +4068,7 @@ def BaseModelica_EquationCallOp : BaseModelica_Op<"equation_call", []>
 {
     let arguments = (ins
         SymbolNameAttr:$callee,
-        IndexSetProperty:$indices,
-        DefaultValuedAttr<BoolAttr, "false">:$parallelizable);
+        IndexSetProperty:$indices);
 
     let results = (outs);
     let assemblyFormat = "$callee custom<EquationCallIndices>($indices) attr-dict";
