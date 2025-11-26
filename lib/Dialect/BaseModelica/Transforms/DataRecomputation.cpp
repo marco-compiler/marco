@@ -156,22 +156,33 @@ struct DRWrite {
     return VariantResolver<SupportedOpTypes>::resolve(op);
   }
 
-  DRWrite(mlir::Operation *op) : storeOp{resolveOp(op)}, operation{op} {}
+  DRWrite() : storeOp{}, timestamp{0}, operation{nullptr} {}
+
+  DRWrite(mlir::Operation *op) : storeOp{resolveOp(op)}, timestamp{nextTimestamp++}, operation{op} {}
   DRWrite(mlir::memref::StoreOp storeOp) noexcept
-      : storeOp{storeOp}, operation{storeOp.getOperation()} {}
+      : storeOp{storeOp},timestamp{nextTimestamp++}, operation{storeOp.getOperation()} {}
   DRWrite(mlir::affine::AffineStoreOp storeOp) noexcept
-      : storeOp{storeOp}, operation{storeOp.getOperation()} {}
+      : storeOp{storeOp},timestamp{nextTimestamp++}, operation{storeOp.getOperation()} {}
   DRWrite(mlir::ptr::StoreOp storeOp) noexcept
-      : storeOp{storeOp}, operation{storeOp.getOperation()} {}
+      : storeOp{storeOp},timestamp{nextTimestamp++}, operation{storeOp.getOperation()} {}
 
   DRWrite(const DRWrite &) = default;
   DRWrite(DRWrite &&) = default;
   DRWrite &operator=(const DRWrite &) = default;
   DRWrite &operator=(DRWrite &&) = default;
 
+  void attachOperands(llvm::SmallVector<DRWrite, 4> &&operands) {
+    for ( const auto &operand : operands ) {
+      this->operands.emplace_back(operand);
+    }
+  }
+
   StoreVariant storeOp;
 
+  size_t timestamp;
+
   mlir::Operation *operation;
+  llvm::SmallVector<mlir::Operation *, 4> operands;
 
   operator mlir::Operation *() const { return operation; }
 
@@ -191,7 +202,12 @@ struct DRWrite {
   static bool isStoreOp(mlir::Operation *op) {
     return SupportedOpTypes::isAnyOp(op);
   }
+
+private:
+  static size_t nextTimestamp;
 };
+
+size_t DRWrite::nextTimestamp = 1;
 
 /// DataRecomputation Write
 /// \see DenseMapInfo<DRWrite>
@@ -905,6 +921,68 @@ struct CallGraphDiagnostics {
   }
 };
 
+
+  // A set containing the operands to a DRStore
+  struct OperandSet {
+    llvm::SmallVector<mlir::Value, 4> values;
+
+    static llvm::SmallVector<DRWrite, 4> traceOperands(CallGraph &callGraph, mlir::func::FuncOp callerFuncOp, mlir::Operation *storeOp, llvm::DenseMap<mlir::Operation *, DRWrite> &lastWrites)
+    {
+      llvm::SmallVector<DRWrite, 4> result;
+      mlir::Operation *writeOp = storeOp;
+
+      auto operandRange = writeOp->getOperands();
+
+      llvm::SmallVector<mlir::Operation*, 4> operandStack{};
+      llvm::DenseSet<mlir::Operation *>  visitedOperands{};
+
+      for ( auto operand : operandRange ) {
+        operandStack.emplace_back(operand.getDefiningOp());
+      }
+
+      // While there are operands to fetch...
+      while ( ! operandStack.empty() ) {
+        auto *operandOp = operandStack.back();
+        operandStack.pop_back();
+
+        if ( visitedOperands.contains(operandOp) ) {
+          MARCO_DBG() << "Skipping already visited operand\n";
+          continue;
+        }
+
+        visitedOperands.insert(operandOp);
+
+        auto operands = operandOp->getOperands();
+
+
+        if ( DRLoad::isLoadOp(operandOp) ) {
+          result.emplace_back(lastWrites.at(operandOp));
+        }
+
+        for ( auto operand : operands ) {
+
+          auto *dependencyOperandOp = operand.getDefiningOp();
+
+          if ( dependencyOperandOp == nullptr ) {
+            if ( auto blockArg = mlir::dyn_cast<mlir::BlockArgument>(operand) ) {
+              auto *resolved = callGraph.resolveBlockArgument(blockArg, callerFuncOp);
+              result.emplace_back(resolved);
+              continue;
+            } else {
+              llvm_unreachable("Unhandled dependency");
+            }
+          } else {
+            operandStack.push_back(dependencyOperandOp);
+          }
+          MARCO_DBG() << "operand: " << operand << operand.getLoc() <<  "\n";
+        }
+      }
+
+    return result;
+    }
+
+  };
+
 }; // namespace mlir::bmodelica::detail
 
 namespace llvm {
@@ -1292,6 +1370,7 @@ mlir::LogicalResult DataRecomputationPass::findOpportunitiesAux(
 
         mlir::Operation *resolvedOriginOp = nullptr;
 
+
         auto [resChain, traceResult] =
             DRStoreTracer::trace(op, context, moduleOp, symTabCollection);
 
@@ -1321,7 +1400,11 @@ mlir::LogicalResult DataRecomputationPass::findOpportunitiesAux(
         }
         assert(resolvedOriginOp != nullptr && "Unable to resolve bound memref");
 
-        lastWrites.insert(std::make_pair(resolvedOriginOp, DRWrite{op}));
+        auto operands = OperandSet::traceOperands(callGraph, currentFuncOp, lastWrites.at(resolvedOriginOp), lastWrites);
+
+        DRWrite res{op};
+        res.attachOperands(std::move(operands));
+        lastWrites.insert(std::make_pair(resolvedOriginOp, std::move(res)));
       }
 
       // Mark loads and tie them to origin stores
