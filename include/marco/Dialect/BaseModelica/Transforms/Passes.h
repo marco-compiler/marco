@@ -11,7 +11,6 @@
 #include "marco/Dialect/BaseModelica/Transforms/EquationAccessSplit.h"
 #include "marco/Dialect/BaseModelica/Transforms/EquationExplicitation.h"
 #include "marco/Dialect/BaseModelica/Transforms/EquationExplicitationTest.h"
-#include "marco/Dialect/BaseModelica/Transforms/EquationFunctionLoopHoisting.h"
 #include "marco/Dialect/BaseModelica/Transforms/EquationInductionsExplicitation.h"
 #include "marco/Dialect/BaseModelica/Transforms/EquationSidesSplit.h"
 #include "marco/Dialect/BaseModelica/Transforms/EquationTemplatesCreation.h"

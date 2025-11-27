@@ -22,7 +22,6 @@ add_mlir_dialect_library(MLIRBaseModelicaTransforms
     EquationExplicitation.cpp
     EquationExplicitationTest.cpp
     EquationExpressionOpInterfaceImpl.cpp
-    EquationFunctionLoopHoisting.cpp
     EquationInductionsExplicitation.cpp
     EquationSidesSplit.cpp
     EquationTemplatesCreation.cpp

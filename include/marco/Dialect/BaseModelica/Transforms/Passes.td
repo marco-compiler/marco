@@ -319,22 +319,6 @@ def ViewAccessFoldingPass : Pass<"fold-view-accesses", "mlir::ModuleOp">
 // Optimizations
 //===---------------------------------------------------------------------===//
 
-def EquationFunctionLoopHoistingPass
-    : Pass<"equation-function-loop-hoist", "EquationFunctionOp">
-{
-    let summary = "Hoist operation out of loops inside equation functions";
-
-    let description = [{
-        // TODO
-    }];
-
-    let dependentDialects = [
-        "mlir::bmodelica::BaseModelicaDialect"
-    ];
-
-    let constructor = "mlir::bmodelica::createEquationFunctionLoopHoistingPass()";
-}
-
 def CallCSEPass
     : Pass<"call-cse", "mlir::ModuleOp">
 {

@@ -991,12 +991,6 @@ void CodeGenAction::buildMLIRModelSolvingPipeline(mlir::PassManager &pm) {
   // Explicitate the equations.
   pm.addPass(mlir::bmodelica::createEquationExplicitationPass());
 
-  // Lift loop-independent code from loops of equations.
-  if (ci.getCodeGenOptions().loopHoisting) {
-    pm.addNestedPass<mlir::bmodelica::EquationFunctionOp>(
-        mlir::bmodelica::createEquationFunctionLoopHoistingPass());
-  }
-
   // Export the unsolved SCCs to KINSOL.
   pm.addPass(createMLIRSCCSolvingWithKINSOLPass());
 
@@ -1114,6 +1108,11 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
   // Lower to LLVM dialect.
   pm.addNestedPass<mlir::func::FuncOp>(
       mlir::memref::createExpandStridedMetadataPass());
+
+  // Move loop-independent code outside of loops.
+  if (ci.getCodeGenOptions().loopHoisting) {
+    pm.addNestedPass<mlir::func::FuncOp>(createAggressiveLICMPass());
+  }
 
   pm.addNestedPass<mlir::func::FuncOp>(mlir::createLowerAffinePass());
   pm.addNestedPass<mlir::func::FuncOp>(mlir::createSCFToControlFlowPass());

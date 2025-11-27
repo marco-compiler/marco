@@ -1,6 +1,7 @@
 #ifndef MARCO_FRONTEND_PASSES_H
 #define MARCO_FRONTEND_PASSES_H
 
+#include "marco/Frontend/Passes/AggressiveLICM.h"
 #include "marco/Frontend/Passes/HeapFunctionsReplacement.h"
 #include "marco/Frontend/Passes/Verifier.h"
 
