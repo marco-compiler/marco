@@ -1058,6 +1058,7 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
   // Perform bufferization.
   pm.addPass(createMLIROneShotBufferizePass());
 
+  // Promote the output arrays to arguments.
   if (ci.getCodeGenOptions().outputArraysPromotion) {
     pm.addPass(mlir::bufferization::createBufferResultsToOutParamsPass());
   }
@@ -1087,6 +1088,7 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
   // the temporary allocations may also be promoted.
   pm.addPass(createMLIRBaseModelicaExternalCallsConversionPass());
 
+  // Promote heap allocations to stack allocations.
   if (ci.getCodeGenOptions().heapToStackPromotion) {
     pm.addNestedPass<mlir::func::FuncOp>(createMLIRPromoteBuffersToStackPass());
   }
