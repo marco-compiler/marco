@@ -103,7 +103,27 @@ static bool isAnyOp(mlir::Operation *op) {
 
 template <class... OpTys>
 struct OpTypeList {
-  static bool isAnyOp(mlir::Operation *op) { return (op != nullptr) && ::isAnyOp<OpTys...>(op); }
+  static bool isAnyOp(mlir::Operation *op) {
+    return (op != nullptr) && ::isAnyOp<OpTys...>(op);
+  }
+
+  static bool isAnyOp(bool) {
+    return false;
+  }
+
+  using VariantT = std::variant<OpTys...>;
+};
+
+/// Specialization with an "empty" flag value in the beginning
+template <class... OpTys>
+struct OpTypeList<bool, OpTys...> {
+  static bool isAnyOp(mlir::Operation *op) {
+    return (op != nullptr) && ::isAnyOp<OpTys...>(op);
+  }
+
+  static bool isAnyOp(bool) {
+    return false;
+  }
 
   using VariantT = std::variant<OpTys...>;
 };
@@ -143,14 +163,24 @@ struct VariantResolver {
   }
 };
 
+template <class... OpTys>
+struct VariantResolver<OpTypeList<bool, OpTys...>> {
+
+  using VariantT = typename OpTypeList<OpTys...>::VariantT;
+
+  static VariantT resolve(mlir::Operation *op) {
+    return VariantResolver<OpTypeList<OpTys...>>::resolve(op);
+  }
+};
+
 /// DataRecomputation Write
 /// \see DenseMapInfo<DRWrite>
 struct DRWrite {
   using SupportedOpTypes =
-      OpTypeList<::mlir::memref::StoreOp, ::mlir::affine::AffineStoreOp,
+      OpTypeList<bool, ::mlir::memref::StoreOp, ::mlir::affine::AffineStoreOp,
                  ::mlir::ptr::StoreOp>;
 
-  using StoreVariant = SupportedOpTypes::VariantT;
+  using StoreVariant = VariantResolver<SupportedOpTypes>::VariantT;
 
   StoreVariant resolveOp(mlir::Operation *op) {
     return VariantResolver<SupportedOpTypes>::resolve(op);
@@ -158,13 +188,17 @@ struct DRWrite {
 
   DRWrite() : storeOp{}, timestamp{0}, operation{nullptr} {}
 
-  DRWrite(mlir::Operation *op) : storeOp{resolveOp(op)}, timestamp{nextTimestamp++}, operation{op} {}
+  DRWrite(mlir::Operation *op)
+      : storeOp{resolveOp(op)}, timestamp{nextTimestamp++}, operation{op} {}
   DRWrite(mlir::memref::StoreOp storeOp) noexcept
-      : storeOp{storeOp},timestamp{nextTimestamp++}, operation{storeOp.getOperation()} {}
+      : storeOp{storeOp}, timestamp{nextTimestamp++},
+        operation{storeOp.getOperation()} {}
   DRWrite(mlir::affine::AffineStoreOp storeOp) noexcept
-      : storeOp{storeOp},timestamp{nextTimestamp++}, operation{storeOp.getOperation()} {}
+      : storeOp{storeOp}, timestamp{nextTimestamp++},
+        operation{storeOp.getOperation()} {}
   DRWrite(mlir::ptr::StoreOp storeOp) noexcept
-      : storeOp{storeOp},timestamp{nextTimestamp++}, operation{storeOp.getOperation()} {}
+      : storeOp{storeOp}, timestamp{nextTimestamp++},
+        operation{storeOp.getOperation()} {}
 
   DRWrite(const DRWrite &) = default;
   DRWrite(DRWrite &&) = default;
@@ -172,7 +206,7 @@ struct DRWrite {
   DRWrite &operator=(DRWrite &&) = default;
 
   void attachOperands(llvm::SmallVector<DRWrite, 4> &&operands) {
-    for ( const auto &operand : operands ) {
+    for (const auto &operand : operands) {
       this->operands.emplace_back(operand);
     }
   }
@@ -314,10 +348,12 @@ struct DRLoad {
   }
 };
 
+/// A final candidate for recomputation
+/// \see DRWrite for operand list
 struct DRCandidate {
   DRCandidate() = delete;
-  DRCandidate(DRWrite write, DRLoad load, DRAlloc allocation)
-    : write{write}, load{load}, allocation{allocation} {}
+  DRCandidate(const DRWrite &write, const DRLoad &load, const DRAlloc &allocation)
+      : write{write}, load{load}, allocation{allocation} {}
 
   DRWrite write;
   DRLoad load;
@@ -364,9 +400,9 @@ struct DRMemrefTracerResult
 
   void dump() {
     llvm::outs() << "TraceResult: ";
-    if ( isFailure() ) {
+    if (isFailure()) {
       llvm::outs() << "FAILURE";
-    } else if ( auto valueOpt = getValue() ) {
+    } else if (auto valueOpt = getValue()) {
       llvm::outs() << "VALUE ";
       valueOpt->dump();
     } else {
@@ -400,7 +436,7 @@ struct DRMemrefTracer {
     auto *definingOp = memrefValue.getDefiningOp();
 
     // Handle the case where the value is directly sourced from a block argument
-    if ( definingOp == nullptr ) {
+    if (definingOp == nullptr) {
       // Return the value from the trace
       return std::make_pair(memrefChain, memrefValue);
     }
@@ -417,15 +453,15 @@ struct DRMemrefTracer {
             traceOnce(backOp, context, moduleOp, symTabCollection);
         memrefChain.emplace_back(singleTraceResult);
         finishFlag = finish;
-      } else if(auto valueOpt = back.getValue()) {
+      } else if (auto valueOpt = back.getValue()) {
         auto extractor = [](auto &mr) -> mlir::Operation * {
           return mr.getDefiningOp();
         };
 
-        memrefChain.emplace_back(DRMemrefTracerResult{extractor(valueOpt.value())});
+        memrefChain.emplace_back(
+            DRMemrefTracerResult{extractor(valueOpt.value())});
 
-      }
-      else {
+      } else {
         MARCO_DBG() << "Untraced value\n";
         break;
       }
@@ -451,7 +487,7 @@ struct DRMemrefTracer {
     /// Used to denote whether something illegal happened
     bool failureFlag;
 
-    using SingleTraceResult = std::tuple<bool, mlir::Value, mlir::Operation * >;
+    using SingleTraceResult = std::tuple<bool, mlir::Value, mlir::Operation *>;
     SingleTraceResult singleTraceResult =
         mlir::TypeSwitch<mlir::Operation *, SingleTraceResult>(op)
             .Case<mlir::memref::ReinterpretCastOp>(
@@ -479,18 +515,19 @@ struct DRMemrefTracer {
                       "other than GlobalOp!");
                 })
             .Default([&](mlir::Operation *op) {
-              if ( DRAlloc::isAllocOp(op) ) {
+              if (DRAlloc::isAllocOp(op)) {
                 failureFlag = false;
                 return std::make_tuple(true, mlir::Value{}, op);
               }
 
               failureFlag = true;
-              return std::make_tuple(true, mlir::Value{}, static_cast<mlir::Operation *>(nullptr));
+              return std::make_tuple(true, mlir::Value{},
+                                     static_cast<mlir::Operation *>(nullptr));
             });
 
     auto [terminateFlag, definingOp, value] = singleTraceResult;
 
-    if ( failureFlag ) {
+    if (failureFlag) {
       return std::make_pair(true, TraceResultTy::failure());
     }
 
@@ -698,8 +735,9 @@ struct DRFunctionArgumentBinder {
         auto [chain, origin] = DRMemrefTracer::traceMemref(
             typedMemrefValue, context, moduleOp, symTabCollection);
 
-        if ( auto definingOpOpt = origin.getOperation() ) {
-          result.emplace_back(FunctionCallMemrefBinding{idx, definingOpOpt.value()});
+        if (auto definingOpOpt = origin.getOperation()) {
+          result.emplace_back(
+              FunctionCallMemrefBinding{idx, definingOpOpt.value()});
         }
       }
     }
@@ -797,24 +835,27 @@ class CallGraph : public llvm::DirectedGraph<CallGraphNode, CallGraphEdge> {
   using const_iterator = StorageTy::const_iterator;
 
 public:
-
-  mlir::Operation *resolveBlockArgument(mlir::BlockArgument barg, mlir::func::FuncOp caller) {
+  mlir::Operation *resolveBlockArgument(mlir::BlockArgument barg,
+                                        mlir::func::FuncOp caller) {
 
     const auto argumentNumber = barg.getArgNumber();
 
-    if ( const auto ownerFunc = mlir::dyn_cast<mlir::func::FuncOp>(barg.getOwner()->getParentOp()) ) {
+    if (const auto ownerFunc = mlir::dyn_cast<mlir::func::FuncOp>(
+            barg.getOwner()->getParentOp())) {
       mlir::SmallVector<CallGraphEdge *> edges;
       findNodeByOp(caller)->findEdgesTo(*findNodeByOp(ownerFunc), edges);
 
-      assert(edges.size() == 1 && "More than one edge to callee with potential bindings");
+      assert(edges.size() == 1 &&
+             "More than one edge to callee with potential bindings");
 
       auto &bindings = edges[0]->bindings;
 
-      auto *bindingIter = llvm::find_if(bindings, [argumentNumber](FunctionCallMemrefBinding &binding) {
-        return binding.argumentIndex == argumentNumber;
-      });
+      auto *bindingIter = llvm::find_if(
+          bindings, [argumentNumber](FunctionCallMemrefBinding &binding) {
+            return binding.argumentIndex == argumentNumber;
+          });
 
-      if ( bindingIter == bindings.end() ) {
+      if (bindingIter == bindings.end()) {
         return nullptr;
       }
 
@@ -823,7 +864,6 @@ public:
 
     return nullptr;
   }
-
 
 public:
   iterator findNodeByOp(mlir::func::FuncOp funcOp) {
@@ -921,67 +961,78 @@ struct CallGraphDiagnostics {
   }
 };
 
+// A set containing the operands to a DRStore
+struct DROperandSet {
+  llvm::SmallVector<mlir::Value, 4> values;
 
-  // A set containing the operands to a DRStore
-  struct OperandSet {
-    llvm::SmallVector<mlir::Value, 4> values;
+  static llvm::SmallVector<DRWrite, 4>
+  traceOperands(CallGraph &callGraph, mlir::func::FuncOp callerFuncOp,
+                mlir::Operation *storeOp,
+                llvm::DenseMap<mlir::Operation *, DRWrite> &lastWrites) {
+    llvm::SmallVector<DRWrite, 4> result;
+    mlir::Operation *writeOp = storeOp;
 
-    static llvm::SmallVector<DRWrite, 4> traceOperands(CallGraph &callGraph, mlir::func::FuncOp callerFuncOp, mlir::Operation *storeOp, llvm::DenseMap<mlir::Operation *, DRWrite> &lastWrites)
-    {
-      llvm::SmallVector<DRWrite, 4> result;
-      mlir::Operation *writeOp = storeOp;
+    auto operandRange = writeOp->getOperands();
 
-      auto operandRange = writeOp->getOperands();
+    llvm::SmallVector<mlir::Operation *, 4> operandStack{};
+    llvm::DenseSet<mlir::Operation *> visitedOperands{};
 
-      llvm::SmallVector<mlir::Operation*, 4> operandStack{};
-      llvm::DenseSet<mlir::Operation *>  visitedOperands{};
-
-      for ( auto operand : operandRange ) {
-        operandStack.emplace_back(operand.getDefiningOp());
-      }
-
-      // While there are operands to fetch...
-      while ( ! operandStack.empty() ) {
-        auto *operandOp = operandStack.back();
-        operandStack.pop_back();
-
-        if ( visitedOperands.contains(operandOp) ) {
-          MARCO_DBG() << "Skipping already visited operand\n";
-          continue;
-        }
-
-        visitedOperands.insert(operandOp);
-
-        auto operands = operandOp->getOperands();
-
-
-        if ( DRLoad::isLoadOp(operandOp) ) {
-          result.emplace_back(lastWrites.at(operandOp));
-        }
-
-        for ( auto operand : operands ) {
-
-          auto *dependencyOperandOp = operand.getDefiningOp();
-
-          if ( dependencyOperandOp == nullptr ) {
-            if ( auto blockArg = mlir::dyn_cast<mlir::BlockArgument>(operand) ) {
-              auto *resolved = callGraph.resolveBlockArgument(blockArg, callerFuncOp);
-              result.emplace_back(resolved);
-              continue;
-            } else {
-              llvm_unreachable("Unhandled dependency");
-            }
-          } else {
-            operandStack.push_back(dependencyOperandOp);
-          }
-          MARCO_DBG() << "operand: " << operand << operand.getLoc() <<  "\n";
-        }
-      }
-
-    return result;
+    for (auto operand : operandRange) {
+      operandStack.emplace_back(operand.getDefiningOp());
     }
 
-  };
+    // While there are operands to fetch...
+    while (!operandStack.empty()) {
+      auto *operandOp = operandStack.back();
+      operandStack.pop_back();
+
+      // if (visitedOperands.contains(operandOp)) {
+      //   MARCO_DBG() << "Skipping already visited operand\n";
+      //   continue;
+      // }
+
+      visitedOperands.insert(operandOp);
+
+      auto operands = operandOp->getOperands();
+
+      if (DRLoad::isLoadOp(operandOp)) {
+
+        if ( lastWrites.contains(operandOp) ) {
+          result.emplace_back(lastWrites.at(operandOp));
+        } else {
+          result.emplace_back(DRWrite{});
+        }
+      }
+
+      for (auto operand : operands) {
+
+        auto *dependencyOperandOp = operand.getDefiningOp();
+
+        if (dependencyOperandOp == nullptr) {
+          if (auto blockArg = mlir::dyn_cast<mlir::BlockArgument>(operand)) {
+            auto *resolved =
+                callGraph.resolveBlockArgument(blockArg, callerFuncOp);
+
+            if ( resolved == nullptr ) {
+              /// Not resolving back to a memref. Unhandled. Skip
+              MARCO_DBG() << "Skipping non-memref block argument\n";
+              continue;
+            }
+
+            result.emplace_back(resolved);
+          } else {
+            llvm_unreachable("Unhandled dependency");
+          }
+        } else {
+          operandStack.push_back(dependencyOperandOp);
+        }
+        MARCO_DBG() << "operand: " << operand << operand.getLoc() << "\n";
+      }
+    }
+
+    return result;
+  }
+};
 
 }; // namespace mlir::bmodelica::detail
 
@@ -1068,14 +1119,16 @@ private:
   mlir::LogicalResult findOpportunitiesAux(
       mlir::ModuleOp moduleOp, mlir::MLIRContext *context,
       mlir::func::FuncOp funcOp, mlir::SymbolTableCollection &symTabCollection,
-      CallGraph &callGraph, llvm::SmallVector<DRCandidate, 4> &foundOpportunities,
+      CallGraph &callGraph,
+      llvm::SmallVector<DRCandidate, 4> &foundOpportunities,
       llvm::SmallSet<std::pair<mlir::func::FuncOp, mlir::func::FuncOp>, 8>
           &visitSet);
 
   mlir::FailureOr<llvm::SmallVector<DRCandidate, 4>>
   findOpportunities(mlir::ModuleOp moduleOp, mlir::MLIRContext *context,
-                        mlir::func::FuncOp entrypointFuncOp,
-                        mlir::SymbolTableCollection &symTabCollection, CallGraph &callGraph);
+                    mlir::func::FuncOp entrypointFuncOp,
+                    mlir::SymbolTableCollection &symTabCollection,
+                    CallGraph &callGraph);
 
   mlir::FailureOr<mlir::func::FuncOp> selectEntrypoint(mlir::ModuleOp moduleOp);
 
@@ -1208,7 +1261,7 @@ void DataRecomputationPass::runOnOperation() {
     int64_t offsetAfter;
   };
 
-  if ( ! entrypointFuncOp ) {
+  if (!entrypointFuncOp) {
     signalPassFailure();
     return;
   }
@@ -1216,22 +1269,24 @@ void DataRecomputationPass::runOnOperation() {
   auto callGraph =
       buildCallGraph(context, moduleOp, entrypointFuncOp, symTabCollection);
 
-  auto opportunities = findOpportunities(
-      moduleOp, context, entrypointFuncOp, symTabCollection, callGraph);
+  auto opportunities = findOpportunities(moduleOp, context, entrypointFuncOp,
+                                         symTabCollection, callGraph);
 
-  if ( mlir::failed(opportunities) ) {
+  if (mlir::failed(opportunities)) {
     MARCO_DBG() << "findOpportunities failed\n";
   }
 
   if (outputDiagnostics) {
     CallGraphDiagnostics::outputDiagnostic(diagnostics, callGraph);
 
-    for ( auto &opportunity : *opportunities ) {
-      MARCO_DBG() << "Write: "; static_cast<mlir::Operation *>(opportunity.write)->dump();
-      MARCO_DBG() << "Load: "; static_cast<mlir::Operation *>(opportunity.load)->dump();
-      MARCO_DBG() << "Origin Allocation: "; static_cast<mlir::Operation *>(opportunity.allocation)->dump();
+    for (auto &opportunity : *opportunities) {
+      MARCO_DBG() << "Write: ";
+      static_cast<mlir::Operation *>(opportunity.write)->dump();
+      MARCO_DBG() << "Load: ";
+      static_cast<mlir::Operation *>(opportunity.load)->dump();
+      MARCO_DBG() << "Origin Allocation: ";
+      static_cast<mlir::Operation *>(opportunity.allocation)->dump();
     }
-
   }
 
   moduleOp.walk([&](FuncOp funcOp) {
@@ -1319,8 +1374,9 @@ DataRecomputationPass::findOpportunities(
   llvm::SmallVector<DRCandidate, 4> result{};
   llvm::SmallSet<std::pair<mlir::func::FuncOp, mlir::func::FuncOp>, 8>
       visitSet{};
-  auto report = findOpportunitiesAux(moduleOp, context, entrypointFuncOp,
-                                         symTabCollection, callGraph, result, visitSet);
+  auto report =
+      findOpportunitiesAux(moduleOp, context, entrypointFuncOp,
+                           symTabCollection, callGraph, result, visitSet);
 
   if (report.failed())
     return mlir::failure();
@@ -1370,64 +1426,71 @@ mlir::LogicalResult DataRecomputationPass::findOpportunitiesAux(
 
         mlir::Operation *resolvedOriginOp = nullptr;
 
-
         auto [resChain, traceResult] =
             DRStoreTracer::trace(op, context, moduleOp, symTabCollection);
 
-        for ( auto &cc : resChain ) {
+        for (auto &cc : resChain) {
           cc.dump();
         }
-        if ( auto valueOpt = traceResult.getValue() ) {
+        if (auto valueOpt = traceResult.getValue()) {
 
           auto value = valueOpt.value();
-          if ( auto arg = mlir::dyn_cast<mlir::BlockArgument>(value) ) {
-            resolvedOriginOp = callGraph.resolveBlockArgument(arg, inboundFuncOp);
+          if (auto arg = mlir::dyn_cast<mlir::BlockArgument>(value)) {
+            resolvedOriginOp =
+                callGraph.resolveBlockArgument(arg, inboundFuncOp);
           } else {
-            MARCO_DBG() << "Got a value but it wasn't a block argument?!" << "\n";
+            MARCO_DBG() << "Got a value but it wasn't a block argument?!"
+                        << "\n";
             llvm::dbgs().flush();
           }
 
-        } else if ( auto opOpt = traceResult.getOperation() ){
+        } else if (auto opOpt = traceResult.getOperation()) {
           resolvedOriginOp = opOpt.value();
         } else if (traceResult.isFailure()) {
-          MARCO_DBG() << "Trace failed on: "; op->dump();
+          MARCO_DBG() << "Trace failed on: ";
+          op->dump();
           assert(!traceResult.isFailure() && "Failed trace!");
         }
 
-        if ( resolvedOriginOp == nullptr ) {
+        if (resolvedOriginOp == nullptr) {
           op->dump();
           assert(false && "Unable, but let's dump it");
         }
         assert(resolvedOriginOp != nullptr && "Unable to resolve bound memref");
 
-        auto operands = OperandSet::traceOperands(callGraph, currentFuncOp, lastWrites.at(resolvedOriginOp), lastWrites);
-
         DRWrite res{op};
-        res.attachOperands(std::move(operands));
+
+
+          auto operands = DROperandSet::traceOperands(
+              callGraph, currentFuncOp, res,
+              lastWrites);
+          res.attachOperands(std::move(operands));
+
         lastWrites.insert(std::make_pair(resolvedOriginOp, std::move(res)));
       }
 
       // Mark loads and tie them to origin stores
       if (DRLoad::isLoadOp(op)) {
         // Trace it back
-        auto [resChain, originOp] = DRLoadTracer::trace(op, context,
-        moduleOp, symTabCollection);
+        auto [resChain, originOp] =
+            DRLoadTracer::trace(op, context, moduleOp, symTabCollection);
 
         assert(!originOp.isFailure() && "Failed to trace back load");
 
         mlir::Operation *resolvedOriginOp = nullptr;
 
-        if ( auto valueOpt = originOp.getValue() ) {
+        if (auto valueOpt = originOp.getValue()) {
           auto value = valueOpt.value();
-          if ( auto arg = mlir::dyn_cast<mlir::BlockArgument>(value) ) {
-            resolvedOriginOp = callGraph.resolveBlockArgument(arg, inboundFuncOp);
+          if (auto arg = mlir::dyn_cast<mlir::BlockArgument>(value)) {
+            resolvedOriginOp =
+                callGraph.resolveBlockArgument(arg, inboundFuncOp);
           }
-        } else if ( auto opOpt = originOp.getOperation() ) {
+        } else if (auto opOpt = originOp.getOperation()) {
           resolvedOriginOp = opOpt.value();
         }
 
         // Try to find
-        if ( ! lastWrites.contains(resolvedOriginOp) ) {
+        if (!lastWrites.contains(resolvedOriginOp)) {
           // Skip this one. Not a candidate
           return mlir::WalkResult::skip();
         }
@@ -1457,16 +1520,14 @@ mlir::LogicalResult DataRecomputationPass::findOpportunitiesAux(
 
       auto callOpInterface = mlir::dyn_cast<mlir::CallOpInterface>(callOp);
       auto callableSymbol = callOpInterface.getCallableForCallee()
-                          .dyn_cast<mlir::SymbolRefAttr>();
+                                .dyn_cast<mlir::SymbolRefAttr>();
 
+      auto *callableOp =
+          symTabCollection.lookupSymbolIn(moduleOp, callableSymbol);
 
-      auto *callableOp = symTabCollection.lookupSymbolIn(moduleOp, callableSymbol);
-
-      if (auto funcOp = mlir::dyn_cast<mlir::func::FuncOp>(callableOp) ) {
-        visitStack.push_back( std::make_pair(currentFuncOp, funcOp) );
+      if (auto funcOp = mlir::dyn_cast<mlir::func::FuncOp>(callableOp)) {
+        visitStack.push_back(std::make_pair(currentFuncOp, funcOp));
       }
-
-
 
       // debug output
       if (insideLoop) {
@@ -1531,7 +1592,8 @@ mlir::LogicalResult DataRecomputationPass::findOpportunitiesAux(
                                     std::move(bindings));
 
           // MARCO_DBG() << "Pushing (" << calleeFuncOp.getName() << ", "
-          //             << nestedCalleeFuncOp.getName() << ") onto the stack\n";
+          //             << nestedCalleeFuncOp.getName() << ") onto the
+          //             stack\n";
           visitStack.push_back(
               std::make_pair(calleeFuncOp, nestedCalleeFuncOp));
         } else if (calleeOp->getName().getStringRef() ==
