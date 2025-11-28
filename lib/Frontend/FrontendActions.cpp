@@ -1113,7 +1113,7 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
   pm.addNestedPass<mlir::func::FuncOp>(
       mlir::memref::createExpandStridedMetadataPass());
 
-  pm.addPass(mlir::bmodelica::createDataRecomputationPass());
+  // pm.addPass(mlir::bmodelica::createDataRecomputationPass());
 
   pm.addNestedPass<mlir::func::FuncOp>(mlir::createLowerAffinePass());
   pm.addNestedPass<mlir::func::FuncOp>(mlir::createSCFToControlFlowPass());
@@ -1138,6 +1138,7 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
 
   pm.addNestedPass<mlir::LLVM::LLVMFuncOp>(
       mlir::LLVM::createLLVMLegalizeForExportPass());
+
 }
 
 std::unique_ptr<mlir::Pass> CodeGenAction::createMLIRMatchingPass() {
