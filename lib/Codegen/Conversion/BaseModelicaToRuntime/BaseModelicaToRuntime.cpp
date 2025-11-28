@@ -23,6 +23,9 @@ public:
   void runOnOperation() override;
 
 private:
+  mlir::LogicalResult emitExperimentFunctions(mlir::OpBuilder &builder,
+                                              mlir::ModuleOp moduleOp);
+
   mlir::LogicalResult addMissingRuntimeFunctions(mlir::OpBuilder &builder,
                                                  mlir::ModuleOp moduleOp);
 
@@ -132,6 +135,10 @@ void BaseModelicaToRuntimeConversionPass::runOnOperation() {
   mlir::IRRewriter rewriter(&getContext());
   mlir::SymbolTableCollection symbolTableCollection;
 
+  if (mlir::failed(emitExperimentFunctions(rewriter, moduleOp))) {
+    return signalPassFailure();
+  }
+
   if (mlir::failed(addMissingRuntimeFunctions(rewriter, moduleOp))) {
     return signalPassFailure();
   }
@@ -189,12 +196,42 @@ void BaseModelicaToRuntimeConversionPass::runOnOperation() {
 }
 
 mlir::LogicalResult
+BaseModelicaToRuntimeConversionPass::emitExperimentFunctions(
+    mlir::OpBuilder &builder, mlir::ModuleOp moduleOp) {
+  mlir::OpBuilder::InsertionGuard guard(builder);
+
+  std::optional<mlir::FloatAttr> startTime, endTime;
+  for (auto &op : moduleOp.getOps()) {
+    if (auto modelOp = mlir::dyn_cast<ModelOp>(op)) {
+      if (auto startTimeInner = modelOp->getAttrOfType<mlir::FloatAttr>(
+              modelOp.getExperimentStartTimeAttrName())) {
+        startTime = startTimeInner;
+      }
+      if (auto endTimeInner = modelOp->getAttrOfType<mlir::FloatAttr>(
+              modelOp.getExperimentEndTimeAttrName())) {
+        endTime = endTimeInner;
+      }
+    }
+  }
+
+  builder.setInsertionPointToEnd(moduleOp.getBody());
+  builder.create<mlir::runtime::StartTimeOp>(moduleOp->getLoc(),
+                                             startTime ? *startTime : nullptr);
+
+  builder.setInsertionPointToEnd(moduleOp.getBody());
+  builder.create<mlir::runtime::EndTimeOp>(moduleOp->getLoc(),
+                                           endTime ? *endTime : nullptr);
+
+  return mlir::success();
+}
+
+mlir::LogicalResult
 BaseModelicaToRuntimeConversionPass::addMissingRuntimeFunctions(
     mlir::OpBuilder &builder, mlir::ModuleOp moduleOp) {
   mlir::OpBuilder::InsertionGuard guard(builder);
 
-  size_t numOfICModelBeginOps = 0, numOfICModelEndOps = 0;
-  size_t numOfDynamicModelBeginOps = 0, numOfDynamicModelEndOps = 0;
+  size_t numOfICModelBeginOps = 0, numOfICModelEndOps = 0,
+         numOfDynamicModelBeginOps = 0, numOfDynamicModelEndOps = 0;
 
   for (auto &op : moduleOp.getOps()) {
     if (mlir::isa<mlir::runtime::ICModelBeginOp>(op)) {
@@ -581,8 +618,8 @@ getPrintableIndices(VariableType variableType,
     assert(static_cast<int64_t>(filterRanges.size()) == variableType.getRank());
 
     for (const auto &range : llvm::enumerate(filterRanges)) {
-      // In Modelica, arrays are 1-based. If present, we need to lower by 1 the
-      // value given by the variable filter.
+      // In Modelica, arrays are 1-based. If present, we need to lower by 1
+      // the value given by the variable filter.
 
       auto lowerBound =
           range.value().hasLowerBound() ? range.value().getLowerBound() - 1 : 0;
