@@ -892,8 +892,12 @@ public:
       mlir::SmallVector<CallGraphEdge *> edges;
       findNodeByOp(caller)->findEdgesTo(*findNodeByOp(ownerFunc), edges);
 
+      if ( edges.empty() ) return nullptr;
+
       assert(edges.size() == 1 &&
              "More than one edge to callee with potential bindings");
+
+
 
       auto &bindings = edges[0]->bindings;
 
@@ -1033,6 +1037,8 @@ struct DROperandSet {
       auto *operandOp = operandStack.back();
       operandStack.pop_back();
 
+      if ( operandOp == nullptr ) continue;
+
       // if (visitedOperands.contains(operandOp)) {
       //   MARCO_DBG() << "Skipping already visited operand\n";
       //   continue;
@@ -1108,7 +1114,9 @@ struct DROperandSet {
             llvm_unreachable("Unhandled dependency");
           }
         } else {
-          operandStack.push_back(dependencyOperandOp);
+          if ( dependencyOperandOp != nullptr ) {
+            operandStack.push_back(dependencyOperandOp);
+          }
         }
         MARCO_DBG() << "operand: " << operand << operand.getLoc() << "\n";
       }
@@ -1319,14 +1327,6 @@ void DataRecomputationPass::runOnOperation() {
   DRLoadTracer loadTracer{context, moduleOp, symTabCollection};
   DRStoreTracer storeTracer{context, moduleOp, symTabCollection};
 
-  // IMPORTANT NOTE:
-  // This selection is for an IPO-analysis. In the final pass,
-  // the selection should not be informed by a _dynamic prefix, but rather
-  // something more general.
-  //
-  // Later idea: Disjoint set analysis. Refine and split clusters based on
-  // feasibility. Can be costly, so amortized and cached information necessary.
-
   auto entrypointFuncOption = selectEntrypoint(moduleOp);
   if (mlir::failed(entrypointFuncOption)) {
     MARCO_DBG() << "Failed to select entrypoint function\n";
@@ -1398,10 +1398,10 @@ DataRecomputationPass::selectEntrypoint(mlir::ModuleOp moduleOp) {
       return mlir::WalkResult::interrupt();
     }
 
-  //   if (nameStr.find("updateNonStateVariables") == 0) {
-  //     entrypointFuncs.emplace_back(funcOp);
-  //     return mlir::WalkResult::advance();
-  //   }
+    // if (nameStr.find("updateNonStateVariables") == 0) {
+    //   entrypointFuncs.emplace_back(funcOp);
+    //   return mlir::WalkResult::advance();
+    // }
 
     return mlir::WalkResult::advance();
   });
@@ -1582,7 +1582,7 @@ mlir::LogicalResult DataRecomputationPass::findOpportunitiesAux(
           if ( lastWrites.contains(operand.originAlloc.operation) ) {
             invariantHeld &= (operand.timestamp == lastWrites.at(operand.originAlloc.operation).timestamp);
 
-            if ( invariantHeld == false ) {
+            if ( !invariantHeld ) {
               MARCO_DBG(); operand.originAlloc.operation->dump();
               MARCO_DBG() << "Diverging timestamp " << operand.timestamp << ", " << lastWrites.at(operand.originAlloc.operation).timestamp << "\n";
             }
@@ -1593,6 +1593,13 @@ mlir::LogicalResult DataRecomputationPass::findOpportunitiesAux(
         }
 
         MARCO_DBG() << "Invariant held? " << (invariantHeld ? "yes" : "no") << "\n";
+
+        if ( invariantHeld ) {
+          MARCO_DBG() << op->getLoc() << " -- ";
+          op->dump();
+          resolvedOriginOp->dump();
+        }
+
         llvm::dbgs().flush();
 
 
