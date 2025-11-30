@@ -25,6 +25,11 @@ def BaseModelica_Dialect : Dialect {
     ];
 
     let extraClassDeclaration = [{
+        /// Name of the attribute attachable to function operation
+        /// containing named sequences. This is used to trigger verification.
+        constexpr const static ::llvm::StringLiteral
+            kEquationFunctionAttrName = "equation_function";
+
         void registerTypes();
         void registerAttributes();
         void registerOperations();

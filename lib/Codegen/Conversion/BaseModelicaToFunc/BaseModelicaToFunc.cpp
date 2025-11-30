@@ -125,6 +125,10 @@ struct EquationFunctionOpLowering
     // Preserve the attributes.
     funcOp->setAttrs(op->getAttrs());
 
+    // Add an attribute marking the equation function.
+    funcOp->setAttr(BaseModelicaDialect::kEquationFunctionAttrName,
+                    rewriter.getUnitAttr());
+
     // Move the body of the original function to the new function.
     rewriter.inlineRegionBefore(op.getBody(), funcOp.getFunctionBody(),
                                 funcOp.end());
