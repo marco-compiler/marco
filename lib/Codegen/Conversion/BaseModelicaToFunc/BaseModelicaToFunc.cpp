@@ -114,12 +114,18 @@ struct EquationFunctionOpLowering
     mlir::SymbolTable &symbolTable = getSymbolTableCollection().getSymbolTable(
         op->getParentOfType<mlir::ModuleOp>());
 
+    // Create the new function operation.
     auto funcOp = rewriter.create<mlir::func::FuncOp>(
         op.getLoc(), op.getSymName(), functionType);
 
+    // Update the symbol table.
     symbolTable.remove(op);
     symbolTable.insert(funcOp, rewriter.getInsertionPoint());
 
+    // Preserve the attributes.
+    funcOp->setAttrs(op->getAttrs());
+
+    // Move the body of the original function to the new function.
     rewriter.inlineRegionBefore(op.getBody(), funcOp.getFunctionBody(),
                                 funcOp.end());
 
