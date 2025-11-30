@@ -18,6 +18,25 @@ def AggressiveLICMPass : Pass<"aggressive-licm">
     let constructor = "marco::frontend::createAggressiveLICMPass()";
 }
 
+def EquationIndexCheckInsertionPass
+    : Pass<"equation-index-check-insertion", "mlir::func::FuncOp">
+{
+    let summary = "Insert bound checks for equation indices.";
+
+    let description = [{
+        Insert bound checks for equation indices to ensure they are within
+        valid ranges during runtime. This pass is used when offloading
+        equations to GPUs to ensure that threads do not access out-of-bounds
+        memory.
+    }];
+
+    let dependentDialects = [
+        "mlir::affine::AffineDialect"
+    ];
+
+    let constructor = "marco::frontend::createEquationIndexCheckInsertionPass()";
+}
+
 def HeapFunctionsReplacementPass
     : Pass<"heap-functions-replacement", "mlir::ModuleOp">
 {
