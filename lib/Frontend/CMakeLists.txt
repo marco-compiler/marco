@@ -1,6 +1,7 @@
 set(SOURCES
     Instrumentation/VerificationModelEmitter.cpp
     Passes/AggressiveLICM.cpp
+    Passes/EquationIndexCheckInsertion.cpp
     Passes/HeapFunctionsReplacement.cpp
     Passes/Verifier.cpp
     CompilerInstance.cpp

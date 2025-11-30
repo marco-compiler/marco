@@ -2,6 +2,7 @@
 #define MARCO_FRONTEND_PASSES_H
 
 #include "marco/Frontend/Passes/AggressiveLICM.h"
+#include "marco/Frontend/Passes/EquationIndexCheckInsertion.h"
 #include "marco/Frontend/Passes/HeapFunctionsReplacement.h"
 #include "marco/Frontend/Passes/Verifier.h"
 
