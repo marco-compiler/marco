@@ -25,6 +25,11 @@ def BaseModelica_Dialect : Dialect {
     ];
 
     let extraClassDeclaration = [{
+        /// Name of the attribute attachable to lowered equation functions to
+        /// identify them in passes coming after their conversion.
+        constexpr const static ::llvm::StringLiteral
+            kEquationFunctionAttrName = "equation_function";
+
         void registerTypes();
         void registerAttributes();
         void registerOperations();
