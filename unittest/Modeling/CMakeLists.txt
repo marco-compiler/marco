@@ -16,9 +16,11 @@ set(SOURCES
     GraphDumperMermaidBackendTest.cpp
 )
 
-marco_add_unittest(ModelingTest ${SOURCES})
+set(LLVM_LINK_COMPONENTS
+    Core
+    Support)
 
-marco_link_llvm_libs(ModelingTest Core Support)
+marco_add_unittest(ModelingTest ${SOURCES})
 
 target_link_libraries(ModelingTest
     PRIVATE marco::modeling)

@@ -4,9 +4,11 @@ set(SOURCES
     StatementTest.cpp
     TupleTest.cpp)
 
-marco_add_unittest(ASTTest ${SOURCES})
+set(LLVM_LINK_COMPONENTS
+    Core
+    Support)
 
-marco_link_llvm_libs(ASTTest Core Support)
+marco_add_unittest(ASTTest ${SOURCES})
 
 target_link_libraries(ASTTest
     PRIVATE marco::ASTBaseModelica)

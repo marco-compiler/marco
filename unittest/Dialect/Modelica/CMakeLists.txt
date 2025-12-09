@@ -1,9 +1,11 @@
 set(SOURCES
     ArrayTypeTest.cpp)
 
-marco_add_unittest(ModelicaDialectTest ${SOURCES})
+set(LLVM_LINK_COMPONENTS
+    Core
+    Support)
 
-marco_link_llvm_libs(ModelicaDialectTest Core Support)
+marco_add_unittest(ModelicaDialectTest ${SOURCES})
 
 target_link_libraries(ModelicaDialectTest
     PRIVATE MLIRBaseModelica)

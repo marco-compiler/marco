@@ -1,9 +1,11 @@
 set(SOURCES
     TypeConverterTest.cpp)
 
-marco_add_unittest(ModelicaCommonConversionTest ${SOURCES})
+set(LLVM_LINK_COMPONENTS
+    Core
+    Support)
 
-marco_link_llvm_libs(ModelicaCommonConversionTest Core Support)
+marco_add_unittest(ModelicaCommonConversionTest ${SOURCES})
 
 target_link_libraries(ModelicaCommonConversionTest
         PRIVATE MLIRBaseModelicaCommonConversion

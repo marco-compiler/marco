@@ -4,9 +4,11 @@ set(SOURCES
     LexerTest.cpp
     ParserTest.cpp)
 
-marco_add_unittest(ParserTest ${SOURCES})
+set(LLVM_LINK_COMPONENTS
+    Core
+    Support)
 
-marco_link_llvm_libs(ParserTest Core Support)
+marco_add_unittest(ParserTest ${SOURCES})
 
 target_link_libraries(ParserTest
     PRIVATE marco::ParserBaseModelica)
