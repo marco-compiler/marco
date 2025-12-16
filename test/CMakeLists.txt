@@ -69,6 +69,10 @@ else()
     configure_file(llvm-lit.in ${LIT_BASE_DIR}/${LIT_FILE_NAME})
 endif()
 
+if ("${LLVM_EXTERNAL_LIT}" STREQUAL "")
+    set(LLVM_EXTERNAL_LIT "${LIT_BASE_DIR}/${LIT_FILE_NAME}" CACHE STRING "Command used to spawn lit")
+endif()
+
 #-------------------------------------------------------------------------------
 # MARCO test suites
 #-------------------------------------------------------------------------------
