@@ -1,5 +1,5 @@
-#ifndef MARCO_CODEGEN_RUNTIME_H
-#define MARCO_CODEGEN_RUNTIME_H
+#ifndef MARCO_CODEGEN_CONVERSION_RUNTIMECOMMON_MANGLING_H
+#define MARCO_CODEGEN_CONVERSION_RUNTIMECOMMON_MANGLING_H
 
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/IR/BuiltinOps.h"
@@ -7,7 +7,7 @@
 #include "llvm/ADT/StringRef.h"
 #include <string>
 
-namespace marco::codegen {
+namespace mlir::runtime {
 class RuntimeFunctionsMangling {
 public:
   std::string
@@ -27,6 +27,6 @@ public:
 
   std::string getVoidPointerType() const;
 };
-} // namespace marco::codegen
+} // namespace mlir::runtime
 
-#endif // MARCO_CODEGEN_RUNTIME_H
+#endif // MARCO_CODEGEN_CONVERSION_RUNTIMECOMMON_MANGLING_H

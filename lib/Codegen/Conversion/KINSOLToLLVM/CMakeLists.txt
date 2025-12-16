@@ -15,7 +15,4 @@ add_mlir_conversion_library(MLIRKINSOLToLLVM
     MARCOConversionPassIncGen
 
     LINK_LIBS PUBLIC
-    marco::codegen
-    MLIRKINSOLCommonConversion
-    MLIRRuntimeToFunc
     ${MLIR_LIBS})

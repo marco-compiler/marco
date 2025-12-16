@@ -15,7 +15,4 @@ add_mlir_conversion_library(MLIRIDAToLLVM
     MARCOConversionPassIncGen
 
     LINK_LIBS PUBLIC
-    marco::codegen
-    MLIRIDACommonConversion
-    MLIRRuntimeToFunc
     ${MLIR_LIBS})

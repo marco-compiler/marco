@@ -15,6 +15,4 @@ add_mlir_conversion_library(MLIRBaseModelicaToCF
     MARCOConversionPassIncGen
 
     LINK_LIBS PUBLIC
-    marco::codegen
-    MLIRBaseModelicaCommonConversion
     ${MLIR_LIBS})

@@ -1,6 +1,6 @@
 #include "marco/Codegen/Conversion/BaseModelicaToLLVM/BaseModelicaToLLVM.h"
 #include "marco/Codegen/Conversion/BaseModelicaCommon/LLVMTypeConverter.h"
-#include "marco/Codegen/Runtime.h"
+#include "marco/Codegen/Conversion/RuntimeCommon/Mangling.h"
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "mlir/Conversion/ConvertToLLVM/ToLLVMInterface.h"
 #include "mlir/Conversion/LLVMCommon/Pattern.h"
@@ -15,7 +15,6 @@ namespace mlir {
 } // namespace mlir
 
 using namespace ::mlir::bmodelica;
-using namespace ::marco::codegen;
 
 namespace {
 template <typename Op>
@@ -285,7 +284,7 @@ struct PoolVariableGetOpLowering
     mlir::Location loc = op.getLoc();
     auto moduleOp = op->getParentOfType<mlir::ModuleOp>();
 
-    RuntimeFunctionsMangling mangling;
+    mlir::runtime::RuntimeFunctionsMangling mangling;
 
     llvm::SmallVector<mlir::Value, 2> args;
     llvm::SmallVector<std::string, 2> mangledArgsTypes;

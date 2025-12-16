@@ -1,10 +1,9 @@
-#include "marco/Codegen/Runtime.h"
+#include "marco/Codegen/Conversion/RuntimeCommon/Mangling.h"
 #include "mlir/Dialect/LLVMIR/FunctionCallUtils.h"
 
-using namespace ::marco;
-using namespace ::marco::codegen;
+using namespace ::mlir::runtime;
 
-namespace marco::codegen {
+namespace mlir::runtime {
 std::string RuntimeFunctionsMangling::getMangledFunction(
     llvm::StringRef baseName, llvm::StringRef mangledReturnType,
     llvm::ArrayRef<std::string> argsMangledTypes) const {
@@ -42,4 +41,4 @@ std::string RuntimeFunctionsMangling::getPointerType(
 std::string RuntimeFunctionsMangling::getVoidPointerType() const {
   return getPointerType(getVoidType());
 }
-} // namespace marco::codegen
+} // namespace mlir::runtime

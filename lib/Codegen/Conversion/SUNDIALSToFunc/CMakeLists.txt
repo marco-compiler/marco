@@ -15,5 +15,4 @@ add_mlir_conversion_library(MLIRSUNDIALSToFunc
     MARCOConversionPassIncGen
 
     LINK_LIBS PUBLIC
-    marco::codegen
     ${MLIR_LIBS})

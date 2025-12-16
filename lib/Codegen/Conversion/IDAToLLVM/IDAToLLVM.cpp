@@ -1,6 +1,6 @@
 #include "marco/Codegen/Conversion/IDAToLLVM/IDAToLLVM.h"
 #include "marco/Codegen/Conversion/IDACommon/LLVMTypeConverter.h"
-#include "marco/Codegen/Runtime.h"
+#include "marco/Codegen/Conversion/RuntimeCommon/Mangling.h"
 #include "mlir/Conversion/LLVMCommon/Pattern.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/LLVMIR/FunctionCallUtils.h"
@@ -13,7 +13,6 @@ namespace mlir {
 } // namespace mlir
 
 using namespace ::marco;
-using namespace ::marco::codegen;
 using namespace ::mlir::ida;
 
 namespace {
@@ -335,7 +334,7 @@ struct InitOpLowering : public IDAOpConversion<InitOp> {
                   mlir::ConversionPatternRewriter &rewriter) const override {
     mlir::Location loc = op.getLoc();
     auto moduleOp = op->getParentOfType<mlir::ModuleOp>();
-    RuntimeFunctionsMangling mangling;
+    mlir::runtime::RuntimeFunctionsMangling mangling;
 
     llvm::SmallVector<mlir::Value, 1> args;
     llvm::SmallVector<std::string, 1> mangledArgsTypes;
@@ -373,7 +372,7 @@ struct SetStartTimeOpLowering : public IDAOpConversion<SetStartTimeOp> {
     mlir::Location loc = op.getLoc();
     auto moduleOp = op->getParentOfType<mlir::ModuleOp>();
 
-    RuntimeFunctionsMangling mangling;
+    mlir::runtime::RuntimeFunctionsMangling mangling;
 
     llvm::SmallVector<mlir::Value, 2> args;
     llvm::SmallVector<std::string, 2> mangledArgsTypes;
@@ -414,7 +413,7 @@ struct SetEndTimeOpLowering : public IDAOpConversion<SetEndTimeOp> {
                   mlir::ConversionPatternRewriter &rewriter) const override {
     mlir::Location loc = op.getLoc();
     auto moduleOp = op->getParentOfType<mlir::ModuleOp>();
-    RuntimeFunctionsMangling mangling;
+    mlir::runtime::RuntimeFunctionsMangling mangling;
 
     llvm::SmallVector<mlir::Value, 2> args;
     llvm::SmallVector<std::string, 2> mangledArgsTypes;
@@ -455,7 +454,7 @@ struct GetCurrentTimeOpLowering : public IDAOpConversion<GetCurrentTimeOp> {
                   mlir::ConversionPatternRewriter &rewriter) const override {
     mlir::Location loc = op.getLoc();
     auto moduleOp = op->getParentOfType<mlir::ModuleOp>();
-    RuntimeFunctionsMangling mangling;
+    mlir::runtime::RuntimeFunctionsMangling mangling;
 
     llvm::SmallVector<mlir::Value, 1> args;
     llvm::SmallVector<std::string, 1> mangledArgsTypes;
@@ -490,7 +489,7 @@ struct AddEquationOpLowering : public IDAOpConversion<AddEquationOp> {
     mlir::Location loc = op.getLoc();
     auto moduleOp = op->getParentOfType<mlir::ModuleOp>();
 
-    RuntimeFunctionsMangling mangling;
+    mlir::runtime::RuntimeFunctionsMangling mangling;
 
     llvm::SmallVector<mlir::Value, 4> args;
     llvm::SmallVector<std::string, 4> mangledArgsTypes;
@@ -556,7 +555,7 @@ struct AddAlgebraicVariableOpLowering
     mlir::Location loc = op.getLoc();
     auto moduleOp = op->getParentOfType<mlir::ModuleOp>();
 
-    RuntimeFunctionsMangling mangling;
+    mlir::runtime::RuntimeFunctionsMangling mangling;
 
     llvm::SmallVector<mlir::Value, 7> args;
     llvm::SmallVector<std::string, 7> mangledArgsTypes;
@@ -636,7 +635,7 @@ struct AddStateVariableOpLowering : public IDAOpConversion<AddStateVariableOp> {
     mlir::Location loc = op.getLoc();
     auto moduleOp = op->getParentOfType<mlir::ModuleOp>();
 
-    RuntimeFunctionsMangling mangling;
+    mlir::runtime::RuntimeFunctionsMangling mangling;
 
     llvm::SmallVector<mlir::Value, 7> args;
     llvm::SmallVector<std::string, 7> mangledArgsTypes;
@@ -733,7 +732,7 @@ struct AddVariableAccessOpLowering
     mlir::Location loc = op.getLoc();
     auto moduleOp = op->getParentOfType<mlir::ModuleOp>();
 
-    RuntimeFunctionsMangling mangling;
+    mlir::runtime::RuntimeFunctionsMangling mangling;
 
     llvm::SmallVector<mlir::Value, 5> args;
     llvm::SmallVector<std::string, 3> mangledArgsTypes;
@@ -784,7 +783,7 @@ struct SetResidualOpLowering : public IDAOpConversion<SetResidualOp> {
     mlir::Location loc = op.getLoc();
     auto moduleOp = op->getParentOfType<mlir::ModuleOp>();
 
-    RuntimeFunctionsMangling mangling;
+    mlir::runtime::RuntimeFunctionsMangling mangling;
 
     llvm::SmallVector<mlir::Value, 3> args;
     llvm::SmallVector<std::string, 3> mangledArgsTypes;
@@ -830,7 +829,7 @@ struct AddJacobianOpLowering : public IDAOpConversion<AddJacobianOp> {
     mlir::Location loc = op.getLoc();
     auto moduleOp = op->getParentOfType<mlir::ModuleOp>();
 
-    RuntimeFunctionsMangling mangling;
+    mlir::runtime::RuntimeFunctionsMangling mangling;
 
     llvm::SmallVector<mlir::Value, 6> args;
     llvm::SmallVector<std::string, 6> mangledArgsTypes;
@@ -895,7 +894,7 @@ struct CalcICOpLowering : public IDAOpConversion<CalcICOp> {
                   mlir::ConversionPatternRewriter &rewriter) const override {
     mlir::Location loc = op.getLoc();
     auto moduleOp = op->getParentOfType<mlir::ModuleOp>();
-    RuntimeFunctionsMangling mangling;
+    mlir::runtime::RuntimeFunctionsMangling mangling;
 
     llvm::SmallVector<mlir::Value, 1> args;
     llvm::SmallVector<std::string, 1> mangledArgsTypes;
@@ -927,7 +926,7 @@ struct StepOpLowering : public IDAOpConversion<StepOp> {
                   mlir::ConversionPatternRewriter &rewriter) const override {
     mlir::Location loc = op.getLoc();
     auto moduleOp = op->getParentOfType<mlir::ModuleOp>();
-    RuntimeFunctionsMangling mangling;
+    mlir::runtime::RuntimeFunctionsMangling mangling;
 
     llvm::SmallVector<mlir::Value, 1> args;
     llvm::SmallVector<std::string, 1> mangledArgsTypes;
@@ -959,7 +958,7 @@ struct FreeOpLowering : public IDAOpConversion<FreeOp> {
                   mlir::ConversionPatternRewriter &rewriter) const override {
     mlir::Location loc = op.getLoc();
     auto moduleOp = op->getParentOfType<mlir::ModuleOp>();
-    RuntimeFunctionsMangling mangling;
+    mlir::runtime::RuntimeFunctionsMangling mangling;
 
     llvm::SmallVector<mlir::Value, 1> args;
     llvm::SmallVector<std::string, 1> mangledArgsTypes;
@@ -992,7 +991,7 @@ struct PrintStatisticsOpLowering : public IDAOpConversion<PrintStatisticsOp> {
     mlir::Location loc = op.getLoc();
     auto moduleOp = op->getParentOfType<mlir::ModuleOp>();
 
-    RuntimeFunctionsMangling mangling;
+    mlir::runtime::RuntimeFunctionsMangling mangling;
 
     llvm::SmallVector<mlir::Value, 1> args;
     llvm::SmallVector<std::string, 1> mangledArgsTypes;
@@ -1017,7 +1016,7 @@ struct PrintStatisticsOpLowering : public IDAOpConversion<PrintStatisticsOp> {
 };
 } // namespace
 
-namespace marco::codegen {
+namespace {
 class IDAToLLVMConversionPass
     : public mlir::impl::IDAToLLVMConversionPassBase<IDAToLLVMConversionPass> {
 public:
@@ -1029,7 +1028,7 @@ public:
 private:
   mlir::LogicalResult convertOperations();
 };
-} // namespace marco::codegen
+} // namespace
 
 void IDAToLLVMConversionPass::runOnOperation() {
   if (mlir::failed(convertOperations())) {

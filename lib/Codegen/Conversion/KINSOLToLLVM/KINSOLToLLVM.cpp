@@ -1,6 +1,6 @@
 #include "marco/Codegen/Conversion/KINSOLToLLVM/KINSOLToLLVM.h"
 #include "marco/Codegen/Conversion/KINSOLCommon/LLVMTypeConverter.h"
-#include "marco/Codegen/Runtime.h"
+#include "marco/Codegen/Conversion/RuntimeCommon/Mangling.h"
 #include "mlir/Conversion/LLVMCommon/Pattern.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/LLVMIR/FunctionCallUtils.h"
@@ -13,7 +13,6 @@ namespace mlir {
 } // namespace mlir
 
 using namespace ::marco;
-using namespace ::marco::codegen;
 using namespace ::mlir::kinsol;
 
 namespace {
@@ -367,7 +366,7 @@ struct InitOpLowering : public KINSOLOpConversion<InitOp> {
                   mlir::ConversionPatternRewriter &rewriter) const override {
     mlir::Location loc = op.getLoc();
     auto moduleOp = op->getParentOfType<mlir::ModuleOp>();
-    RuntimeFunctionsMangling mangling;
+    mlir::runtime::RuntimeFunctionsMangling mangling;
 
     llvm::SmallVector<mlir::Value, 1> args;
     llvm::SmallVector<std::string, 1> mangledArgsTypes;
@@ -405,7 +404,7 @@ struct AddEquationOpLowering : public KINSOLOpConversion<AddEquationOp> {
     mlir::Location loc = op.getLoc();
     auto moduleOp = op->getParentOfType<mlir::ModuleOp>();
 
-    RuntimeFunctionsMangling mangling;
+    mlir::runtime::RuntimeFunctionsMangling mangling;
 
     llvm::SmallVector<mlir::Value, 4> args;
     llvm::SmallVector<std::string, 4> mangledArgsTypes;
@@ -470,7 +469,7 @@ struct AddVariableOpLowering : public KINSOLOpConversion<AddVariableOp> {
     mlir::Location loc = op.getLoc();
     auto moduleOp = op->getParentOfType<mlir::ModuleOp>();
 
-    RuntimeFunctionsMangling mangling;
+    mlir::runtime::RuntimeFunctionsMangling mangling;
 
     llvm::SmallVector<mlir::Value, 7> args;
     llvm::SmallVector<std::string, 7> mangledArgsTypes;
@@ -551,7 +550,7 @@ struct AddVariableAccessOpLowering
     mlir::Location loc = op.getLoc();
     auto moduleOp = op->getParentOfType<mlir::ModuleOp>();
 
-    RuntimeFunctionsMangling mangling;
+    mlir::runtime::RuntimeFunctionsMangling mangling;
 
     llvm::SmallVector<mlir::Value, 5> args;
     llvm::SmallVector<std::string, 3> mangledArgsTypes;
@@ -602,7 +601,7 @@ struct SetResidualOpLowering : public KINSOLOpConversion<SetResidualOp> {
     mlir::Location loc = op.getLoc();
     auto moduleOp = op->getParentOfType<mlir::ModuleOp>();
 
-    RuntimeFunctionsMangling mangling;
+    mlir::runtime::RuntimeFunctionsMangling mangling;
 
     llvm::SmallVector<mlir::Value, 3> args;
     llvm::SmallVector<std::string, 3> mangledArgsTypes;
@@ -648,7 +647,7 @@ struct AddJacobianOpLowering : public KINSOLOpConversion<AddJacobianOp> {
     mlir::Location loc = op.getLoc();
     auto moduleOp = op->getParentOfType<mlir::ModuleOp>();
 
-    RuntimeFunctionsMangling mangling;
+    mlir::runtime::RuntimeFunctionsMangling mangling;
 
     llvm::SmallVector<mlir::Value, 4> args;
     llvm::SmallVector<std::string, 4> mangledArgsTypes;
@@ -713,7 +712,7 @@ struct SolveOpLowering : public KINSOLOpConversion<SolveOp> {
                   mlir::ConversionPatternRewriter &rewriter) const override {
     mlir::Location loc = op.getLoc();
     auto moduleOp = op->getParentOfType<mlir::ModuleOp>();
-    RuntimeFunctionsMangling mangling;
+    mlir::runtime::RuntimeFunctionsMangling mangling;
 
     llvm::SmallVector<mlir::Value, 1> args;
     llvm::SmallVector<std::string, 1> mangledArgsTypes;
@@ -745,7 +744,7 @@ struct FreeOpLowering : public KINSOLOpConversion<FreeOp> {
                   mlir::ConversionPatternRewriter &rewriter) const override {
     mlir::Location loc = op.getLoc();
     auto moduleOp = op->getParentOfType<mlir::ModuleOp>();
-    RuntimeFunctionsMangling mangling;
+    mlir::runtime::RuntimeFunctionsMangling mangling;
 
     llvm::SmallVector<mlir::Value, 1> args;
     llvm::SmallVector<std::string, 1> mangledArgsTypes;
@@ -770,7 +769,7 @@ struct FreeOpLowering : public KINSOLOpConversion<FreeOp> {
 };
 } // namespace
 
-namespace marco::codegen {
+namespace {
 class KINSOLToLLVMConversionPass
     : public mlir::impl::KINSOLToLLVMConversionPassBase<
           KINSOLToLLVMConversionPass> {
@@ -790,7 +789,7 @@ public:
 private:
   mlir::LogicalResult convertOperations();
 };
-} // namespace marco::codegen
+} // namespace
 
 mlir::LogicalResult KINSOLToLLVMConversionPass::convertOperations() {
   mlir::ModuleOp moduleOp = getOperation();

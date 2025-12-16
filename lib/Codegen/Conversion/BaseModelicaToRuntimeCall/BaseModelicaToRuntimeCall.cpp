@@ -1,6 +1,6 @@
 #include "marco/Codegen/Conversion/BaseModelicaToRuntimeCall/BaseModelicaToRuntimeCall.h"
 #include "marco/Codegen/Conversion/BaseModelicaCommon/TypeConverter.h"
-#include "marco/Codegen/Runtime.h"
+#include "marco/Codegen/Conversion/RuntimeCommon/Mangling.h"
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "marco/Dialect/Runtime/IR/Runtime.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
@@ -14,7 +14,6 @@ namespace mlir {
 #include "marco/Codegen/Conversion/Passes.h.inc"
 } // namespace mlir
 
-using namespace ::marco::codegen;
 using namespace ::mlir::bmodelica;
 
 namespace {
@@ -147,7 +146,8 @@ public:
         symbolTableCollection(&symbolTableCollection) {}
 
 protected:
-  [[nodiscard]] const RuntimeFunctionsMangling *getMangler() const {
+  [[nodiscard]] const mlir::runtime::RuntimeFunctionsMangling *
+  getMangler() const {
     return &mangler;
   }
 
@@ -295,7 +295,7 @@ protected:
   }
 
 private:
-  RuntimeFunctionsMangling mangler;
+  mlir::runtime::RuntimeFunctionsMangling mangler;
   mlir::SymbolTableCollection *symbolTableCollection;
 };
 } // namespace

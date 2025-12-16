@@ -8,5 +8,4 @@ set(LLVM_LINK_COMPONENTS
 marco_add_unittest(ModelicaCommonConversionTest ${SOURCES})
 
 target_link_libraries(ModelicaCommonConversionTest
-        PRIVATE MLIRBaseModelicaCommonConversion
-        PRIVATE marco::codegen)
+        PRIVATE MLIRBaseModelicaCommonConversion)

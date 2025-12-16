@@ -1,6 +1,6 @@
 #include "marco/Codegen/Conversion/RuntimeToLLVM/RuntimeToLLVM.h"
+#include "marco/Codegen/Conversion/RuntimeCommon/Mangling.h"
 #include "marco/Codegen/Conversion/RuntimeToLLVM/LLVMTypeConverter.h"
-#include "marco/Codegen/Runtime.h"
 #include "marco/Dialect/Runtime/IR/Runtime.h"
 #include "mlir/Conversion/ConvertToLLVM/ToLLVMInterface.h"
 #include "mlir/Conversion/LLVMCommon/Pattern.h"
@@ -12,7 +12,6 @@ namespace mlir {
 #include "marco/Codegen/Conversion/Passes.h.inc"
 } // namespace mlir
 
-using namespace ::marco::codegen;
 using namespace ::mlir::runtime;
 
 namespace {

@@ -33,7 +33,6 @@ marco_add_library(frontend
     LINK_LIBS
     marco::ASTBaseModelica
     marco::ParserBaseModelica
-    marco::codegen
     marco::IO
     marco::Lowering
     marco::variableFilter

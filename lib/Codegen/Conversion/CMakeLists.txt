@@ -1,3 +1,4 @@
+add_subdirectory(RuntimeCommon)
 add_subdirectory(RuntimeToFunc)
 add_subdirectory(RuntimeToLLVM)
 add_subdirectory(IDACommon)

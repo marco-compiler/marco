@@ -15,5 +15,4 @@ add_mlir_conversion_library(MLIRAllToLLVM
     MARCOConversionPassIncGen
 
     LINK_LIBS PUBLIC
-    marco::codegen
     ${MLIR_LIBS})
