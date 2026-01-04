@@ -7,11 +7,17 @@ get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
 get_property(extension_libs GLOBAL PROPERTY MLIR_EXTENSION_LIBS)
 get_property(conversion_libs GLOBAL PROPERTY MLIR_CONVERSION_LIBS)
 
+message(WARNING ${dialect_libs})
+message(WARNING ${extension_libs})
+message(WARNING ${conversion_libs})
+
 set(LIBS
     marco::codegen
     ${dialect_libs}
     ${extension_libs}
     ${conversion_libs}
+    # DataRecomputation
+    MLIRCustomTransforms
     MLIROptLib
     MLIRRegisterAllDialects
     MLIRRegisterAllExtensions

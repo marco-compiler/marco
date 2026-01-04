@@ -463,24 +463,6 @@ def VariablesPruningPass : Pass<"variables-pruning", "mlir::ModuleOp">
     let constructor = "mlir::bmodelica::createVariablesPruningPass()";
 }
 
-def DataRecomputationPass : Pass<"data-recomputation", "mlir::ModuleOp">
-{
-  let summary = "Applies data recomputation where likely to be profitable";
-
-  let description = [{
-    // TODO
-  }];
-
-  let options = [
-    Option<"drTestDiagnostics", "dr-test-diagnostics", "bool", "false", "Enables test output">
-  ];
-
-  let dependentDialects = [
-    "memref::MemRefDialect", "vector::VectorDialect", "affine::AffineDialect", "ptr::PtrDialect"
-  ];
-
-  let constructor = "mlir::bmodelica::createDataRecomputationPass()";
-}
 
 //===---------------------------------------------------------------------===//
 // Model solving

@@ -6,9 +6,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
-#include "marco/Dialect/BaseModelica/Transforms/DataRecomputation.h"
+#include "marco/Transforms/DataRecomputation.h"
 
-#include "marco/Dialect/BaseModelica/Transforms/DataRecomputation/IndexExpression.h"
+#include "marco/Transforms/DataRecomputation/IndexExpression.h"
 #include "marco/Dialect/Runtime/IR/Ops.h"
 #include "marco/Modeling/GraphDumper.h"
 #include "marco/Modeling/IndexSet.h"
@@ -30,10 +30,10 @@
 #include "llvm/Support/Format.h"
 #include "llvm/Support/FormatVariadic.h"
 
-namespace mlir::bmodelica {
+namespace mlir {
 #define GEN_PASS_DEF_DATARECOMPUTATIONPASS
-#include "marco/Dialect/BaseModelica/Transforms/Passes.h.inc"
-} // namespace mlir::bmodelica
+#include "marco/Transforms/Passes.h.inc"
+} // namespace mlir
 
 using namespace ::mlir::memref;
 using namespace ::mlir::func;
@@ -94,12 +94,12 @@ inproceedings{cai2000parametric,
 
 #define MARCO_DBG() llvm::dbgs() << R"(==== DataRecomputation: )"
 
-namespace mlir::bmodelica::detail {
+namespace mlir::detail {
   struct DRInvalidMarker {};
 }
 namespace {
 
-using mlir::bmodelica::detail::DRInvalidMarker;
+using mlir::detail::DRInvalidMarker;
 
 template <class... OpTys>
 static bool isAnyOp(mlir::Operation *op) {
@@ -135,7 +135,7 @@ struct OpTypeList<DRInvalidMarker, OpTys...> {
 
 } // namespace
 
-namespace mlir::bmodelica::detail {
+namespace mlir::detail {
 
 using AccessSet = llvm::DenseSet<mlir::Operation *>;
 
@@ -1126,12 +1126,12 @@ struct DROperandSet {
   }
 };
 
-}; // namespace mlir::bmodelica::detail
+}; // namespace mlir::detail
 
 namespace llvm {
 template <>
-struct DenseMapInfo<::mlir::bmodelica::detail::DRLoad> {
-  using KeyT = ::mlir::bmodelica::detail::DRLoad;
+struct DenseMapInfo<::mlir::detail::DRLoad> {
+  using KeyT = ::mlir::detail::DRLoad;
   static constexpr mlir::Operation *getEmptyKey() { return nullptr; }
   static constexpr mlir::Operation *getTombstoneKey() {
     return std::numeric_limits<mlir::Operation *>::max();
@@ -1147,8 +1147,8 @@ struct DenseMapInfo<::mlir::bmodelica::detail::DRLoad> {
 };
 
 template <>
-struct DenseMapInfo<::mlir::bmodelica::detail::DRWrite> {
-  using KeyT = ::mlir::bmodelica::detail::DRWrite;
+struct DenseMapInfo<::mlir::detail::DRWrite> {
+  using KeyT = ::mlir::detail::DRWrite;
   static constexpr mlir::Operation *getEmptyKey() { return nullptr; }
   static constexpr mlir::Operation *getTombstoneKey() {
     return std::numeric_limits<mlir::Operation *>::max();
@@ -1164,8 +1164,8 @@ struct DenseMapInfo<::mlir::bmodelica::detail::DRWrite> {
 };
 
 template <>
-struct DenseMapInfo<::mlir::bmodelica::detail::DRAlloc> {
-  using KeyT = ::mlir::bmodelica::detail::DRAlloc;
+struct DenseMapInfo<::mlir::detail::DRAlloc> {
+  using KeyT = ::mlir::detail::DRAlloc;
   static constexpr mlir::Operation *getEmptyKey() { return nullptr; }
   static constexpr mlir::Operation *getTombstoneKey() {
     return std::numeric_limits<mlir::Operation *>::max();
@@ -1183,10 +1183,10 @@ struct DenseMapInfo<::mlir::bmodelica::detail::DRAlloc> {
 
 namespace {
 
-using namespace mlir::bmodelica::detail;
+using namespace mlir::detail;
 
 class DataRecomputationPass final
-    : public mlir::bmodelica::impl::DataRecomputationPassBase<
+    : public mlir::impl::DataRecomputationPassBase<
           DataRecomputationPass> {
 
 public:
@@ -1224,7 +1224,7 @@ private:
 
   mlir::FailureOr<mlir::func::FuncOp> selectEntrypoint(mlir::ModuleOp moduleOp);
 
-  ::mlir::bmodelica::detail::CallGraph
+  ::mlir::detail::CallGraph
   buildCallGraph(mlir::MLIRContext *context, mlir::ModuleOp moduleOp,
                  mlir::func::FuncOp entrypointFuncOp,
                  mlir::SymbolTableCollection &symTabCollection);
@@ -1233,8 +1233,8 @@ private:
 
 namespace {
 
-using mlir::bmodelica::IndexExpression;
-using mlir::bmodelica::IndexExpressionNode;
+using mlir::drcomp::IndexExpression;
+using mlir::drcomp::IndexExpressionNode;
 
 struct AccessorTagConstant {};
 struct AccessorTagLinear {};
@@ -1313,7 +1313,6 @@ struct ReinterpretChainAnalysis {};
 } // namespace
 
 void DataRecomputationPass::runOnOperation() {
-
   /// Whether to output diagnostics for tests
   const bool outputDiagnostics = drTestDiagnostics.getValue();
 
@@ -1397,11 +1396,6 @@ DataRecomputationPass::selectEntrypoint(mlir::ModuleOp moduleOp) {
       entrypointFuncs.emplace_back(funcOp);
       return mlir::WalkResult::interrupt();
     }
-
-    // if (nameStr.find("updateNonStateVariables") == 0) {
-    //   entrypointFuncs.emplace_back(funcOp);
-    //   return mlir::WalkResult::advance();
-    // }
 
     return mlir::WalkResult::advance();
   });
@@ -1492,6 +1486,7 @@ mlir::LogicalResult DataRecomputationPass::findOpportunitiesAux(
   // Mark it as a self-visit.
   visitStack.emplace_back(std::make_pair(funcOp, funcOp));
 
+
   while (!visitStack.empty()) {
 
     auto poppedElement = visitStack.back();
@@ -1510,6 +1505,24 @@ mlir::LogicalResult DataRecomputationPass::findOpportunitiesAux(
       // Collect all nested calls
       if (mlir::isa<mlir::CallOpInterface>(op)) {
         nestedCallOps.emplace_back(op);
+      }
+
+      if ( auto regionBranchOp = mlir::dyn_cast<mlir::RegionBranchOpInterface>(op) ) {
+
+        const auto &regions = regionBranchOp->getRegions();
+
+        for ( auto &region : regions) {
+          const auto &blocks = region.getBlocks();
+          std::cout << "Inside a region with " << blocks.size() << " blocks\n";
+
+          if ( blocks.size() == 0 ) {
+            MARCO_DBG() << "Dumping zero-block region branch op";
+            regionBranchOp->dump();
+          }
+        }
+
+        // Skip the regions, since we're handling them here
+        return mlir::WalkResult::skip();
       }
 
       // Mark stores
@@ -1653,7 +1666,8 @@ mlir::LogicalResult DataRecomputationPass::findOpportunitiesAux(
   return mlir::success();
 }
 
-::mlir::bmodelica::detail::CallGraph DataRecomputationPass::buildCallGraph(
+
+::mlir::detail::CallGraph DataRecomputationPass::buildCallGraph(
     mlir::MLIRContext *context, mlir::ModuleOp moduleOp,
     mlir::func::FuncOp entrypointFuncOp,
     mlir::SymbolTableCollection &symTabCollection) {
@@ -1664,7 +1678,7 @@ mlir::LogicalResult DataRecomputationPass::findOpportunitiesAux(
 
   visitStack.emplace_back(std::make_pair(entrypointFuncOp, entrypointFuncOp));
 
-  ::mlir::bmodelica::detail::CallGraph callGraph;
+  ::mlir::detail::CallGraph callGraph;
 
   while (!visitStack.empty()) {
     auto currentCallSite = visitStack.back();
@@ -1698,6 +1712,7 @@ mlir::LogicalResult DataRecomputationPass::findOpportunitiesAux(
           auto bindings = DRFunctionArgumentBinder::findBindings(
               callOpInterface, moduleOp, context, symTabCollection);
 
+
           // MARCO_DBG() << "Adding call to CallGraph from"
           //             << callerFuncOp.getName() << " to "
           //             << nestedCalleeFuncOp.getName() << " with "
@@ -1716,7 +1731,7 @@ mlir::LogicalResult DataRecomputationPass::findOpportunitiesAux(
           // runtime dialect as a dependency dialect and try to cast to the
           // runtime.function op MARCO_DBG() << "Skipping runtime.func" << "\n";
         } else {
-          llvm_unreachable("Couldn't handle a callee when building call graph");
+          llvm_unreachable("Couldn't handle a callee when building call graph?");
         }
       }
     });
@@ -1725,11 +1740,11 @@ mlir::LogicalResult DataRecomputationPass::findOpportunitiesAux(
   return callGraph;
 }
 
-namespace mlir::bmodelica {
+namespace mlir {
 std::unique_ptr<mlir::Pass> createDataRecomputationPass() {
   return std::make_unique<DataRecomputationPass>();
 }
-} // namespace mlir::bmodelica
+} // namespace mlir
 
 //
 //

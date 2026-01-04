@@ -22,6 +22,7 @@ target_link_libraries(marco
     ${dialect_libs}
     ${extension_libs}
     ${conversion_libs}
+    MLIRCustomTransforms
     MLIRRegisterAllDialects
     MLIRRegisterAllExtensions
     MLIRRegisterAllPasses
