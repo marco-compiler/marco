@@ -5,7 +5,7 @@
 
 // Currently header-only.
 
-namespace mlir::bmodelica {
+namespace mlir::drcomp {
 struct IndexExpressionNode {
   enum class NodeType {
     ROOT,
@@ -29,7 +29,7 @@ struct IndexExpression {
   IndexExpressionNode root;
   size_t numParams;
 };
-} // namespace mlir::bmodelica
+} // namespace mlir::drcomp
 
 
 #endif

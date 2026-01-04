@@ -11,6 +11,7 @@
 #include "marco/Dialect/Runtime/Transforms/Passes.h"
 #include "marco/Dialect/SUNDIALS/IR/SUNDIALS.h"
 #include "marco/Frontend/Passes.h"
+#include "marco/Transforms/Passes.h"
 #include "mlir/InitAllDialects.h"
 #include "mlir/InitAllExtensions.h"
 #include "mlir/InitAllPasses.h"
@@ -38,6 +39,7 @@ int main(int argc, char *argv[]) {
   mlir::bmodelica::registerAllDialectInterfaceImplementations(registry);
   mlir::runtime::registerAllDialectInterfaceImplementations(registry);
 
+
   // Register the passes defined by MARCO.
   marco::codegen::registerConversionPasses();
 
@@ -46,6 +48,8 @@ int main(int argc, char *argv[]) {
   mlir::runtime::registerRuntimePasses();
   marco::frontend::registerFrontendPasses();
 
+  // Register custom MLIR-targeting transformations.
+  mlir::registerCustomPassesPasses();
   // Register MLIR built-in transformations.
   mlir::registerAllPasses();
 

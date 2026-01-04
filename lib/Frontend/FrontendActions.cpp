@@ -16,6 +16,7 @@
 #include "marco/Frontend/Passes.h"
 #include "marco/IO/Command.h"
 #include "marco/Parser/BaseModelica/Parser.h"
+#include "marco/Transforms/Passes.h"
 #include "mlir/Conversion/Passes.h"
 #include "mlir/Dialect/Affine/Passes.h"
 #include "mlir/Dialect/Bufferization/Pipelines/Passes.h"
@@ -1119,6 +1120,7 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
   }
   pm.addPass(mlir::bmodelica::createDataRecomputationPass());
   // pm.addPass(mlir::bmodelica::createDataRecomputationPass());
+  pm.addPass(mlir::createDataRecomputationPass());
 
   pm.addNestedPass<mlir::func::FuncOp>(mlir::createLowerAffinePass());
   pm.addNestedPass<mlir::func::FuncOp>(mlir::createSCFToControlFlowPass());
