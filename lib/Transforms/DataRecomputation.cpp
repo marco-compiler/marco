@@ -29,6 +29,7 @@
 #include "llvm/ADT/TypeSwitch.h"
 #include "llvm/Support/Format.h"
 #include "llvm/Support/FormatVariadic.h"
+#include "marco/Transforms/DataRecomputation/OpTypeVariant.h"
 
 namespace mlir {
 #define GEN_PASS_DEF_DATARECOMPUTATIONPASS
@@ -95,101 +96,36 @@ inproceedings{cai2000parametric,
 #define MARCO_DBG() llvm::dbgs() << R"(==== DataRecomputation: )"
 
 namespace mlir::detail {
-struct DRInvalidMarker {};
-} // namespace mlir::detail
-namespace {
-
-using mlir::detail::DRInvalidMarker;
-
-template <class... OpTys>
-static bool isAnyOp(mlir::Operation *op) {
-  return (mlir::isa<OpTys>(op) || ...);
-}
-
-template <class... OpTys>
-struct OpTypeList {
-  static bool isAnyOp(mlir::Operation *op) {
-    return (op != nullptr) && ::isAnyOp<OpTys...>(op);
-  }
-
-  static bool isAnyOp(DRInvalidMarker) { return false; }
-
-  using VariantT = std::variant<OpTys...>;
-};
-
-/// Specialization with an "empty" flag value in the beginning
-template <class... OpTys>
-struct OpTypeList<DRInvalidMarker, OpTys...> {
-  static bool isAnyOp(mlir::Operation *op) {
-    return (op != nullptr) && ::isAnyOp<OpTys...>(op);
-  }
-
-  static bool isAnyOp(DRInvalidMarker) { return false; }
-
-  using VariantT = std::variant<DRInvalidMarker, OpTys...>;
-};
-
-} // namespace
-
-namespace mlir::detail {
 
 using AccessSet = llvm::DenseSet<mlir::Operation *>;
 
-template <class OpTypeListInstance>
-struct VariantResolver {
 
-  using VariantT = typename OpTypeListInstance::VariantT;
-
-  template <class... OpTys>
-  static VariantT resolveImpl(mlir::Operation *op, OpTypeList<OpTys...>) {
-    VariantT result;
-
-    bool success = ([&result](mlir::Operation *op) -> bool {
-      if (OpTys resolvedOp = mlir::dyn_cast<OpTys>(op)) {
-        result = resolvedOp;
-        return true;
-      }
-      return false;
-    }(op) || ...);
-
-    if (!success) {
-      llvm_unreachable("No support for op type");
-    }
-
-    return result;
+struct DRTimestamp {
+  DRTimestamp() {
+    timestamp = nextTimestamp.fetch_add(1, std::memory_order::memory_order_release);
   }
 
-  static VariantT resolve(mlir::Operation *op) {
-    return resolveImpl(op, OpTypeListInstance{});
+  DRTimestamp(DRTimestamp &&other) = default;
+  DRTimestamp(const DRTimestamp &other) = default;
+  DRTimestamp& operator=(DRTimestamp &&other) = default;
+  DRTimestamp& operator=(const DRTimestamp &other) = default;
+
+public:
+  size_t getTimestamp() const {
+    return timestamp;
   }
+
+private:
+  std::size_t timestamp = 0;
+
+  static std::atomic<std::size_t> nextTimestamp;
+
 };
 
-/// Specialized Variant resolver with an invalid marker
-template <class... OpTys>
-struct VariantResolver<OpTypeList<DRInvalidMarker, OpTys...>> {
-  using VariantT = typename OpTypeList<DRInvalidMarker, OpTys...>::VariantT;
-
-  static VariantT resolve(mlir::Operation *op) {
-
-    VariantT result;
-
-    bool success = ([&result](mlir::Operation *op) -> bool {
-      if (OpTys resolvedOp = mlir::dyn_cast<OpTys>(op)) {
-        result = resolvedOp;
-        return true;
-      }
-      return false;
-    }(op) || ...);
-
-    if (!success) {
-      return {DRInvalidMarker{}};
-    }
-    return result;
-  }
-};
+std::atomic<std::size_t> DRTimestamp::nextTimestamp{0};
 
 /// DataRecomputation Allocation
-struct DRAlloc {
+struct DRAlloc final : public DRTimestamp {
   using SupportedOpTypes =
       OpTypeList<DRInvalidMarker, ::mlir::memref::GlobalOp,
                  ::mlir::memref::AllocOp, ::mlir::memref::AllocaOp>;
@@ -242,7 +178,7 @@ struct DRAlloc {
 
 /// DataRecomputation Write
 /// \see DenseMapInfo<DRWrite>
-struct DRWrite {
+struct DRWrite final : public DRTimestamp {
 
   using SupportedOpTypes =
       OpTypeList<DRInvalidMarker, ::mlir::memref::StoreOp,
@@ -254,25 +190,25 @@ struct DRWrite {
     return VariantResolver<SupportedOpTypes>::resolve(op);
   }
 
-  DRWrite() : storeOp{}, timestamp{0}, operation{nullptr} {}
+  DRWrite() : storeOp{}, operation{nullptr} {}
 
   DRWrite(mlir::Operation *op)
-      : storeOp{resolveOp(op)}, timestamp{nextTimestamp++}, operation{op} {}
+      : storeOp{resolveOp(op)}, operation{op} {}
   DRWrite(mlir::memref::StoreOp storeOp) noexcept
-      : storeOp{storeOp}, timestamp{nextTimestamp++},
+      : storeOp{storeOp},
         operation{storeOp.getOperation()} {}
   DRWrite(mlir::affine::AffineStoreOp storeOp) noexcept
-      : storeOp{storeOp}, timestamp{nextTimestamp++},
+      : storeOp{storeOp},
         operation{storeOp.getOperation()} {}
   DRWrite(mlir::ptr::StoreOp storeOp) noexcept
-      : storeOp{storeOp}, timestamp{nextTimestamp++},
+      : storeOp{storeOp},
         operation{storeOp.getOperation()} {}
 
-  DRWrite(const DRWrite &other) { *this = other; }
+  DRWrite(const DRWrite &other)  : DRTimestamp(other) { *this = other; }
 
   DRWrite(DRWrite &&) = default;
   DRWrite &operator=(const DRWrite &other) {
-    this->timestamp = other.timestamp;
+    this->DRTimestamp::operator=(other);
     this->operation = other.operation;
 
     auto *otherOperands = other.operands.get();
@@ -328,16 +264,11 @@ struct DRWrite {
   static bool isStoreOp(mlir::Operation *op) {
     return SupportedOpTypes::isAnyOp(op);
   }
-
-private:
-  static size_t nextTimestamp;
 };
-
-size_t DRWrite::nextTimestamp = 1;
 
 /// A class representing a generic load with regards to the pass.
 /// \see DenseMapInfo<DRLoad>
-struct DRLoad {
+struct DRLoad final : public DRTimestamp {
   using SupportedOpTypes =
       OpTypeList<::mlir::memref::LoadOp, ::mlir::affine::AffineLoadOp,
                  ::mlir::ptr::LoadOp>;
@@ -1033,11 +964,6 @@ struct DROperandSet {
       if (operandOp == nullptr)
         continue;
 
-      // if (visitedOperands.contains(operandOp)) {
-      //   MARCO_DBG() << "Skipping already visited operand\n";
-      //   continue;
-      // }
-
       visitedOperands.insert(operandOp);
       auto operands = operandOp->getOperands();
 
@@ -1070,8 +996,8 @@ struct DROperandSet {
 
             if (lastWrites.contains(operand.originAlloc.operation)) {
               invariantHeld &=
-                  operand.timestamp ==
-                  lastWrites.at(operand.originAlloc.operation).timestamp;
+                  operand.getTimestamp() ==
+                  lastWrites.at(operand.originAlloc.operation).getTimestamp();
             } else {
               invariantHeld = false;
               break;
@@ -1356,14 +1282,21 @@ void DataRecomputationPass::runOnOperation() {
     CallGraphDiagnostics::outputDiagnostic(diagnostics, callGraph);
 
     for (auto &opportunity : *opportunities) {
-      MARCO_DBG() << "Write: " << opportunity.write.operation->getLoc()
-                  << " | ";
-      static_cast<mlir::Operation *>(opportunity.write)->dump();
-      MARCO_DBG() << "Load: " << opportunity.load.operation->getLoc() << " | ";
-      static_cast<mlir::Operation *>(opportunity.load)->dump();
-      MARCO_DBG() << "Origin Allocation: "
-                  << opportunity.allocation.operation->getLoc() << " | ";
-      static_cast<mlir::Operation *>(opportunity.allocation)->dump();
+      auto opportunityRemark = opportunity.load.operation->emitRemark("candidate load");
+      opportunityRemark << " related load: " << opportunity.write.operation->getLoc() << "\n";
+
+      llvm::for_each(*opportunity.write.operands, [&](DRWrite &d){
+        opportunityRemark << "  operand: " << d.operation->getLoc() << "\n";
+      });
+
+      // MARCO_DBG() << "Write: " << opportunity.write.operation->getLoc()
+      //             << " | ";
+      // static_cast<mlir::Operation *>(opportunity.write)->dump();
+      // MARCO_DBG() << "Load: " << opportunity.load.operation->getLoc() << " | ";
+      // static_cast<mlir::Operation *>(opportunity.load)->dump();
+      // MARCO_DBG() << "Origin Allocation: "
+      //             << opportunity.allocation.operation->getLoc() << " | ";
+      // static_cast<mlir::Operation *>(opportunity.allocation)->dump();
     }
   }
 }
@@ -1556,20 +1489,20 @@ mlir::LogicalResult DataRecomputationPass::findOpportunitiesAux(
         for (auto &operand : *origin.operands) {
           if (lastWrites.contains(operand.originAlloc.operation)) {
             invariantHeld &=
-                (operand.timestamp ==
-                 lastWrites.at(operand.originAlloc.operation).timestamp);
+                (operand.getTimestamp() ==
+                 lastWrites.at(operand.originAlloc.operation).getTimestamp());
 
             if (!invariantHeld) {
               MARCO_DBG();
               operand.originAlloc.operation->dump();
               MARCO_DBG()
-                  << "Diverging timestamp " << operand.timestamp << ", "
-                  << lastWrites.at(operand.originAlloc.operation).timestamp
+                  << "Diverging timestamp " << operand.getTimestamp() << ", "
+                  << lastWrites.at(operand.originAlloc.operation).getTimestamp()
                   << "\n";
             }
 
           } else {
-            invariantHeld &= operand.timestamp == 0;
+            invariantHeld &= operand.getTimestamp() == 0;
           }
         }
 
@@ -1712,131 +1645,3 @@ std::unique_ptr<mlir::Pass> createDataRecomputationPass() {
   return std::make_unique<DataRecomputationPass>();
 }
 } // namespace mlir
-
-//
-//
-//
-// struct ReinterpretChain {
-//   llvm::SmallVector<ReinterpretInfo, 4> chain;
-
-//   void performAnalysis(llvm::SmallVector<mlir::Operation *> &chain) {
-
-//     // Skip the end
-//     auto iter = std::next(chain.rbegin());
-//     auto end = chain.rend();
-
-//     auto *originOp = chain.back();
-
-//     // Get the base loaded / alloced memref
-//     mlir::MemRefType baseMemref = [](mlir::Operation *op) {
-//        return mlir::TypeSwitch<mlir::Operation *, mlir::MemRefType>(op)
-//            .Case<mlir::memref::GetGlobalOp>([](mlir::memref::GetGlobalOp
-//            getGlobalOp){
-//              return getGlobalOp.getType();
-//            }).Case<mlir::memref::AllocOp>([](mlir::memref::AllocOp allocOp)
-//            {
-//              return allocOp.getType();
-//            }).Case<mlir::memref::AllocaOp>([](mlir::memref::AllocaOp
-//            allocaOp) {
-//              return allocaOp.getType();
-//           }).Default([](auto *op) -> mlir::MemRefType {
-//             MARCO_DBG() << "Encountered unhandled operation type: " <<
-//             op->getName() << "\n"; llvm_unreachable("Should not fall into
-//             default type switch case");
-//       });
-//     }(originOp);
-
-//     ReinterpretInfo currentReinterpret{};
-
-//     // Assumption: loaded memrefs are not strided, and not offset
-//     currentReinterpret.offsetBefore = 0;
-//     for ( auto i = 0; i < baseMemref.getRank(); i++ ) {
-//       currentReinterpret.stridesBefore.emplace_back(0);
-//     }
-//     currentReinterpret.offsetBefore = 0;
-
-//     while ( iter != end ) {
-//       iter = std::next(iter);
-
-//       mlir::Operation *nextOp = *iter;
-
-//       mlir::TypeSwitch<mlir::Operation *, void>(nextOp)
-//         .Case<mlir::memref::CastOp>([&currentReinterpret](mlir::memref::CastOp
-//         castOp){
-//           // castOp.getOffsets()
-//           return;
-//          })
-//         .Case<mlir::memref::ReinterpretCastOp>([&currentReinterpret](mlir::memref::ReinterpretCastOp
-//         reinterpretCastOp){
-
-//           auto offsets = reinterpretCastOp.getOffsets();
-//           auto strides = reinterpretCastOp.getStrides();
-
-//           for ( auto x : offsets ) {
-//             MARCO_DBG() << "Offset? ";  x.getType().dump();
-//           }
-
-//           return;
-
-//         }).Case<mlir::memref::SubViewOp>([&currentReinterpret](mlir::memref::SubViewOp
-//         subviewOp){
-
-//           return;
-//         })
-//         .Default([](auto *){llvm_unreachable("A reinterpret chain op wasn't
-//         supported.");});
-//     }
-//   }
-
-//   ///////////
-//   ReinterpretChain(const llvm::SmallVector<mlir::Operation *> &inChain) {
-//     assert(!inChain.empty() && "Passed an empty chain to ReinterpretChain
-//     move constructor");
-
-//     // TODO: Avoid copy?
-//     auto chain = inChain;
-
-//     performAnalysis(chain);
-
-//   }
-
-//   ///////////
-//   explicit ReinterpretChain(llvm::SmallVector<mlir::Operation *> &&inChain)
-//   {
-//     assert(!inChain.empty() && "Passed an empty chain to ReinterpretChain
-//     move constructor");
-
-//     performAnalysis(inChain);
-//   }
-
-//   mlir::memref::ReinterpretCastOp reinterpretCastOp;
-//   mlir::TypedValue<mlir::MemRefType> original;
-//   mlir::TypedValue<mlir::MemRefType> reinterpreted;
-
-//   bool isOriginal() {
-//     return original == reinterpreted;
-//   }
-
-//   mlir::TypedValue<mlir::MemRefType> getValue();
-//   mlir::TypedValue<mlir::MemRefType> getOriginalValue();
-// };
-//
-// template <class Pass>
-// class PassContextBundle {
-// public:
-//   PassContextBundle(Pass &pass)
-//     : context{pass.getContext()},
-//       symTabCollection{}
-//   {
-//
-//   }
-//
-//   mlir::MLIRContext *getContext() { return context; }
-//   mlir::SymbolTableCollection &getSymTabCollection() { return
-//   symTabCollection; }
-//
-// private:
-//   mlir::MLIRContext *context = nullptr;
-//   mlir::SymbolTableCollection symTabCollection;
-// };
-// //
