@@ -1,5 +1,8 @@
 #!/bin/bash
 
+MARCO_RUNTIME_COMMIT=${MARCO_RUNTIME_COMMIT:-"master"}
+MARCO_RUNTIME_BUILD_TYPE=${MARCO_RUNTIME_BUILD_TYPE:-"Release"}
+
 rm -rf marco-runtime
 git clone https://github.com/marco-compiler/marco-runtime.git
 cd marco-runtime || exit 1

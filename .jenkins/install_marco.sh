@@ -1,5 +1,8 @@
 #!/bin/bash
 
+MARCO_BUILD_TYPE=${MARCO_BUILD_TYPE:-"Release"}
+PYTHON3_EXECUTABLE=${PYTHON3_EXECUTABLE:-"/usr/bin/python3"}
+
 rm -rf marco
 git clone https://github.com/marco-compiler/marco.git
 cd marco || exit 1

@@ -1,5 +1,12 @@
 #!/bin/bash
 
+LLVM_COMMIT=${LLVM_COMMIT:-"marco-llvm"}
+LLVM_BUILD_TYPE=${LLVM_BUILD_TYPE:-"Release"}
+LLVM_ENABLE_ASSERTIONS=${LLVM_ENABLE_ASSERTIONS:-"OFF"}
+LLVM_SANITIZER=${LLVM_SANITIZER:-""}
+LLVM_PARALLEL_COMPILE_JOBS=${LLVM_PARALLEL_COMPILE_JOBS:1}
+LLVM_PARALLEL_LINK_JOBS=${LLVM_PARALLEL_LINK_JOBS:1}
+
 rm -rf llvm-project
 git clone https://github.com/marco-compiler/llvm-project.git
 cd llvm-project || exit 1

@@ -1,5 +1,7 @@
 #!/bin/bash
 
+OPENMODELICA_COMMIT=${OPENMODELICA_COMMIT:-"main"}
+
 rm -rf OpenModelica
 git clone https://github.com/OpenModelica/OpenModelica.git
 cd OpenModelica || exit 1
