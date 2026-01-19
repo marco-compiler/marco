@@ -54,4 +54,5 @@ marco_add_library(Lowering
     marco::modeling
     marco::variableFilter
     marco::Distance
+    marco::Lexer
     ${MLIR_LIBS})
