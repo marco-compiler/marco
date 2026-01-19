@@ -1,9 +1,16 @@
 set(SOURCES
     Instrumentation/VerificationModelEmitter.cpp
+    Passes/EquationTargets/CPUEquationTarget.cpp
+    Passes/EquationTargets/EquationTarget.cpp
+    Passes/EquationTargets/GPUEquationTarget.cpp
     Passes/AggressiveLICM.cpp
     Passes/EquationIndexCheckInsertion.cpp
+    Passes/EquationOffloading.cpp
+    Passes/GPUMemoryCopyInsertion.cpp
+    Passes/GPUVariableDeclaration.cpp
     Passes/HeapFunctionsReplacement.cpp
     Passes/Verifier.cpp
+    CodegenOptions.cpp
     CompilerInstance.cpp
     CompilerInvocation.cpp
     DiagnosticHandler.cpp

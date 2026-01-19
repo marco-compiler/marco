@@ -7,6 +7,7 @@
 #include "marco/Dialect/BaseModelica/Transforms/Passes.h"
 #include "marco/Dialect/IDA/IR/IDA.h"
 #include "marco/Dialect/KINSOL/IR/KINSOL.h"
+#include "marco/Dialect/Modelica/Transforms/Passes.h"
 #include "marco/Dialect/Modeling/IR/Modeling.h"
 #include "marco/Dialect/Runtime/IR/Runtime.h"
 #include "marco/Dialect/Runtime/Transforms/AllInterfaces.h"
@@ -14,6 +15,8 @@
 #include "marco/Frontend/CompilerInstance.h"
 #include "marco/Frontend/Instrumentation/VerificationModelEmitter.h"
 #include "marco/Frontend/Passes.h"
+#include "marco/Frontend/Passes/EquationTargets/CPUEquationTarget.h"
+#include "marco/Frontend/Passes/EquationTargets/GPUEquationTarget.h"
 #include "marco/IO/Command.h"
 #include "marco/Parser/BaseModelica/Parser.h"
 #include "mlir/Conversion/Passes.h"
@@ -22,12 +25,14 @@
 #include "mlir/Dialect/Bufferization/Transforms/Passes.h"
 #include "mlir/Dialect/DLTI/DLTI.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/Dialect/GPU/Transforms/Passes.h"
 #include "mlir/Dialect/LLVMIR/Transforms/LegalizeForExport.h"
 #include "mlir/Dialect/LLVMIR/Transforms/Passes.h"
 #include "mlir/Dialect/Linalg/Passes.h"
 #include "mlir/Dialect/MemRef/Transforms/Passes.h"
 #include "mlir/InitAllDialects.h"
 #include "mlir/InitAllExtensions.h"
+#include "mlir/InitAllPasses.h"
 #include "mlir/Parser/Parser.h"
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Target/LLVMIR/Dialect/Builtin/BuiltinToLLVMIRTranslation.h"
@@ -420,6 +425,10 @@ CodeGenAction::CodeGenAction(CodeGenActionKind action)
     : ASTAction(ASTActionKind::Parse), action(action) {
   registerMLIRDialects();
   registerMLIRExtensions();
+
+  /// The manual registration is needed enable the usage of passes using the
+  /// transform dialect.
+  registerMLIRPasses();
 }
 
 CodeGenAction::~CodeGenAction() {
@@ -547,6 +556,18 @@ void CodeGenAction::registerMLIRExtensions() {
 
   mlir::runtime::registerAllDialectInterfaceImplementations(
       mlirDialectRegistry);
+}
+
+void CodeGenAction::registerMLIRPasses() {
+  // Register the passes defined by MARCO.
+  marco::codegen::registerConversionPasses();
+  mlir::bmodelica::registerBaseModelicaPasses();
+  mlir::modelica::registerModelicaPasses();
+  mlir::runtime::registerRuntimePasses();
+  marco::frontend::registerFrontendPasses();
+
+  // Register MLIR built-in transformations.
+  mlir::registerAllPasses();
 }
 
 void CodeGenAction::createMLIRContext() {
@@ -1086,10 +1107,6 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
         mlir::affine::createAffineScalarReplacementPass());
   }
 
-  if (ci.getCodeGenOptions().loopTiling) {
-    addMLIRLoopTilingPass(pm.nest<mlir::func::FuncOp>());
-  }
-
   // Convert the calls to external functions. This is performed before the
   // insertion of deallocation instructions, because the conversion may
   // introduce temporary buffers to store the date in case of mismatch in
@@ -1120,16 +1137,39 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
     pm.addNestedPass<mlir::func::FuncOp>(mlir::createMem2Reg());
   }
 
-  // Lower to LLVM dialect.
-  pm.addNestedPass<mlir::func::FuncOp>(
-      mlir::memref::createExpandStridedMetadataPass());
+  // Try to offload equations to specialized hardware.
+  pm.addPass(createMLIREquationOffloadingPass());
 
+  /*
+  if (ci.getCodeGenOptions().loopTiling) {
+    addMLIRLoopTilingPass(pm.nest<mlir::func::FuncOp>());
+  }
+  */
+
+  // TODO create module with memrefs and perform data movements
+
+  if (ci.getCodeGenOptions().hasGPU()) {
+    //pm.addPass(mlir::createGpuKernelOutliningPass());
+
+    //pm.addNestedPass<mlir::func::FuncOp>(create)
+  }
+
+  /*
   // Move loop-independent code outside of loops.
   if (ci.getCodeGenOptions().loopHoisting) {
     pm.addNestedPass<mlir::func::FuncOp>(createAggressiveLICMPass());
   }
 
+  // Lower to LLVM dialect.
   pm.addNestedPass<mlir::func::FuncOp>(mlir::createLowerAffinePass());
+
+  if (ci.getCodeGenOptions().hasGPU()) {
+    pm.addNestedPass<mlir::func::FuncOp>(mlir::createGpuDecomposeMemrefsPass());
+
+    pm.addNestedPass<mlir::func::FuncOp>(
+        mlir::memref::createExpandStridedMetadataPass());
+  }
+
   pm.addNestedPass<mlir::func::FuncOp>(mlir::createSCFToControlFlowPass());
   pm.addPass(mlir::createRuntimeModelMetadataConversionPass());
 
@@ -1138,8 +1178,37 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
   // patterns.
   pm.addPass(mlir::createBaseModelicaToMLIRCoreConversionPass());
 
+  if (ci.getCodeGenOptions().hasGPU()) {
+    pm.addPass(mlir::memref::createNormalizeMemRefsPass());
+
+    if (ci.getCodeGenOptions().getGPUVendor() == GPUVendor::NVIDIA) {
+      pm.addNestedPass<mlir::gpu::GPUModuleOp>(
+          createMLIRGpuToNVVMConversionPass());
+
+      pm.addPass(createMLIRNVVMAttachTargetPass());
+      pm.addPass(mlir::createConvertNVVMToLLVMPass());
+    }
+
+    auto &funcOpPM =
+        pm.nest<mlir::gpu::GPUModuleOp>().nest<mlir::LLVM::LLVMFuncOp>();
+
+    funcOpPM.addPass(mlir::createLowerAffinePass());
+    funcOpPM.addPass(mlir::createSCFToControlFlowPass());
+    funcOpPM.addPass(mlir::createConvertToLLVMPass());
+    funcOpPM.addPass(mlir::createReconcileUnrealizedCastsPass());
+    funcOpPM.addPass(mlir::createCanonicalizerPass());
+    funcOpPM.addPass(mlir::LLVM::createLLVMLegalizeForExportPass());
+  }
+  */
+
+  /*
   pm.addPass(mlir::createAllToLLVMConversionPass());
   pm.addPass(mlir::createConvertToLLVMPass());
+
+  if (ci.getCodeGenOptions().hasGPU()) {
+    pm.addPass(createMLIRGpuToLLVMConversionPass());
+    pm.addPass(createMLIRGpuModuleToBinaryPass());
+  }
 
   // Finalization passes.
   pm.addPass(createHeapFunctionsReplacementPass());
@@ -1157,6 +1226,7 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
 
   pm.addNestedPass<mlir::LLVM::LLVMFuncOp>(
       mlir::LLVM::createLLVMLegalizeForExportPass());
+  */
 }
 
 std::unique_ptr<mlir::Pass> CodeGenAction::createMLIRMatchingPass() {
@@ -1282,6 +1352,19 @@ CodeGenAction::createMLIRBaseModelicaExternalCallsConversionPass() {
   return mlir::createBaseModelicaExternalCallsConversionPass(options);
 }
 
+std::unique_ptr<mlir::Pass> CodeGenAction::createMLIREquationOffloadingPass() {
+  CompilerInstance &ci = getInstance();
+  EquationOffloadingPassOptions options;
+  options.targets.push_back(std::make_unique<CPUEquationTarget>("cpu"));
+
+  if (getInstance().getCodeGenOptions().gpuVendor == GPUVendor::NVIDIA) {
+    options.targets.push_back(std::make_unique<GPUEquationTarget>("nvidia"));
+  }
+
+  options.attachCandidateTargetsAsAttribute = ci.getCodeGenOptions().debug;
+  return createEquationOffloadingPass(std::move(options));
+}
+
 std::unique_ptr<mlir::Pass> CodeGenAction::createMLIROneShotBufferizePass() {
   mlir::bufferization::OneShotBufferizePassOptions options;
   options.bufferizeFunctionBoundaries = true;
@@ -1338,6 +1421,34 @@ CodeGenAction::createMLIRPromoteBuffersToStackPass() {
   };
 
   return mlir::bufferization::createPromoteBuffersToStackPass(isSmallAllocFn);
+}
+
+std::unique_ptr<mlir::Pass> CodeGenAction::createMLIRGpuToNVVMConversionPass() {
+  mlir::ConvertGpuOpsToNVVMOpsOptions options;
+  options.useBarePtrCallConv = true;
+  return mlir::createConvertGpuOpsToNVVMOps(options);
+}
+
+std::unique_ptr<mlir::Pass> CodeGenAction::createMLIRNVVMAttachTargetPass() {
+  CompilerInstance &ci = getInstance();
+  mlir::GpuNVVMAttachTargetOptions options;
+  options.triple = ci.getCodeGenOptions().gpuTriple;
+  options.chip = ci.getCodeGenOptions().gpuChip;
+  options.optLevel = ci.getCodeGenOptions().optLevel.getSpeedupLevel();
+  options.features = ci.getCodeGenOptions().gpuFeatures;
+  return mlir::createGpuNVVMAttachTarget(options);
+}
+
+std::unique_ptr<mlir::Pass> CodeGenAction::createMLIRGpuToLLVMConversionPass() {
+  mlir::GpuToLLVMConversionPassOptions options;
+  options.hostBarePtrCallConv = true;
+  options.kernelBarePtrCallConv = true;
+  return mlir::createGpuToLLVMConversionPass(options);
+}
+
+std::unique_ptr<mlir::Pass> CodeGenAction::createMLIRGpuModuleToBinaryPass() {
+  mlir::GpuModuleToBinaryPassOptions options;
+  return mlir::createGpuModuleToBinaryPass(options);
 }
 
 void CodeGenAction::registerMLIRToLLVMIRTranslations() {

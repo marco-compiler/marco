@@ -7,6 +7,8 @@
 #include <vector>
 
 namespace marco::frontend {
+enum class GPUVendor { None, AMD, Intel, NVIDIA };
+
 /// Code generation options.
 /// The default values are for compiling without optimizations.
 /// The class extends the language options for C / C++ to enable the
@@ -40,6 +42,23 @@ struct CodegenOptions : public clang::CodeGenOptions {
 
   std::string cpu = "generic";
   std::vector<std::string> features;
+
+  /*
+  std::string gpuTriple = "";
+  GPUVendor gpuVendor = GPUVendor::None;
+  std::string gpuChip = "";
+  std::string gpuFeatures = "";
+  */
+
+  // TODO default to empty and detect at runtime
+  std::string gpuTriple = "nvptx64-nvidia-cuda";
+  GPUVendor gpuVendor = GPUVendor::NVIDIA;
+  std::string gpuChip = "sm_86";
+  std::string gpuFeatures = "+ptx60";
+
+  bool hasGPU() const;
+
+  GPUVendor getGPUVendor() const;
 };
 } // namespace marco::frontend
 

@@ -119,6 +119,9 @@ protected:
   /// Register the MLIR extensions.
   void registerMLIRExtensions();
 
+  /// Register the MLIR passes.
+  void registerMLIRPasses();
+
   /// Create the MLIR context.
   void createMLIRContext();
 
@@ -190,6 +193,12 @@ protected:
   createMLIRBaseModelicaExternalCallsConversionPass();
 
   /// }
+  /// @name Frontend passes.
+  /// {
+
+  std::unique_ptr<mlir::Pass> createMLIREquationOffloadingPass();
+
+  /// }
   /// @name MLIR built-in passes.
   /// {
 
@@ -197,6 +206,11 @@ protected:
   void buildMLIRBufferDeallocationPipeline(mlir::OpPassManager &pm);
   void addMLIRLoopTilingPass(mlir::OpPassManager &pm);
   std::unique_ptr<mlir::Pass> createMLIRPromoteBuffersToStackPass();
+
+  std::unique_ptr<mlir::Pass> createMLIRGpuToNVVMConversionPass();
+  std::unique_ptr<mlir::Pass> createMLIRNVVMAttachTargetPass();
+  std::unique_ptr<mlir::Pass> createMLIRGpuToLLVMConversionPass();
+  std::unique_ptr<mlir::Pass> createMLIRGpuModuleToBinaryPass();
 
   /// }
   /// @name LLVM-IR
