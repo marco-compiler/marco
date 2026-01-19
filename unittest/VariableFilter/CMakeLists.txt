@@ -1,5 +1,5 @@
 set(SOURCES
-    VariableFilterTest.cpp)
+    VariableFilter.cpp)
 
 set(LLVM_LINK_COMPONENTS
     Core

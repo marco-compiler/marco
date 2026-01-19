@@ -1,12 +1,12 @@
-#include "marco/Lexer/Lexer.h"
 #include "marco/Parser/BaseModelica/StateMachine.h"
+#include "marco/Lexer/Lexer.h"
 #include "gtest/gtest.h"
 
 using namespace ::marco;
 using namespace ::marco::lexer;
 using namespace ::marco::parser::bmodelica;
 
-TEST(ModelicaLexer, defaults) {
+TEST(BaseModelica_StateMachine, defaults) {
   auto str = R"(test)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -20,7 +20,7 @@ TEST(ModelicaLexer, defaults) {
   EXPECT_EQ(lexer.getString(), "");
 }
 
-TEST(ModelicaLexer, singleLineCommentsAreIgnored) {
+TEST(BaseModelica_StateMachine, singleLineCommentsAreIgnored) {
   auto str = R"(// comment)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -33,7 +33,7 @@ TEST(ModelicaLexer, singleLineCommentsAreIgnored) {
   EXPECT_EQ(lexer.getCurrentPosition().column, 11);
 }
 
-TEST(ModelicaLexer, multiLineCommentsAreIgnored) {
+TEST(BaseModelica_StateMachine, multiLineCommentsAreIgnored) {
   auto str =
       R"(/* comment
 
@@ -49,7 +49,7 @@ TEST(ModelicaLexer, multiLineCommentsAreIgnored) {
   EXPECT_EQ(lexer.getCurrentPosition().column, 3);
 }
 
-TEST(ModelicaLexer, singleDigitInteger) {
+TEST(BaseModelica_StateMachine, singleDigitInteger) {
   auto str = R"(2)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -63,7 +63,7 @@ TEST(ModelicaLexer, singleDigitInteger) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, integerValue) {
+TEST(BaseModelica_StateMachine, integerValue) {
   auto str = R"(012345)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -83,7 +83,7 @@ TEST(ModelicaLexer, integerValue) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, multipleIntegerValues) {
+TEST(BaseModelica_StateMachine, multipleIntegerValues) {
   auto str = R"(1234 5678)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -112,7 +112,7 @@ TEST(ModelicaLexer, multipleIntegerValues) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, floatValue) {
+TEST(BaseModelica_StateMachine, floatValue) {
   auto str = R"(1.23)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -132,7 +132,7 @@ TEST(ModelicaLexer, floatValue) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, multipleFloatValues) {
+TEST(BaseModelica_StateMachine, multipleFloatValues) {
   auto str = R"(1.23 4.56)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -161,7 +161,7 @@ TEST(ModelicaLexer, multipleFloatValues) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, floatsInExponentialFormat) {
+TEST(BaseModelica_StateMachine, floatsInExponentialFormat) {
   auto str = R"(2E4 3.0e-2)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -190,7 +190,7 @@ TEST(ModelicaLexer, floatsInExponentialFormat) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, floatWithDotOnly) {
+TEST(BaseModelica_StateMachine, floatWithDotOnly) {
   auto str = R"(2.)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -210,7 +210,7 @@ TEST(ModelicaLexer, floatWithDotOnly) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, exponentialFloatWithSignOnly) {
+TEST(BaseModelica_StateMachine, exponentialFloatWithSignOnly) {
   auto str = R"(2E-)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -229,7 +229,7 @@ TEST(ModelicaLexer, exponentialFloatWithSignOnly) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, exponentialFloatWithoutExponent) {
+TEST(BaseModelica_StateMachine, exponentialFloatWithoutExponent) {
   auto str = R"(2E)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -248,7 +248,7 @@ TEST(ModelicaLexer, exponentialFloatWithoutExponent) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, string) {
+TEST(BaseModelica_StateMachine, string) {
   auto str = R"("string")";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -268,7 +268,7 @@ TEST(ModelicaLexer, string) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, specialCharactersInsideString) {
+TEST(BaseModelica_StateMachine, specialCharactersInsideString) {
   auto str = R"("\"\n\r\t\v\?")";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -288,7 +288,7 @@ TEST(ModelicaLexer, specialCharactersInsideString) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, malformedString) {
+TEST(BaseModelica_StateMachine, malformedString) {
   auto str = R"(")";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -307,7 +307,7 @@ TEST(ModelicaLexer, malformedString) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, identifier) {
+TEST(BaseModelica_StateMachine, identifier) {
   auto str = R"(identifier)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -327,7 +327,7 @@ TEST(ModelicaLexer, identifier) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, singleCharIdentifier) {
+TEST(BaseModelica_StateMachine, singleCharIdentifier) {
   auto str = R"(x)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -347,7 +347,7 @@ TEST(ModelicaLexer, singleCharIdentifier) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, qIdentifier) {
+TEST(BaseModelica_StateMachine, qIdentifier) {
   auto str = R"('identifier')";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -367,7 +367,7 @@ TEST(ModelicaLexer, qIdentifier) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, algorithmKeyword) {
+TEST(BaseModelica_StateMachine, algorithmKeyword) {
   auto str = R"(algorithm)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -386,7 +386,7 @@ TEST(ModelicaLexer, algorithmKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, andKeyword) {
+TEST(BaseModelica_StateMachine, andKeyword) {
   auto str = R"(and)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -405,7 +405,7 @@ TEST(ModelicaLexer, andKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, annotationKeyword) {
+TEST(BaseModelica_StateMachine, annotationKeyword) {
   auto str = R"(annotation)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -424,7 +424,7 @@ TEST(ModelicaLexer, annotationKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, blockKeyword) {
+TEST(BaseModelica_StateMachine, blockKeyword) {
   auto str = R"(block)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -443,7 +443,7 @@ TEST(ModelicaLexer, blockKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, breakKeyword) {
+TEST(BaseModelica_StateMachine, breakKeyword) {
   auto str = R"(break)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -462,7 +462,7 @@ TEST(ModelicaLexer, breakKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, classKeyword) {
+TEST(BaseModelica_StateMachine, classKeyword) {
   auto str = R"(class)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -481,7 +481,7 @@ TEST(ModelicaLexer, classKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, connectKeyword) {
+TEST(BaseModelica_StateMachine, connectKeyword) {
   auto str = R"(connect)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -500,7 +500,7 @@ TEST(ModelicaLexer, connectKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, connectorKeyword) {
+TEST(BaseModelica_StateMachine, connectorKeyword) {
   auto str = R"(connector)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -519,7 +519,7 @@ TEST(ModelicaLexer, connectorKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, constantKeyword) {
+TEST(BaseModelica_StateMachine, constantKeyword) {
   auto str = R"(constant)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -538,7 +538,7 @@ TEST(ModelicaLexer, constantKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, constrainedByKeyword) {
+TEST(BaseModelica_StateMachine, constrainedByKeyword) {
   auto str = R"(constrainedby)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -557,7 +557,7 @@ TEST(ModelicaLexer, constrainedByKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, derKeyword) {
+TEST(BaseModelica_StateMachine, derKeyword) {
   auto str = R"(der)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -576,7 +576,7 @@ TEST(ModelicaLexer, derKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, discreteKeyword) {
+TEST(BaseModelica_StateMachine, discreteKeyword) {
   auto str = R"(discrete)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -595,7 +595,7 @@ TEST(ModelicaLexer, discreteKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, eachKeyword) {
+TEST(BaseModelica_StateMachine, eachKeyword) {
   auto str = R"(each)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -614,7 +614,7 @@ TEST(ModelicaLexer, eachKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, elseKeyword) {
+TEST(BaseModelica_StateMachine, elseKeyword) {
   auto str = R"(else)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -633,7 +633,7 @@ TEST(ModelicaLexer, elseKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, elseIfKeyword) {
+TEST(BaseModelica_StateMachine, elseIfKeyword) {
   auto str = R"(elseif)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -652,7 +652,7 @@ TEST(ModelicaLexer, elseIfKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, elseWhenKeyword) {
+TEST(BaseModelica_StateMachine, elseWhenKeyword) {
   auto str = R"(elsewhen)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -671,7 +671,7 @@ TEST(ModelicaLexer, elseWhenKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, encapsulatedKeyword) {
+TEST(BaseModelica_StateMachine, encapsulatedKeyword) {
   auto str = R"(encapsulated)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -690,7 +690,7 @@ TEST(ModelicaLexer, encapsulatedKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, endKeyword) {
+TEST(BaseModelica_StateMachine, endKeyword) {
   auto str = R"(end)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -709,7 +709,7 @@ TEST(ModelicaLexer, endKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, enumerationKeyword) {
+TEST(BaseModelica_StateMachine, enumerationKeyword) {
   auto str = R"(enumeration)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -728,7 +728,7 @@ TEST(ModelicaLexer, enumerationKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, equationKeyword) {
+TEST(BaseModelica_StateMachine, equationKeyword) {
   auto str = R"(equation)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -747,7 +747,7 @@ TEST(ModelicaLexer, equationKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, expandableKeyword) {
+TEST(BaseModelica_StateMachine, expandableKeyword) {
   auto str = R"(expandable)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -766,7 +766,7 @@ TEST(ModelicaLexer, expandableKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, extendsKeyword) {
+TEST(BaseModelica_StateMachine, extendsKeyword) {
   auto str = R"(extends)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -785,7 +785,7 @@ TEST(ModelicaLexer, extendsKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, externalKeyword) {
+TEST(BaseModelica_StateMachine, externalKeyword) {
   auto str = R"(external)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -804,7 +804,7 @@ TEST(ModelicaLexer, externalKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, falseKeyword) {
+TEST(BaseModelica_StateMachine, falseKeyword) {
   auto str = R"(false)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -823,7 +823,7 @@ TEST(ModelicaLexer, falseKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, finalKeyword) {
+TEST(BaseModelica_StateMachine, finalKeyword) {
   auto str = R"(final)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -842,7 +842,7 @@ TEST(ModelicaLexer, finalKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, flowKeyword) {
+TEST(BaseModelica_StateMachine, flowKeyword) {
   auto str = R"(flow)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -861,7 +861,7 @@ TEST(ModelicaLexer, flowKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, forKeyword) {
+TEST(BaseModelica_StateMachine, forKeyword) {
   auto str = R"(for)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -880,7 +880,7 @@ TEST(ModelicaLexer, forKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, functionKeyword) {
+TEST(BaseModelica_StateMachine, functionKeyword) {
   auto str = R"(function)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -899,7 +899,7 @@ TEST(ModelicaLexer, functionKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, ifKeyword) {
+TEST(BaseModelica_StateMachine, ifKeyword) {
   auto str = R"(if)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -918,7 +918,7 @@ TEST(ModelicaLexer, ifKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, importKeyword) {
+TEST(BaseModelica_StateMachine, importKeyword) {
   auto str = R"(import)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -937,7 +937,7 @@ TEST(ModelicaLexer, importKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, impureKeyword) {
+TEST(BaseModelica_StateMachine, impureKeyword) {
   auto str = R"(impure)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -956,7 +956,7 @@ TEST(ModelicaLexer, impureKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, inKeyword) {
+TEST(BaseModelica_StateMachine, inKeyword) {
   auto str = R"(in)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -975,7 +975,7 @@ TEST(ModelicaLexer, inKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, initialKeyword) {
+TEST(BaseModelica_StateMachine, initialKeyword) {
   auto str = R"(initial)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -994,7 +994,7 @@ TEST(ModelicaLexer, initialKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, innerKeyword) {
+TEST(BaseModelica_StateMachine, innerKeyword) {
   auto str = R"(inner)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -1013,7 +1013,7 @@ TEST(ModelicaLexer, innerKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, inputKeyword) {
+TEST(BaseModelica_StateMachine, inputKeyword) {
   auto str = R"(input)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -1032,7 +1032,7 @@ TEST(ModelicaLexer, inputKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, loopKeyword) {
+TEST(BaseModelica_StateMachine, loopKeyword) {
   auto str = R"(loop)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -1051,7 +1051,7 @@ TEST(ModelicaLexer, loopKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, modelKeyword) {
+TEST(BaseModelica_StateMachine, modelKeyword) {
   auto str = R"(model)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -1070,7 +1070,7 @@ TEST(ModelicaLexer, modelKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, notKeyword) {
+TEST(BaseModelica_StateMachine, notKeyword) {
   auto str = R"(not)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -1089,7 +1089,7 @@ TEST(ModelicaLexer, notKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, operatorKeyword) {
+TEST(BaseModelica_StateMachine, operatorKeyword) {
   auto str = R"(operator)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -1108,7 +1108,7 @@ TEST(ModelicaLexer, operatorKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, oorKeyword) {
+TEST(BaseModelica_StateMachine, oorKeyword) {
   auto str = R"(or)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -1127,7 +1127,7 @@ TEST(ModelicaLexer, oorKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, outerKeyword) {
+TEST(BaseModelica_StateMachine, outerKeyword) {
   auto str = R"(outer)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -1146,7 +1146,7 @@ TEST(ModelicaLexer, outerKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, outputKeyword) {
+TEST(BaseModelica_StateMachine, outputKeyword) {
   auto str = R"(output)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -1165,7 +1165,7 @@ TEST(ModelicaLexer, outputKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, packageKeyword) {
+TEST(BaseModelica_StateMachine, packageKeyword) {
   auto str = R"(package)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -1184,7 +1184,7 @@ TEST(ModelicaLexer, packageKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, parameterKeyword) {
+TEST(BaseModelica_StateMachine, parameterKeyword) {
   auto str = R"(parameter)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -1203,7 +1203,7 @@ TEST(ModelicaLexer, parameterKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, partialKeyword) {
+TEST(BaseModelica_StateMachine, partialKeyword) {
   auto str = R"(partial)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -1222,7 +1222,7 @@ TEST(ModelicaLexer, partialKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, protectedKeyword) {
+TEST(BaseModelica_StateMachine, protectedKeyword) {
   auto str = R"(protected)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -1241,7 +1241,7 @@ TEST(ModelicaLexer, protectedKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, publicKeyword) {
+TEST(BaseModelica_StateMachine, publicKeyword) {
   auto str = R"(public)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -1260,7 +1260,7 @@ TEST(ModelicaLexer, publicKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, pureKeyword) {
+TEST(BaseModelica_StateMachine, pureKeyword) {
   auto str = R"(pure)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -1279,7 +1279,7 @@ TEST(ModelicaLexer, pureKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, recordKeyword) {
+TEST(BaseModelica_StateMachine, recordKeyword) {
   auto str = R"(record)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -1298,7 +1298,7 @@ TEST(ModelicaLexer, recordKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, redeclareKeyword) {
+TEST(BaseModelica_StateMachine, redeclareKeyword) {
   auto str = R"(redeclare)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -1317,7 +1317,7 @@ TEST(ModelicaLexer, redeclareKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, replaceableKeyword) {
+TEST(BaseModelica_StateMachine, replaceableKeyword) {
   auto str = R"(replaceable)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -1336,7 +1336,7 @@ TEST(ModelicaLexer, replaceableKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, returnKeyword) {
+TEST(BaseModelica_StateMachine, returnKeyword) {
   auto str = R"(return)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -1355,7 +1355,7 @@ TEST(ModelicaLexer, returnKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, streamKeyword) {
+TEST(BaseModelica_StateMachine, streamKeyword) {
   auto str = R"(stream)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -1374,7 +1374,7 @@ TEST(ModelicaLexer, streamKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, thenKeyword) {
+TEST(BaseModelica_StateMachine, thenKeyword) {
   auto str = R"(then)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -1393,7 +1393,7 @@ TEST(ModelicaLexer, thenKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, trueKeyword) {
+TEST(BaseModelica_StateMachine, trueKeyword) {
   auto str = R"(true)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -1412,7 +1412,7 @@ TEST(ModelicaLexer, trueKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, typeKeyword) {
+TEST(BaseModelica_StateMachine, typeKeyword) {
   auto str = R"(type)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -1431,7 +1431,7 @@ TEST(ModelicaLexer, typeKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, whenKeyword) {
+TEST(BaseModelica_StateMachine, whenKeyword) {
   auto str = R"(when)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -1450,7 +1450,7 @@ TEST(ModelicaLexer, whenKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, whileKeyword) {
+TEST(BaseModelica_StateMachine, whileKeyword) {
   auto str = R"(while)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -1469,7 +1469,7 @@ TEST(ModelicaLexer, whileKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, withinKeyword) {
+TEST(BaseModelica_StateMachine, withinKeyword) {
   auto str = R"(within)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -1488,7 +1488,7 @@ TEST(ModelicaLexer, withinKeyword) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, plus) {
+TEST(BaseModelica_StateMachine, plus) {
   auto str = R"(+)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -1507,7 +1507,7 @@ TEST(ModelicaLexer, plus) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, plusEW) {
+TEST(BaseModelica_StateMachine, plusEW) {
   auto str = R"(.+)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -1526,7 +1526,7 @@ TEST(ModelicaLexer, plusEW) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, minus) {
+TEST(BaseModelica_StateMachine, minus) {
   auto str = R"(-)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -1545,7 +1545,7 @@ TEST(ModelicaLexer, minus) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, minusEW) {
+TEST(BaseModelica_StateMachine, minusEW) {
   auto str = R"(.-)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -1564,7 +1564,7 @@ TEST(ModelicaLexer, minusEW) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, product) {
+TEST(BaseModelica_StateMachine, product) {
   auto str = R"(*)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -1583,7 +1583,7 @@ TEST(ModelicaLexer, product) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, productEW) {
+TEST(BaseModelica_StateMachine, productEW) {
   auto str = R"(.*)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -1602,7 +1602,7 @@ TEST(ModelicaLexer, productEW) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, division) {
+TEST(BaseModelica_StateMachine, division) {
   auto str = R"(/)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -1621,7 +1621,7 @@ TEST(ModelicaLexer, division) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, divisionEW) {
+TEST(BaseModelica_StateMachine, divisionEW) {
   auto str = R"(./)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -1640,7 +1640,7 @@ TEST(ModelicaLexer, divisionEW) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, pow) {
+TEST(BaseModelica_StateMachine, pow) {
   auto str = R"(^)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -1659,7 +1659,7 @@ TEST(ModelicaLexer, pow) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, powEW) {
+TEST(BaseModelica_StateMachine, powEW) {
   auto str = R"(.^)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -1678,7 +1678,7 @@ TEST(ModelicaLexer, powEW) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, dot) {
+TEST(BaseModelica_StateMachine, dot) {
   auto str = R"(.)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -1697,7 +1697,7 @@ TEST(ModelicaLexer, dot) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, equal) {
+TEST(BaseModelica_StateMachine, equal) {
   auto str = R"(==)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -1716,7 +1716,7 @@ TEST(ModelicaLexer, equal) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, notEqual) {
+TEST(BaseModelica_StateMachine, notEqual) {
   auto str = R"(<>)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -1735,7 +1735,7 @@ TEST(ModelicaLexer, notEqual) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, less) {
+TEST(BaseModelica_StateMachine, less) {
   auto str = R"(<)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -1754,7 +1754,7 @@ TEST(ModelicaLexer, less) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, lessEqual) {
+TEST(BaseModelica_StateMachine, lessEqual) {
   auto str = R"(<=)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -1773,7 +1773,7 @@ TEST(ModelicaLexer, lessEqual) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, greater) {
+TEST(BaseModelica_StateMachine, greater) {
   auto str = R"(>)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -1792,7 +1792,7 @@ TEST(ModelicaLexer, greater) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, greaterEqual) {
+TEST(BaseModelica_StateMachine, greaterEqual) {
   auto str = R"(>=)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -1811,7 +1811,7 @@ TEST(ModelicaLexer, greaterEqual) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, comma) {
+TEST(BaseModelica_StateMachine, comma) {
   auto str = R"(,)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -1830,7 +1830,7 @@ TEST(ModelicaLexer, comma) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, semicolon) {
+TEST(BaseModelica_StateMachine, semicolon) {
   auto str = R"(;)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -1849,7 +1849,7 @@ TEST(ModelicaLexer, semicolon) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, colon) {
+TEST(BaseModelica_StateMachine, colon) {
   auto str = R"(:)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -1868,7 +1868,7 @@ TEST(ModelicaLexer, colon) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, LPar) {
+TEST(BaseModelica_StateMachine, LPar) {
   auto str = R"(()";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -1887,7 +1887,7 @@ TEST(ModelicaLexer, LPar) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, RPar) {
+TEST(BaseModelica_StateMachine, RPar) {
   auto str = R"())";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -1906,7 +1906,7 @@ TEST(ModelicaLexer, RPar) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, LSquare) {
+TEST(BaseModelica_StateMachine, LSquare) {
   auto str = R"([)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -1925,7 +1925,7 @@ TEST(ModelicaLexer, LSquare) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, RSquare) {
+TEST(BaseModelica_StateMachine, RSquare) {
   auto str = R"(])";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -1944,7 +1944,7 @@ TEST(ModelicaLexer, RSquare) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, LCurly) {
+TEST(BaseModelica_StateMachine, LCurly) {
   auto str = R"({)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -1963,7 +1963,7 @@ TEST(ModelicaLexer, LCurly) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, RCurly) {
+TEST(BaseModelica_StateMachine, RCurly) {
   auto str = R"(})";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -1982,7 +1982,7 @@ TEST(ModelicaLexer, RCurly) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, equalityOperator) {
+TEST(BaseModelica_StateMachine, equalityOperator) {
   auto str = R"(=)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
@@ -2001,7 +2001,7 @@ TEST(ModelicaLexer, equalityOperator) {
   EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
-TEST(ModelicaLexer, assignmentOperator) {
+TEST(BaseModelica_StateMachine, assignmentOperator) {
   auto str = R"(:=)";
 
   auto sourceFile = std::make_shared<SourceFile>("-");
