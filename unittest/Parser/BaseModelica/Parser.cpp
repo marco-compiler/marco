@@ -8,6 +8,7 @@ using namespace ::marco;
 using namespace ::marco::ast::bmodelica;
 using namespace ::marco::parser::bmodelica;
 
+namespace {
 std::unique_ptr<clang::DiagnosticsEngine>
 getDiagnosticsEngine(clang::DiagnosticOptions &diagOpts) {
   return std::make_unique<clang::DiagnosticsEngine>(
@@ -16,22 +17,52 @@ getDiagnosticsEngine(clang::DiagnosticOptions &diagOpts) {
       diagOpts, new clang::TextDiagnosticPrinter(llvm::errs(), diagOpts));
 }
 
+class StringParser {
+  std::unique_ptr<clang::DiagnosticsEngine> diagnostics;
+  std::unique_ptr<clang::SourceManagerForFile> sourceManager;
+  std::unique_ptr<llvm::MemoryBuffer> buffer;
+  std::shared_ptr<SourceFile> sourceFile;
+  std::unique_ptr<Parser> parser;
+
+  StringParser(std::unique_ptr<clang::DiagnosticsEngine> diagnostics,
+               std::unique_ptr<clang::SourceManagerForFile> sourceManager,
+               std::unique_ptr<llvm::MemoryBuffer> buffer,
+               std::shared_ptr<SourceFile> sourceFile)
+      : diagnostics(std::move(diagnostics)),
+        sourceManager(std::move(sourceManager)), buffer(std::move(buffer)),
+        sourceFile(std::move(sourceFile)) {
+    parser = std::make_unique<Parser>(
+        *this->diagnostics, this->sourceManager->get(), this->sourceFile);
+  }
+
+public:
+  static StringParser get(llvm::StringRef source) {
+    auto sourceFile = std::make_shared<SourceFile>("parser->mo");
+
+    clang::DiagnosticOptions diagOpts;
+    auto diagnostics = getDiagnosticsEngine(diagOpts);
+
+    auto sourceManager = std::make_unique<clang::SourceManagerForFile>(
+        sourceFile->getFileName(), source);
+
+    auto buffer = llvm::MemoryBuffer::getMemBuffer(source);
+    sourceFile->setMemoryBuffer(buffer.get());
+
+    return StringParser(std::move(diagnostics), std::move(sourceManager),
+                        std::move(buffer), sourceFile);
+  }
+
+  Parser *operator->() { return parser.get(); }
+
+  const Parser *operator->() const { return parser.get(); }
+};
+} // namespace
+
 TEST(Parser, rawValue_true) {
   auto str = R"(true)";
+  auto parser = StringParser::get(str);
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
-
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseBoolValue();
+  auto node = parser->parseBoolValue();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ(node->getValue(), true);
@@ -46,19 +77,9 @@ TEST(Parser, rawValue_true) {
 TEST(Parser, rawValue_false) {
   auto str = R"(false)";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseBoolValue();
+  auto node = parser->parseBoolValue();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ(node->getValue(), false);
@@ -73,19 +94,9 @@ TEST(Parser, rawValue_false) {
 TEST(Parser, rawValue_integer) {
   auto str = R"(012345)";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseIntValue();
+  auto node = parser->parseIntValue();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ(node->getValue(), 12345);
@@ -100,19 +111,9 @@ TEST(Parser, rawValue_integer) {
 TEST(Parser, rawValue_float) {
   auto str = R"(1.23)";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseFloatValue();
+  auto node = parser->parseFloatValue();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_DOUBLE_EQ(node->getValue(), 1.23);
@@ -127,19 +128,9 @@ TEST(Parser, rawValue_float) {
 TEST(Parser, rawValue_string) {
   auto str = R"("test")";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseString();
+  auto node = parser->parseString();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ(node->getValue(), "test");
@@ -154,19 +145,9 @@ TEST(Parser, rawValue_string) {
 TEST(Parser, identifier) {
   auto str = R"(x)";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseIdentifier();
+  auto node = parser->parseIdentifier();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ(node->getLocation().begin.line, 1);
@@ -181,19 +162,9 @@ TEST(Parser, identifier) {
 TEST(Parser, componentReference) {
   auto str = R"(x.y.z)";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseComponentReference();
+  auto node = parser->parseComponentReference();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -224,19 +195,9 @@ TEST(Parser, componentReference) {
 TEST(Parser, algorithm_emptyBody) {
   auto str = R"(algorithm)";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseAlgorithmSection();
+  auto node = parser->parseAlgorithmSection();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -258,19 +219,9 @@ equation
   y = x;
 end M;)";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseClassDefinition();
+  auto node = parser->parseClassDefinition();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -292,19 +243,9 @@ algorithm
   y := x;
 end foo;)";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseClassDefinition();
+  auto node = parser->parseClassDefinition();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -324,19 +265,9 @@ end foo;)";
 TEST(Parser, partialDerFunction) {
   auto str = R"(function Bar = der(Foo, x, y);)";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseClassDefinition();
+  auto node = parser->parseClassDefinition();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -408,19 +339,9 @@ TEST(Parser, algorithm_statementsCount) {
   y := 2;
   z := 3;)";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseAlgorithmSection();
+  auto node = parser->parseAlgorithmSection();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -436,19 +357,9 @@ TEST(Parser, algorithm_statementsCount) {
 TEST(Parser, equalityEquation) {
   auto str = R"(y = x)";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseEquation();
+  auto node = parser->parseEquation();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -477,19 +388,9 @@ TEST(Parser, equalityEquation) {
 TEST(Parser, statement_assignment) {
   auto str = R"(y := x)";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseStatement();
+  auto node = parser->parseStatement();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_TRUE((*node)->isa<AssignmentStatement>());
@@ -542,19 +443,9 @@ TEST(Parser, statement_assignment) {
 TEST(Parser, statement_assignmentWithMultipleDestinations) {
   auto str = R"((x, y) := Foo())";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseStatement();
+  auto node = parser->parseStatement();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -609,19 +500,9 @@ TEST(Parser, statement_assignmentWithIgnoredResults) // NOLINT
 {
   auto str = R"((x, , z) := Foo())";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseStatement();
+  auto node = parser->parseStatement();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -679,19 +560,9 @@ TEST(Parser, statement_assignmentWithIgnoredResults) // NOLINT
 TEST(Parser, statement_function_call) {
   auto str = R"(assert(false))";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseStatement();
+  auto node = parser->parseStatement();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_TRUE((*node)->isa<CallStatement>());
@@ -719,19 +590,9 @@ TEST(Parser, statement_if) {
   y := 2;
 end if;)";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseStatement();
+  auto node = parser->parseStatement();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -757,19 +618,9 @@ else
   x := 1;
 end if;)";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseStatement();
+  auto node = parser->parseStatement();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -806,19 +657,9 @@ else
   x := 1;
 end if;)";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseStatement();
+  auto node = parser->parseStatement();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -847,19 +688,9 @@ TEST(Parser, statement_for) {
   y := 2;
 end for;)";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseStatement();
+  auto node = parser->parseStatement();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -881,19 +712,9 @@ TEST(Parser, statement_while) {
   y := 2;
 end while;)";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseStatement();
+  auto node = parser->parseStatement();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -911,19 +732,9 @@ end while;)";
 TEST(Parser, statement_break) {
   auto str = R"(break)";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseStatement();
+  auto node = parser->parseStatement();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -938,19 +749,9 @@ TEST(Parser, statement_break) {
 TEST(Parser, statement_return) {
   auto str = R"(return)";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseStatement();
+  auto node = parser->parseStatement();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -965,19 +766,9 @@ TEST(Parser, statement_return) {
 TEST(Parser, expression_constant) {
   auto str = R"(012345)";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseExpression();
+  auto node = parser->parseExpression();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -993,19 +784,9 @@ TEST(Parser, expression_constant) {
 TEST(Parser, expression_not) {
   auto str = R"(not x)";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseExpression();
+  auto node = parser->parseExpression();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -1022,19 +803,9 @@ TEST(Parser, expression_not) {
 TEST(Parser, expression_and) {
   auto str = R"(x and y)";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseExpression();
+  auto node = parser->parseExpression();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -1051,19 +822,9 @@ TEST(Parser, expression_and) {
 TEST(Parser, expression_or) {
   auto str = R"(x or y)";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseExpression();
+  auto node = parser->parseExpression();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -1079,19 +840,9 @@ TEST(Parser, expression_or) {
 TEST(Parser, expression_equal) {
   auto str = R"(x == y)";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseExpression();
+  auto node = parser->parseExpression();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -1108,19 +859,9 @@ TEST(Parser, expression_equal) {
 TEST(Parser, expression_notEqual) {
   auto str = R"(x <> y)";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseExpression();
+  auto node = parser->parseExpression();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -1137,19 +878,9 @@ TEST(Parser, expression_notEqual) {
 TEST(Parser, expression_less) {
   auto str = R"(x < y)";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseExpression();
+  auto node = parser->parseExpression();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -1166,19 +897,9 @@ TEST(Parser, expression_less) {
 TEST(Parser, expression_lessEqual) {
   auto str = R"(x <= y)";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseExpression();
+  auto node = parser->parseExpression();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -1195,19 +916,9 @@ TEST(Parser, expression_lessEqual) {
 TEST(Parser, expression_greater) {
   auto str = R"(x > y)";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseExpression();
+  auto node = parser->parseExpression();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -1224,19 +935,9 @@ TEST(Parser, expression_greater) {
 TEST(Parser, expression_greaterEqual) {
   auto str = R"(x >= y)";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseExpression();
+  auto node = parser->parseExpression();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -1253,19 +954,9 @@ TEST(Parser, expression_greaterEqual) {
 TEST(Parser, expression_addition) {
   auto str = R"(x + y)";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseExpression();
+  auto node = parser->parseExpression();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -1281,19 +972,9 @@ TEST(Parser, expression_addition) {
 TEST(Parser, expression_additionElementWise) {
   auto str = R"(x .+ y)";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseExpression();
+  auto node = parser->parseExpression();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -1310,19 +991,9 @@ TEST(Parser, expression_additionElementWise) {
 TEST(Parser, expression_subtraction) {
   auto str = R"(x - y)";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseExpression();
+  auto node = parser->parseExpression();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -1339,19 +1010,9 @@ TEST(Parser, expression_subtraction) {
 TEST(Parser, expression_subtractionElementWise) {
   auto str = R"(x .- y)";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseExpression();
+  auto node = parser->parseExpression();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -1368,19 +1029,9 @@ TEST(Parser, expression_subtractionElementWise) {
 TEST(Parser, expression_multiplication) {
   auto str = R"(x * y)";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseExpression();
+  auto node = parser->parseExpression();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -1397,19 +1048,9 @@ TEST(Parser, expression_multiplication) {
 TEST(Parser, expression_multiplicationElementWise) {
   auto str = R"(x .* y)";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseExpression();
+  auto node = parser->parseExpression();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -1426,19 +1067,9 @@ TEST(Parser, expression_multiplicationElementWise) {
 TEST(Parser, expression_division) {
   auto str = R"(x / y)";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseExpression();
+  auto node = parser->parseExpression();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -1455,19 +1086,9 @@ TEST(Parser, expression_division) {
 TEST(Parser, expression_divisionElementWise) {
   auto str = R"(x ./ y)";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseExpression();
+  auto node = parser->parseExpression();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -1484,19 +1105,9 @@ TEST(Parser, expression_divisionElementWise) {
 TEST(Parser, expression_additionAndMultiplication) {
   auto str = R"(x + y * z)";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseExpression();
+  auto node = parser->parseExpression();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -1538,19 +1149,9 @@ TEST(Parser, expression_additionAndMultiplication) {
 TEST(Parser, expression_multiplicationAndAddition) {
   auto str = R"(x * y + z)";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseExpression();
+  auto node = parser->parseExpression();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -1594,19 +1195,9 @@ TEST(Parser, expression_multiplicationAndAddition) {
 TEST(Parser, expression_multiplicationAndDivision) {
   auto str = R"(x * y / z)";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseExpression();
+  auto node = parser->parseExpression();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -1650,19 +1241,9 @@ TEST(Parser, expression_multiplicationAndDivision) {
 TEST(Parser, expression_divisionAndMultiplication) {
   auto str = R"(x / y * z)";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseExpression();
+  auto node = parser->parseExpression();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -1706,19 +1287,9 @@ TEST(Parser, expression_divisionAndMultiplication) {
 TEST(Parser, expression_arithmeticExpressionWithParentheses) {
   auto str = R"(x / (y * z))";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseExpression();
+  auto node = parser->parseExpression();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -1762,19 +1333,9 @@ TEST(Parser, expression_arithmeticExpressionWithParentheses) {
 TEST(Parser, expression_pow) {
   auto str = R"(x ^ y)";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseExpression();
+  auto node = parser->parseExpression();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -1791,19 +1352,9 @@ TEST(Parser, expression_pow) {
 TEST(Parser, expression_powElementWise) {
   auto str = R"(x .^ y)";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseExpression();
+  auto node = parser->parseExpression();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -1820,19 +1371,9 @@ TEST(Parser, expression_powElementWise) {
 TEST(Parser, expression_tuple_empty) {
   auto str = R"(())";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseExpression();
+  auto node = parser->parseExpression();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -1848,19 +1389,9 @@ TEST(Parser, expression_tuple_empty) {
 TEST(Parser, expression_componentReference) {
   auto str = R"(var)";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseExpression();
+  auto node = parser->parseExpression();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -1881,19 +1412,9 @@ TEST(Parser, expression_componentReference) {
 TEST(Parser, expression_array) {
   auto str = R"({1, 2, 3, 4, 5})";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseExpression();
+  auto node = parser->parseExpression();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -1925,19 +1446,9 @@ TEST(Parser, expression_array) {
 TEST(Parser, expression_array_induction) {
   auto str = R"({666 for i in 1:3, j in 7:12, k in 8:39})";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseExpression();
+  auto node = parser->parseExpression();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -1957,19 +1468,9 @@ TEST(Parser, expression_array_induction) {
 TEST(Parser, expression_subscription) {
   auto str = R"(var[3,i,:])";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseExpression();
+  auto node = parser->parseExpression();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -2055,19 +1556,9 @@ TEST(Parser, expression_subscription) {
 TEST(Parser, expression_subscriptionOfInlineArray) {
   auto str = R"({1, 2, 3, 4, 5}[i])";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseExpression();
+  auto node = parser->parseExpression();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -2092,19 +1583,9 @@ TEST(Parser, expression_subscriptionOfInlineArray) {
 TEST(Parser, expression_subscriptionOfFunctionCall) {
   auto str = R"(foo()[i])";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseExpression();
+  auto node = parser->parseExpression();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -2129,19 +1610,9 @@ TEST(Parser, expression_subscriptionOfFunctionCall) {
 TEST(Parser, expression_functionCall_noArgs) {
   auto str = R"(foo())";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseExpression();
+  auto node = parser->parseExpression();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -2162,19 +1633,9 @@ TEST(Parser, expression_functionCall_noArgs) {
 TEST(Parser, expression_functionCall_unnamedArgs) {
   auto str = R"(foo(x, 1, 2))";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseExpression();
+  auto node = parser->parseExpression();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -2254,19 +1715,9 @@ TEST(Parser, expression_functionCall_unnamedArgs) {
 TEST(Parser, expression_functionCall_namedArgs) {
   auto str = R"(foo(x = k, y = 1, z = 2))";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseExpression();
+  auto node = parser->parseExpression();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -2374,19 +1825,9 @@ TEST(Parser, expression_functionCall_namedArgs) {
 TEST(Parser, expression_functionCall_reductionArg) {
   auto str = R"(foo(x[i,j] for i in 1:3, j in 2:4))";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseExpression();
+  auto node = parser->parseExpression();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -2457,19 +1898,9 @@ TEST(Parser, expression_functionCall_reductionArg) {
 TEST(Parser, annotation_inlineTrue) {
   auto str = R"(annotation(inline = true))";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseAnnotation();
+  auto node = parser->parseAnnotation();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -2485,19 +1916,9 @@ TEST(Parser, annotation_inlineTrue) {
 TEST(Parser, annotation_inlineFalse) {
   auto str = R"(annotation(inline = false))";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseAnnotation();
+  auto node = parser->parseAnnotation();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -2513,19 +1934,9 @@ TEST(Parser, annotation_inlineFalse) {
 TEST(Parser, annotation_inverseFunction) {
   auto str = R"(annotation(inverse(y = foo1(x, z), z = foo2(x, y))))";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseAnnotation();
+  auto node = parser->parseAnnotation();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -2553,19 +1964,9 @@ TEST(Parser, annotation_inverseFunction) {
 TEST(Parser, annotation_functionDerivativeWithOrder) {
   auto str = R"(annotation(derivative(order=2)=foo1))";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseAnnotation();
+  auto node = parser->parseAnnotation();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -2584,19 +1985,9 @@ TEST(Parser, annotation_functionDerivativeWithOrder) {
 TEST(Parser, annotation_functionDerivativeWithoutOrder) {
   auto str = R"(annotation(derivative=foo1))";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseAnnotation();
+  auto node = parser->parseAnnotation();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -2615,19 +2006,9 @@ TEST(Parser, annotation_functionDerivativeWithoutOrder) {
 TEST(Parser, externalFunctionCall_destinationAndArguments) {
   auto str = R"(a = foo(b, c))";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseExternalFunctionCall();
+  auto node = parser->parseExternalFunctionCall();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -2660,19 +2041,9 @@ TEST(Parser, externalFunctionCall_destinationAndArguments) {
 TEST(Parser, externalFunctionCall_functionOnly) {
   auto str = R"(foo())";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseExternalFunctionCall();
+  auto node = parser->parseExternalFunctionCall();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -2691,19 +2062,9 @@ TEST(Parser, externalFunctionCall_functionOnly) {
 TEST(Parser, externalFunctionCall_destinationOnly) {
   auto str = R"(a = foo())";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseExternalFunctionCall();
+  auto node = parser->parseExternalFunctionCall();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -2725,19 +2086,9 @@ TEST(Parser, externalFunctionCall_destinationOnly) {
 TEST(Parser, externalFunctionCall_argumentsOnly) {
   auto str = R"(foo(b, c))";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseExternalFunctionCall();
+  auto node = parser->parseExternalFunctionCall();
   ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
@@ -2771,19 +2122,9 @@ TEST(Parser, function_external) {
 external;
 end foo;)";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseClassDefinition();
+  auto node = parser->parseClassDefinition();
   ASSERT_TRUE(node.has_value());
 
   ASSERT_TRUE((*node)->isa<Class>());
@@ -2798,19 +2139,9 @@ TEST(Parser, function_externalFunctionCall) {
 external y = foo_ext(x);
 end foo;)";
 
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto parser = StringParser::get(str);
 
-  clang::DiagnosticOptions diagOpts;
-  auto diagnostics = getDiagnosticsEngine(diagOpts);
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseClassDefinition();
+  auto node = parser->parseClassDefinition();
   ASSERT_TRUE(node.has_value());
 
   ASSERT_TRUE((*node)->isa<Class>());
