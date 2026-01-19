@@ -3,6 +3,9 @@
 
 #include "marco/Frontend/Passes/AggressiveLICM.h"
 #include "marco/Frontend/Passes/EquationIndexCheckInsertion.h"
+#include "marco/Frontend/Passes/EquationOffloading.h"
+#include "marco/Frontend/Passes/GPUMemoryCopyInsertion.h"
+#include "marco/Frontend/Passes/GPUVariableDeclaration.h"
 #include "marco/Frontend/Passes/HeapFunctionsReplacement.h"
 #include "marco/Frontend/Passes/Verifier.h"
 

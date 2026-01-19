@@ -37,6 +37,45 @@ def EquationIndexCheckInsertionPass
     let constructor = "marco::frontend::createEquationIndexCheckInsertionPass()";
 }
 
+def GPUMemoryCopyInsertionPass
+    : Pass<"gpu-memory-copy-insertion", "mlir::func::FuncOp">
+{
+    let summary = "Insert operations to copy data from host to device and viceversa.";
+
+    let description = [{
+        Insert operations to copy data from host to device before GPU kernel
+        launches and copy data back from device to host after kernel execution.
+        This pass ensures that the necessary data is available on the GPU
+        when needed and that results are copied back to the host after
+        computation.
+    }];
+
+    let dependentDialects = [
+        "mlir::LLVM::LLVMDialect",
+    ];
+
+    let constructor = "marco::frontend::createGPUMemoryCopyInsertionPass()";
+}
+
+def GPUVariableDeclarationPass
+    : Pass<"gpu-variable-declaration", "mlir::ModuleOp">
+{
+    let summary = "Create GPU module for variable declarations and replace host accesses.";
+
+    let description = [{
+        Create a GPU module to hold variable declarations and replace host
+        accesses with device accesses. This pass is essential for preparing
+        the code for execution on GPUs by ensuring that variables are correctly
+        allocated in GPU memory.
+    }];
+
+    let dependentDialects = [
+        "mlir::gpu::GPUDialect",
+    ];
+
+    let constructor = "marco::frontend::createGPUVariableDeclarationPass()";
+}
+
 def HeapFunctionsReplacementPass
     : Pass<"heap-functions-replacement", "mlir::ModuleOp">
 {
