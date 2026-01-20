@@ -6,10 +6,10 @@ set(SOURCES
     DirectedGraphTest.cpp
     IndexSetTest.cpp
     MCIMTest.cpp
-    MultidimensionalRangeTest.cpp
-    PointTest.cpp
-    RangeTest.cpp
-    RTreeTest.cpp
+    MultidimensionalRange.cpp
+    Point.cpp
+    Range.cpp
+    RTree.cpp
     SolveLocalMatchingProblemTest.cpp
     UndirectedGraphTest.cpp
     GraphDumperTest.cpp
