@@ -4,7 +4,7 @@
 
 using namespace ::marco::modeling;
 
-TEST(IndexSetRTree, empty) {
+TEST(IndexSet, empty) {
   IndexSet emptyIndexSet;
   EXPECT_TRUE(emptyIndexSet.empty());
 
@@ -13,7 +13,7 @@ TEST(IndexSetRTree, empty) {
   EXPECT_FALSE(nonEmptyIndexSet.empty());
 }
 
-TEST(IndexSetRTree, size) {
+TEST(IndexSet, size) {
   IndexSet indices;
 
   indices += MultidimensionalRange({Range(1, 5), Range(3, 7)});
@@ -22,7 +22,7 @@ TEST(IndexSetRTree, size) {
   EXPECT_EQ(indices.size(), 27);
 }
 
-TEST(IndexSetRTree, clear) {
+TEST(IndexSet, clear) {
   IndexSet indices;
 
   indices += MultidimensionalRange({Range(1, 5), Range(3, 7)});
@@ -31,7 +31,7 @@ TEST(IndexSetRTree, clear) {
   EXPECT_EQ(indices.size(), 0);
 }
 
-TEST(IndexSetRTree, containsElement) {
+TEST(IndexSet, containsElement) {
   MultidimensionalRange range1({Range(1, 3), Range(4, 7)});
   MultidimensionalRange range2({Range(5, 9), Range(1, 3)});
 
@@ -42,7 +42,7 @@ TEST(IndexSetRTree, containsElement) {
   EXPECT_FALSE(indices.contains(Point({2, 7})));
 }
 
-TEST(IndexSetRTree, containsRange) {
+TEST(IndexSet, containsRange) {
   IndexSet indices;
 
   indices += MultidimensionalRange({Range(1, 3), Range(4, 7)});
@@ -62,7 +62,7 @@ TEST(IndexSetRTree, containsRange) {
       indices.contains(MultidimensionalRange({Range(5, 6), Range(5, 7)})));
 }
 
-TEST(IndexSetRTree, overlapsRange) {
+TEST(IndexSet, overlapsRange) {
   IndexSet indices;
 
   indices += MultidimensionalRange({Range(1, 3), Range(4, 7)});
@@ -79,7 +79,7 @@ TEST(IndexSetRTree, overlapsRange) {
       indices.overlaps(MultidimensionalRange({Range(1, 6), Range(1, 5)})));
 }
 
-TEST(IndexSetRTree, addRange) {
+TEST(IndexSet, addRange) {
   IndexSet indices;
 
   indices += MultidimensionalRange({Range(1, 3), Range(4, 7)});
@@ -89,7 +89,7 @@ TEST(IndexSetRTree, addRange) {
   EXPECT_TRUE(indices.contains(Point({2, 3})));
 }
 
-TEST(IndexSetRTree, addOverlappingRange) {
+TEST(IndexSet, addOverlappingRange) {
   IndexSet indices;
 
   indices += MultidimensionalRange({Range(1, 3), Range(4, 7)});
@@ -101,7 +101,7 @@ TEST(IndexSetRTree, addOverlappingRange) {
       indices.contains(MultidimensionalRange({Range(1, 9), Range(4, 10)})));
 }
 
-TEST(IndexSetRTree, addMultipleRanges) {
+TEST(IndexSet, addMultipleRanges) {
   IndexSet indices;
 
   indices += MultidimensionalRange({Range(3, 5), Range(7, 9)});
@@ -113,7 +113,7 @@ TEST(IndexSetRTree, addMultipleRanges) {
       indices.contains(MultidimensionalRange({Range(3, 8), Range(7, 11)})));
 }
 
-TEST(IndexSetRTree, removeRange) {
+TEST(IndexSet, removeRange) {
   MultidimensionalRange range({Range(2, 5), Range(3, 7)});
   IndexSet indices(range);
   MultidimensionalRange removed({Range(3, 9), Range(1, 4)});
@@ -124,7 +124,7 @@ TEST(IndexSetRTree, removeRange) {
   }
 }
 
-TEST(IndexSetRTree, complement) {
+TEST(IndexSet, complement) {
   llvm::SmallVector<MultidimensionalRange, 3> ranges;
   ranges.push_back(MultidimensionalRange({Range(1, 5), Range(3, 7)}));
   ranges.push_back(MultidimensionalRange({Range(3, 8), Range(2, 5)}));
@@ -153,7 +153,7 @@ TEST(IndexSetRTree, complement) {
   }
 }
 
-TEST(IndexSetRTree, complementEmptyBase) {
+TEST(IndexSet, complementEmptyBase) {
   IndexSet original;
 
   MultidimensionalRange range({Range(2, 7), Range(0, 6)});
@@ -164,7 +164,7 @@ TEST(IndexSetRTree, complementEmptyBase) {
     EXPECT_TRUE(result.contains(indexes));
 }
 
-TEST(IndexSetRTree, rangesIteration) {
+TEST(IndexSet, rangesIteration) {
   MultidimensionalRange a({Range(1, 3), Range(2, 5), Range(8, 10)});
 
   IndexSet set(a);
@@ -178,7 +178,7 @@ TEST(IndexSetRTree, rangesIteration) {
   EXPECT_EQ(count, 1);
 }
 
-TEST(IndexSetRTree, indexesIteration) {
+TEST(IndexSet, indexesIteration) {
   IndexSet range(
       MultidimensionalRange({Range(1, 3), Range(2, 5), Range(8, 10)}));
 
