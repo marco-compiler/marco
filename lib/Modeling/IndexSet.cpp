@@ -342,7 +342,6 @@ void IndexSet::remove(const MultidimensionalRange &other) {
     if (modified) {
       // Split and collapse nodes, if necessary.
       adjustTree(node);
-      break;
     }
   }
 
