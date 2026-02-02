@@ -561,6 +561,18 @@ public:
 
   bool empty() const { return !root; }
 
+  virtual size_t size() const {
+    size_t count = 0;
+    auto it = objectsBegin();
+
+    while (it != objectsEnd()) {
+      ++count;
+      ++it;
+    }
+
+    return count;
+  }
+
   size_t rank() const { return allowedRank; }
 
   void clear() { setRoot(nullptr); }
