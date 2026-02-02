@@ -658,7 +658,6 @@ public:
 
       if (modified) {
         adjustTree(node);
-        break;
       }
     }
   }
