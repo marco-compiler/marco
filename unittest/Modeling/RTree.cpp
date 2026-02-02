@@ -1,4 +1,5 @@
 #include "marco/Modeling/RTree.h"
+#include "llvm/Support/raw_os_ostream.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
@@ -15,6 +16,13 @@ public:
 
   bool operator==(const Object &other) const { return range == other.range; }
 };
+
+std::ostream &operator<<(std::ostream &os, const Object &obj) {
+  llvm::raw_os_ostream ros(os);
+  ros << *obj;
+  ros.flush();
+  return os;
+}
 } // namespace
 
 namespace marco::modeling {
