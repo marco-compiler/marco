@@ -75,7 +75,7 @@ public:
 
   void getSizes(llvm::SmallVectorImpl<size_t> &sizes) const;
 
-  unsigned int flatSize() const;
+  size_t size() const;
 
   int compare(const MultidimensionalRange &other) const;
 

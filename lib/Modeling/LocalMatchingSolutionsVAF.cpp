@@ -475,7 +475,7 @@ VAFSolutions::getSolutionsAmount(const AccessFunction &accessFunction) const {
   size_t solutionsAmount = 0;
 
   for (Point equation : *equationIndices) {
-    solutionsAmount += accessFunction.map(equation).flatSize();
+    solutionsAmount += accessFunction.map(equation).size();
   }
 
   return solutionsAmount;
@@ -483,13 +483,12 @@ VAFSolutions::getSolutionsAmount(const AccessFunction &accessFunction) const {
 
 size_t
 VAFSolutions::getSolutionsAmount(const AccessFunctionAffineConstant &) const {
-  return equationIndices->flatSize();
+  return equationIndices->size();
 }
 
 size_t VAFSolutions::getSolutionsAmount(
     const AccessFunctionConstant &accessFunction) const {
-  return equationIndices->flatSize() *
-         accessFunction.map(IndexSet()).flatSize();
+  return equationIndices->size() * accessFunction.map(IndexSet()).size();
 }
 
 size_t VAFSolutions::getSolutionsAmount(

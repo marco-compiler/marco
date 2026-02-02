@@ -39,7 +39,7 @@ mlir::LogicalResult splitEquation(EquationInstanceOp equationOp,
 
   for (const MultidimensionalRange &range :
        llvm::make_range(indices.rangesBegin(), indices.rangesEnd())) {
-    if (range.flatSize() == 1) {
+    if (range.size() == 1) {
       scalarRanges.push_back(range);
     } else {
       remaining.push_back(range);

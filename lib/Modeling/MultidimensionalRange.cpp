@@ -84,8 +84,8 @@ void MultidimensionalRange::getSizes(
   }
 }
 
-unsigned int MultidimensionalRange::flatSize() const {
-  unsigned int result = 1;
+size_t MultidimensionalRange::size() const {
+  size_t result = 1;
 
   for (unsigned int i = 0, r = rank(); i < r; ++i) {
     result *= (*this)[i].getEnd() - (*this)[i].getBegin();

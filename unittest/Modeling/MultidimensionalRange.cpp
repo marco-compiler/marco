@@ -10,10 +10,10 @@ TEST(MultidimensionalRange, rank) {
   EXPECT_EQ(range.rank(), 3);
 }
 
-TEST(MultidimensionalRange, flatSize) {
+TEST(MultidimensionalRange, size) {
   MultidimensionalRange range({Range(1, 3), Range(2, 5), Range(7, 10)});
 
-  EXPECT_EQ(range.flatSize(), 18);
+  EXPECT_EQ(range.size(), 18);
 }
 
 TEST(MultidimensionalRange, compare) {

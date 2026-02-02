@@ -69,7 +69,7 @@ int64_t PrintModelInfoPass::getScalarEquationsCount(
 
     if (!indices.empty()) {
       // Array equation.
-      result += indices.flatSize();
+      result += indices.size();
     } else {
       // Scalar equation.
       ++result;

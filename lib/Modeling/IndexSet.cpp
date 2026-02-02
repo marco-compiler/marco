@@ -109,7 +109,7 @@ llvm::hash_code hash_value(const IndexSet &value) {
     return 0;
   }
 
-  return llvm::hash_value(value.flatSize());
+  return llvm::hash_value(value.size());
 }
 
 int IndexSet::compare(const IndexSet &other) const {
@@ -391,12 +391,12 @@ IndexSet IndexSet::operator-(const IndexSet &other) const {
   return result;
 }
 
-size_t IndexSet::flatSize() const {
+size_t IndexSet::size() const {
   size_t result = 0;
 
   for (const MultidimensionalRange &range :
        llvm::make_range(rangesBegin(), rangesEnd())) {
-    result += range.flatSize();
+    result += range.size();
   }
 
   return result;
@@ -476,7 +476,7 @@ bool IndexSet::contains(const IndexSet &other) const {
     return false;
   }
 
-  if (flatSize() < other.flatSize()) {
+  if (size() < other.size()) {
     return false;
   }
 

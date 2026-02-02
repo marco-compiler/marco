@@ -279,7 +279,7 @@ public:
     return true;
   }
 
-  size_t flatSize() const { return getIndices().flatSize(); }
+  size_t size() const { return getIndices().size(); }
 
   VariableVertex withMask(Point mask) const {
     VariableVertex result(property, mask);
@@ -564,7 +564,7 @@ public:
     return true;
   }
 
-  unsigned int flatSize() const { return getIndices().flatSize(); }
+  size_t size() const { return getIndices().size(); }
 
   EquationVertex withMask(Point mask) const {
     EquationVertex result(context, property, mask);
@@ -610,7 +610,7 @@ public:
         // access is constant (e.g., x[0]), or the equation had to be scalarized
         // too. In both cases, the accessed variable indices consist of only one
         // point by construction.
-        assert(accessedIndices.flatSize() == 1);
+        assert(accessedIndices.size() == 1);
 
         for (Point point : accessedIndices) {
           const auto &pointsMap = scalarVariablesIt->second;
@@ -1442,7 +1442,7 @@ public:
         llvm::make_range(getVariablesBeginIt(), getVariablesEndIt());
 
     for (VertexDescriptor variableDescriptor : variables) {
-      result += getVariableFromDescriptor(variableDescriptor).flatSize();
+      result += getVariableFromDescriptor(variableDescriptor).size();
     }
 
     return result;
@@ -1459,7 +1459,7 @@ public:
         llvm::make_range(getEquationsBeginIt(), getEquationsEndIt());
 
     for (VertexDescriptor equationDescriptor : equations) {
-      result += getEquationFromDescriptor(equationDescriptor).flatSize();
+      result += getEquationFromDescriptor(equationDescriptor).size();
     }
 
     return result;
@@ -2200,7 +2200,7 @@ private:
                                   double scalarAccessThreshold) const {
     const Variable &variable = getVariableFromDescriptor(variableDescriptor);
 
-    size_t variableSize = variable.getIndices().flatSize();
+    size_t variableSize = variable.getIndices().size();
 
     if (variableSize <= 1) {
       return false;
@@ -2231,8 +2231,8 @@ private:
       }
     }
 
-    return static_cast<double>(scalarlyAccessedIndices.flatSize()) /
-           variable.getIndices().flatSize();
+    return static_cast<double>(scalarlyAccessedIndices.size()) /
+           variable.getIndices().size();
   }
 
 private:
@@ -2480,7 +2480,7 @@ private:
     llvm::DenseSet<size_t> pathSizes;
 
     for (size_t i = 0, e = paths.size(); i < e; ++i) {
-      size_t size = paths[i]->getCandidates().flatSize();
+      size_t size = paths[i]->getCandidates().size();
       pathsBySize[size].push_back(i);
       pathSizes.insert(size);
     }

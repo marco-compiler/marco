@@ -116,7 +116,7 @@ MATCHER_P(HasPath, path, "") {
     size_t totalCoveredIndexes = 0;
 
     for (const auto &interval : *equation) {
-      totalCoveredIndexes += interval.getRange().flatSize();
+      totalCoveredIndexes += interval.getRange().size();
     }
 
     if (totalCoveredIndexes != step.totalCoveredIndexes) {

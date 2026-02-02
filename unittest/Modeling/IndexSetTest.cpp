@@ -13,13 +13,13 @@ TEST(IndexSetRTree, empty) {
   EXPECT_FALSE(nonEmptyIndexSet.empty());
 }
 
-TEST(IndexSetRTree, flatSize) {
+TEST(IndexSetRTree, size) {
   IndexSet indices;
 
   indices += MultidimensionalRange({Range(1, 5), Range(3, 7)});
   indices += MultidimensionalRange({Range(3, 8), Range(2, 5)});
 
-  EXPECT_EQ(indices.flatSize(), 27);
+  EXPECT_EQ(indices.size(), 27);
 }
 
 TEST(IndexSetRTree, clear) {
@@ -28,7 +28,7 @@ TEST(IndexSetRTree, clear) {
   indices += MultidimensionalRange({Range(1, 5), Range(3, 7)});
 
   indices.clear();
-  EXPECT_EQ(indices.flatSize(), 0);
+  EXPECT_EQ(indices.size(), 0);
 }
 
 TEST(IndexSetRTree, containsElement) {

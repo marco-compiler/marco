@@ -153,7 +153,7 @@ public:
 
   IndexSet operator-(const IndexSet &other) const;
 
-  size_t flatSize() const;
+  size_t size() const override;
 
   const_point_iterator begin() const;
 

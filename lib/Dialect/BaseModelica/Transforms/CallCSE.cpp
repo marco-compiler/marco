@@ -493,7 +493,7 @@ mlir::LogicalResult CallCSEPass::processModelOp(ModelOp modelOp) {
     ++this->newCSEVariables;
     int replacedCalls = equivalenceGroup.size();
     if (cseInductionRanges) {
-      replacedCalls *= cseInductionRanges.value().flatSize();
+      replacedCalls *= cseInductionRanges.value().size();
     }
     this->replacedCalls += replacedCalls;
   }

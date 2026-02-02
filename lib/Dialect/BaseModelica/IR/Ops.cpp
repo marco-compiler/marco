@@ -9201,7 +9201,6 @@ bool EquationTemplateOp::checkAccessEquivalence(
     const IndexSet &equationIndices, const VariableAccess &firstAccess,
     const VariableAccess &secondAccess) {
   const AccessFunction &firstAccessFunction = firstAccess.getAccessFunction();
-
   const AccessFunction &secondAccessFunction = secondAccess.getAccessFunction();
 
   IndexSet firstIndices = firstAccessFunction.map(equationIndices);
@@ -9215,7 +9214,7 @@ bool EquationTemplateOp::checkAccessEquivalence(
     return true;
   }
 
-  if (firstIndices.flatSize() == 1 && firstIndices == secondIndices) {
+  if (firstIndices.size() == 1 && firstIndices == secondIndices) {
     return true;
   }
 

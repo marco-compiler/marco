@@ -238,7 +238,7 @@ bool hasSingleScalarEquationCall(ScheduleBlockOp blockOp) {
     return false;
   }
 
-  return callOps[0].getProperties().indices.flatSize() == 1;
+  return callOps[0].getProperties().indices.size() == 1;
 }
 } // namespace
 

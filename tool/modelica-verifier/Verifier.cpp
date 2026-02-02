@@ -276,7 +276,7 @@ createMemRefDescriptors(ModelOp modelOp) {
   llvm::DenseMap<VariableOp, StridedMemRefType<double, 1>> result;
 
   modelOp.walk([&](VariableOp variableOp) {
-    size_t flatSize = variableOp.getIndices().flatSize();
+    size_t flatSize = variableOp.getIndices().size();
     double *data = new double[flatSize];
 
     for (size_t i = 0; i < flatSize; ++i) {

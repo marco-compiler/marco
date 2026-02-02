@@ -130,8 +130,7 @@ public:
   llvm::SmallVector<Object<T>> objects;
 
   Node(Node *parent, const MultidimensionalRange &boundary)
-      : parent(parent), boundary(boundary),
-        coveredSpaceSize(boundary.flatSize()) {
+      : parent(parent), boundary(boundary), coveredSpaceSize(boundary.size()) {
     assert(this != parent && "A node can't be the parent of itself");
   }
 
@@ -185,7 +184,7 @@ public:
     boundary = computeBoundary();
 
     // Update the size of the covered space.
-    coveredSpaceSize = boundary.flatSize();
+    coveredSpaceSize = boundary.size();
 
     return boundary != oldBoundary;
   }
@@ -236,9 +235,9 @@ std::pair<size_t, size_t> pickSeeds(llvm::ArrayRef<T> entries) {
       const MultidimensionalRange &secondShape = getShape(entries[j]);
       MultidimensionalRange mbr = getMBR(firstShape, secondShape);
 
-      size_t mbrSize = mbr.flatSize();
-      size_t firstEntryBoundarySize = firstShape.flatSize();
-      size_t secondEntryBoundarySize = secondShape.flatSize();
+      size_t mbrSize = mbr.size();
+      size_t firstEntryBoundarySize = firstShape.size();
+      size_t secondEntryBoundarySize = secondShape.size();
 
       size_t difference = 0;
 
@@ -271,11 +270,11 @@ size_t pickNext(llvm::ArrayRef<ShapedT> entries,
   for (size_t remainingEntryIndex : remainingEntries) {
     const MultidimensionalRange &shape = getShape(entries[remainingEntryIndex]);
 
-    auto d1 = getMBR(shape, firstNode.getBoundary()).flatSize() -
-              firstNode.getBoundary().flatSize();
+    auto d1 = getMBR(shape, firstNode.getBoundary()).size() -
+              firstNode.getBoundary().size();
 
-    auto d2 = getMBR(shape, secondNode.getBoundary()).flatSize() -
-              secondNode.getBoundary().flatSize();
+    auto d2 = getMBR(shape, secondNode.getBoundary()).size() -
+              secondNode.getBoundary().size();
 
     auto minMax = std::minmax(d1, d2);
     costs.emplace_back(remainingEntryIndex, minMax.second - minMax.first);
@@ -368,12 +367,12 @@ std::pair<std::unique_ptr<Node<T>>, std::unique_ptr<Node<T>>> splitNode(
 
     auto firstEnlargement =
         getMBR(getShape(containerFn(node)[next]), firstNew->getBoundary())
-            .flatSize() -
+            .size() -
         firstNew->getCoveredSpaceSize();
 
     auto secondEnlargement =
         getMBR(getShape(containerFn(node)[next]), secondNew->getBoundary())
-            .flatSize() -
+            .size() -
         secondNew->getCoveredSpaceSize();
 
     if (firstEnlargement == secondEnlargement) {
@@ -930,7 +929,7 @@ protected:
 
     for (const auto &child : nodes) {
       auto mbr = getMBR(child->getBoundary(), boundary);
-      size_t flatDifference = mbr.flatSize() - child->getCoveredSpaceSize();
+      size_t flatDifference = mbr.size() - child->getCoveredSpaceSize();
       candidateMBRs.emplace_back(std::move(mbr), flatDifference);
     }
 
@@ -943,8 +942,7 @@ protected:
         enumeratedCandidates.begin(), enumeratedCandidates.end(),
         [](const auto &first, const auto &second) {
           if (first.value().second == second.value().second) {
-            return first.value().first.flatSize() <
-                   second.value().first.flatSize();
+            return first.value().first.size() < second.value().first.size();
           }
 
           return first.value().second < second.value().second;
