@@ -74,17 +74,13 @@ struct DenseMapInfo<marco::modeling::Point> {
   using Key = marco::modeling::Point;
 
   static inline Key getEmptyKey() {
-    using ArrayRefDenseInfo =
-        llvm::DenseMapInfo<llvm::ArrayRef<Key::data_type>>;
-
-    return {ArrayRefDenseInfo::getEmptyKey()};
+    using DataDenseInfo = llvm::DenseMapInfo<marco::modeling::Point::data_type>;
+    return {DataDenseInfo::getEmptyKey()};
   }
 
   static inline Key getTombstoneKey() {
-    using ArrayRefDenseInfo =
-        llvm::DenseMapInfo<llvm::ArrayRef<Key::data_type>>;
-
-    return {ArrayRefDenseInfo::getTombstoneKey()};
+    using DataDenseInfo = llvm::DenseMapInfo<marco::modeling::Point::data_type>;
+    return {DataDenseInfo::getTombstoneKey()};
   }
 
   static unsigned getHashValue(const Key &val) { return hash_value(val); }
