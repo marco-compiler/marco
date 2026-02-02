@@ -1,19 +1,19 @@
 set(SOURCES
-    AccessFunctionTest.cpp
-    AccessFunctionRotoTranslationTest.cpp
+    AccessFunction.cpp
+    AccessFunctionRotoTranslation.cpp
     Common.cpp
-    CyclesTest.cpp
-    DirectedGraphTest.cpp
-    IndexSetTest.cpp
-    MCIMTest.cpp
+    Cycles.cpp
+    DirectedGraph.cpp
+    IndexSet.cpp
+    MCIM.cpp
     MultidimensionalRange.cpp
     Point.cpp
     Range.cpp
     RTree.cpp
-    SolveLocalMatchingProblemTest.cpp
-    UndirectedGraphTest.cpp
-    GraphDumperTest.cpp
-    GraphDumperMermaidBackendTest.cpp
+    SolveLocalMatchingProblem.cpp
+    UndirectedGraph.cpp
+    GraphDumper.cpp
+    GraphDumperMermaidBackend.cpp
 )
 
 set(LLVM_LINK_COMPONENTS
