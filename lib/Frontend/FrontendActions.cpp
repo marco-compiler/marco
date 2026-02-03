@@ -1376,6 +1376,9 @@ bool CodeGenAction::generateLLVMIR() {
 
       return false;
     }
+
+    // Set the source file path inside the LLVM module.
+    llvmModule->setSourceFileName(getCurrentInputs()[0].getFile());
   }
 
   // Set target triple and data layout inside the LLVM module.
