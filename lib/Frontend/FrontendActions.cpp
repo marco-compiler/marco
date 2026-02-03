@@ -1364,9 +1364,9 @@ bool CodeGenAction::generateLLVMIR() {
       }
     }
 
-    llvmModule = mlir::translateModuleToLLVMIR(*mlirModule, getLLVMContext(),
-                                               moduleName ? *moduleName
-                                                          : "ModelicaModule");
+    llvmModule = mlir::translateModuleToLLVMIR(
+        *mlirModule, getLLVMContext(),
+        moduleName ? *moduleName : getCurrentInputs()[0].getFile());
 
     if (!llvmModule) {
       auto &diag = ci.getDiagnostics();
