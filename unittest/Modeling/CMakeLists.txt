@@ -5,6 +5,7 @@ set(SOURCES
     Cycles.cpp
     DirectedGraph.cpp
     IndexSet.cpp
+    LocalMatchingSolutionsMCIM.cpp
     LocalMatchingSolutionsVAF.cpp
     MCIM.cpp
     MultidimensionalRange.cpp
