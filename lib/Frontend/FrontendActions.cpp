@@ -23,6 +23,7 @@
 #include "mlir/Dialect/DLTI/DLTI.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/LLVMIR/Transforms/LegalizeForExport.h"
+#include "mlir/Dialect/LLVMIR/Transforms/Passes.h"
 #include "mlir/Dialect/Linalg/Passes.h"
 #include "mlir/Dialect/MemRef/Transforms/Passes.h"
 #include "mlir/InitAllDialects.h"
@@ -279,6 +280,9 @@ bool ASTAction::beginSourceFilesAction() {
 
     return false;
   }
+
+  ci.getSourceManager().createFileID(*fileRef, clang::SourceLocation(),
+                                     clang::SrcMgr::C_User);
 
   auto sourceFile = std::make_shared<SourceFile>(inputFile);
 
@@ -1133,6 +1137,12 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
       mlir::createReconcileUnrealizedCastsPass());
 
   pm.addNestedPass<mlir::LLVM::LLVMFuncOp>(mlir::createCanonicalizerPass());
+
+  if (ci.getCodeGenOptions().debug) {
+    // Attach debug information attributes.
+    pm.addPass(mlir::LLVM::createDIScopeForLLVMFuncOpPass(
+        {.emissionKind = mlir::LLVM::DIEmissionKind::Full}));
+  }
 
   pm.addNestedPass<mlir::LLVM::LLVMFuncOp>(
       mlir::LLVM::createLLVMLegalizeForExportPass());
