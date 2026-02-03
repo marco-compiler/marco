@@ -5,12 +5,12 @@ set(SOURCES
     Cycles.cpp
     DirectedGraph.cpp
     IndexSet.cpp
+    LocalMatchingSolutionsVAF.cpp
     MCIM.cpp
     MultidimensionalRange.cpp
     Point.cpp
     Range.cpp
     RTree.cpp
-    SolveLocalMatchingProblem.cpp
     UndirectedGraph.cpp
     GraphDumper.cpp
     GraphDumperMermaidBackend.cpp
