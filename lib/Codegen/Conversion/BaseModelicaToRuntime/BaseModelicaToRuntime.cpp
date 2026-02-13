@@ -23,6 +23,9 @@ public:
   void runOnOperation() override;
 
 private:
+  mlir::LogicalResult emitExperimentFunctions(mlir::OpBuilder &builder,
+                                              mlir::ModuleOp moduleOp);
+
   mlir::LogicalResult addMissingRuntimeFunctions(mlir::OpBuilder &builder,
                                                  mlir::ModuleOp moduleOp);
 
@@ -132,6 +135,10 @@ void BaseModelicaToRuntimeConversionPass::runOnOperation() {
   mlir::IRRewriter rewriter(&getContext());
   mlir::SymbolTableCollection symbolTableCollection;
 
+  if (mlir::failed(emitExperimentFunctions(rewriter, moduleOp))) {
+    return signalPassFailure();
+  }
+
   if (mlir::failed(addMissingRuntimeFunctions(rewriter, moduleOp))) {
     return signalPassFailure();
   }
@@ -186,6 +193,36 @@ void BaseModelicaToRuntimeConversionPass::runOnOperation() {
   if (mlir::failed(convertTimeOp(moduleOp))) {
     return signalPassFailure();
   }
+}
+
+mlir::LogicalResult
+BaseModelicaToRuntimeConversionPass::emitExperimentFunctions(
+    mlir::OpBuilder &builder, mlir::ModuleOp moduleOp) {
+  mlir::OpBuilder::InsertionGuard guard(builder);
+
+  std::optional<mlir::FloatAttr> startTime, endTime;
+  for (auto &op : moduleOp.getOps()) {
+    if (auto modelOp = mlir::dyn_cast<ModelOp>(op)) {
+      if (auto startTimeInner = modelOp->getAttrOfType<mlir::FloatAttr>(
+              modelOp.getExperimentStartTimeAttrName())) {
+        startTime = startTimeInner;
+      }
+      if (auto endTimeInner = modelOp->getAttrOfType<mlir::FloatAttr>(
+              modelOp.getExperimentEndTimeAttrName())) {
+        endTime = endTimeInner;
+      }
+    }
+  }
+
+  builder.setInsertionPointToEnd(moduleOp.getBody());
+  builder.create<mlir::runtime::StartTimeOp>(moduleOp->getLoc(),
+                                             startTime ? *startTime : nullptr);
+
+  builder.setInsertionPointToEnd(moduleOp.getBody());
+  builder.create<mlir::runtime::EndTimeOp>(moduleOp->getLoc(),
+                                           endTime ? *endTime : nullptr);
+
+  return mlir::success();
 }
 
 mlir::LogicalResult

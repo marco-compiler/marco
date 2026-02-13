@@ -3461,6 +3461,13 @@ def BaseModelica_ModelOp : BaseModelica_Op<"model",
     let hasCanonicalizer = 1;
 
     let extraClassDeclaration = [{
+        static constexpr llvm::StringLiteral getExperimentStartTimeAttrName() {
+            return llvm::StringLiteral("experiment.startTime");
+        }
+        static constexpr llvm::StringLiteral getExperimentEndTimeAttrName() {
+            return llvm::StringLiteral("experiment.endTime");
+        }
+
         static void getCleaningPatterns(
             mlir::RewritePatternSet& patterns,
             mlir::MLIRContext* context);

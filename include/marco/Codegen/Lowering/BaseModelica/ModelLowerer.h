@@ -26,6 +26,10 @@ public:
       llvm::SmallVectorImpl<mlir::bmodelica::VariableOp> &components,
       const ast::bmodelica::ClassModification &classModification);
 
+  [[nodiscard]] bool
+  lowerExperimentAnnotation(mlir::bmodelica::ModelOp modelOp,
+                            const ast::bmodelica::Model &model);
+
 protected:
   using Lowerer::declare;
   using Lowerer::declareVariables;
