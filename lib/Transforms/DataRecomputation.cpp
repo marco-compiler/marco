@@ -51,6 +51,7 @@ using AccessSet = llvm::DenseSet<mlir::Operation *>;
 
 namespace {
 
+
 template <class... OpTys>
 struct OpTypePack {};
 
@@ -68,16 +69,6 @@ struct OpTypeHelper<OpTypePack<OpTys...>> {
   }
 };
 
-struct NumberedStore {
-  mlir::Operation *store;
-  mlir::Operation *allocatingOp;
-};
-
-struct AccessProvenance {
-  mlir::Operation *accessOp;
-  llvm::SmallVector<mlir::Operation *, 4> roots;
-};
-
 using GlobalStaticAllocOps =
     OpTypePack<mlir::memref::GlobalOp, mlir::LLVM::GlobalOp>;
 using ViewLike =
@@ -86,6 +77,46 @@ using ViewLike =
 using AllocLike = OpTypePack<mlir::memref::AllocOp, mlir::memref::AllocaOp>;
 using LoadLike = OpTypePack<mlir::memref::LoadOp>;
 using StoreLike = OpTypePack<mlir::memref::StoreOp>;
+
+struct NumberedStore {
+  mlir::Operation *store;
+  mlir::Operation *allocatingOp;
+};
+
+void collectBaseMemrefs(mlir::Value v, llvm::DenseMap<mlir::Value, mlir::Operation *> &allocRootFor, llvm::SmallVectorImpl<mlir::Value> &bases)
+{
+  llvm::SmallVector<mlir::Value, 4> worklist{v};
+  llvm::SmallDenseSet<mlir::Value> visited{};
+
+  while ( ! worklist.empty() ) {
+    auto current = worklist.pop_back_val();
+    if ( ! visited.insert(current).second ) {
+      continue;
+    }
+
+    if ( allocRootFor.contains(current) || mlir::isa<mlir::BlockArgument>(current) ) {
+      bases.push_back(current);
+      continue;
+    }
+
+    if ( mlir::Operation *def = current.getDefiningOp() ) {
+      if ( OpTypeHelper<ViewLike>::anyOf(def) ) {
+        // TODO: Verify that view ops always have the base memref as first operand
+        worklist.push_back(def->getOperand(0));
+        continue;
+      }
+    }
+
+    // Fallback: Treat as a base if no other method of determining base
+    bases.push_back(current);
+  }
+}
+
+struct AccessProvenance {
+  mlir::Operation *accessOp;
+  llvm::SmallVector<mlir::Operation *, 4> roots;
+};
+
 
 bool isGlobalStaticAllocationOp(mlir::Operation *op) {
   if (mlir::isa<mlir::SymbolOpInterface>(op)) {
@@ -194,6 +225,7 @@ void DataRecomputationPass::runOnOperation() {
 
 using PassContext = DataRecomputationPass::PassContext;
 
+
 void DataRecomputationPass::handleFunc(PassContext &ctx,
                                        mlir::func::FuncOp funcOp) {
   llvm::SmallVector<mlir::Operation *> writeOps{};
@@ -205,8 +237,8 @@ void DataRecomputationPass::handleFunc(PassContext &ctx,
 
   llvm::DenseMap<mlir::Value, mlir::Operation *> allocRootFor{};
 
-  // Collect allocation roots
-  funcOp.walk([&](mlir::Operation *op) {
+
+  auto collectAllocRootsForOp = [&](mlir::Operation *op) {
     if (mlir::hasEffect<mlir::MemoryEffects::Allocate>(op)) {
       allocatingOps.insert(op);
       for (mlir::Value res : op->getResults()) {
@@ -227,11 +259,17 @@ void DataRecomputationPass::handleFunc(PassContext &ctx,
         }
       }
     }
-  });
+  };
 
+  // Collect allocation roots
+  funcOp.walk(collectAllocRootsForOp);
 
   funcOp.walk([&](mlir::Operation *op) {
-    bool hasAllocEffect = mlir::hasEffect<mlir::MemoryEffects::Allocate>(op);
+
+    /*
+     * Explanation: Allocation roots found above used to trace back operands of
+     * view-like ops to root allocations.
+     */
 
     auto attachProvenance = [&](bool isWrite) {
       AccessProvenance ap{op, {}};
@@ -242,8 +280,8 @@ void DataRecomputationPass::handleFunc(PassContext &ctx,
 
 
       for ( auto &effect : effects ) {
-        const bool isWriteEffect = mlir::isa<mlir::MemoryEffects::Write>(effect);
-        const bool isReadEffect = mlir::isa<mlir::MemoryEffects::Read>(effect);
+        const bool isWriteEffect = mlir::isa<mlir::MemoryEffects::Write>(effect.getEffect());
+        const bool isReadEffect = mlir::isa<mlir::MemoryEffects::Read>(effect.getEffect());
 
         const bool selectedWrite = isWrite && isWriteEffect;
         const bool selectedRead = (!isWrite) && isReadEffect;
@@ -260,28 +298,45 @@ void DataRecomputationPass::handleFunc(PassContext &ctx,
         }
 
         // Collect MemRef Base Value
-        // Tie it to an alloc root
+        // Tie it to an alloc root *or* a BlockArgument
+        llvm::SmallVector<mlir::Value> bases{};
+        collectBaseMemrefs(value, allocRootFor, bases);
 
-      }
+        for ( mlir::Value b : bases ) {
+          if ( auto it = allocRootFor.find(b); it != allocRootFor.end()){
+            ap.roots.push_back(it->second);
+          }
+        }
 
-
-
-    };
-
-    if ( auto memEffectIface = mlir::dyn_cast<mlir::MemoryEffectOpInterface>(op) ) {
-      ::llvm::SmallVector< ::mlir::MemoryEffects::EffectInstance> effects{};
-      memEffectIface.getEffects(effects);
-
-      for ( auto &effect : effects ) {
-        auto effectTargetValue = effect.getValue();
-        if ( !effectTargetValue || !mlir::isa<mlir::MemRefType>(effectTargetValue.getType()) ) {
-        // Not a viable candidate
-          continue;
+        if (!ap.roots.empty()) {
+          if (isWrite)
+            writesWithProvenance.push_back(std::move(ap));
+          else
+            readsWithProvenance.push_back(std::move(ap));
         }
       }
+    }; // attachProvenance
+
+    if ( mlir::hasEffect<mlir::MemoryEffects::Write>(op) ) {
+      writeOps.emplace_back(op);
+      attachProvenance(/*isWrite=*/true);
     }
 
+    if ( mlir::hasEffect<mlir::MemoryEffects::Read>(op) ) {
+      readOps.emplace_back(op);
+      attachProvenance(/*isWrite=*/false);
+    }
   });
+
+  for ( auto &x : writesWithProvenance ) {
+    DRDBG() << *x.accessOp << ", could stem from: \n";
+    for ( auto &root : x.roots ) {
+      DRDBG() << "\t" << *root << "\n";
+    }
+  }
+
+
+
 }
 
 namespace mlir {
