@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --pass-pipeline='builtin.module(data-recomputation{dr-test-diagnostics})' | FileCheck %s
+// RUN: modelica-opt %s --pass-pipeline='builtin.module(data-recomputation{dr-test-diagnostics})' -verify-diagnostics
 
 module {
   memref.global "private" @mystuff : memref<32xi32> = uninitialized
@@ -20,6 +20,9 @@ module {
     memref.store %c1, %alloc[%idx] : memref<32xi32>
 
     %res = func.call @consumes_memref(%c1, %alloc) : (i32, memref<32xi32>) -> i32
+
+    // expected-remark @below {{load: MULTI}}
+    %val = memref.load %alloc[%idx] : memref<32xi32>
 
     return
   }

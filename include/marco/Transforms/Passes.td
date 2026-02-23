@@ -13,7 +13,8 @@ def DataRecomputationPass : Pass<"data-recomputation", "mlir::ModuleOp">
   }];
 
   let options = [
-    Option<"drTestDiagnostics", "dr-test-diagnostics", "bool", "false", "Enables test output">
+    Option<"drTestDiagnostics", "dr-test-diagnostics", "bool", "false", "Enables test output">,
+    Option<"drDotFile", "dr-dot-file", "std::string", /*default=*/"", "Output file path for load-provenance DOT graph">
   ];
 
   let dependentDialects = [

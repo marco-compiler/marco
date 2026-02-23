@@ -14,6 +14,7 @@ add_mlir_library(MLIRCustomTransforms
   MLIRMemorySlotInterfaces
   MLIRPass
   MLIRRuntimeVerifiableOpInterface
+  MLIRSCFDialect
   MLIRSideEffectInterfaces
   MLIRSupport
   MLIRTransformUtils

@@ -1,10 +1,4 @@
-// RUN: modelica-opt %s --pass-pipeline='builtin.module(data-recomputation{dr-test-diagnostics})' | FileCheck %s
-
-// CHECK: Write: memref.store %c1_i32, %[[memref:.*]][%c1] : memref<32xi32>
-// CHECK-NEXT: Load:
-// CHECK-SAME: memref.load{{.*}}
-// CHECK-NEXT: Origin Allocation
-// CHECK-SAME: memref.global @mystuff{{.*}}
+// RUN: modelica-opt %s --pass-pipeline='builtin.module(data-recomputation{dr-test-diagnostics})' -verify-diagnostics
 
 module {
   memref.global @mystuff : memref<32xi32> = uninitialized
@@ -18,6 +12,7 @@ module {
         offset: [2], sizes: [32], strides: [0]
         : memref<32xi32> to memref<32xi32, strided<[0], offset: 2>>
 
+    // No remark expected: per-function analysis, block arg has no tracked provenance
     %loaded_val = memref.load %reinterpret_cast[%idxt] : memref<32xi32, strided<[0], offset: 2>>
 
     return %cst1 : i32
@@ -30,6 +25,9 @@ module {
     memref.store %c1, %alloc[%idx] : memref<32xi32>
 
     %res = func.call @consumes_memref(%c1, %alloc) : (i32, memref<32xi32>) -> i32
+
+    // expected-remark @below {{load: SINGLE}}
+    %val = memref.load %alloc[%idx] : memref<32xi32>
 
     return
   }
