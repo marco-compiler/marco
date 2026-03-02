@@ -120,7 +120,7 @@ option(MARCO_BUILD_SHARED_LIBS "Whether the MARCO libraries should be shared" ${
 if (MARCO_BUILD_SHARED_LIBS)
 	if (WIN32)
 		message(NOTICE "Shared libraries are not supported on Windows. Disabling them.")
-		set(BUILD_SHARED_LIBS OFF)
+		set(MARCO_BUILD_SHARED_LIBS OFF)
 	elseif (APPLE)
 		message(NOTICE "Shared libraries are not supported on MacOS. Disabling them.")
 		set(MARCO_BUILD_SHARED_LIBS OFF)
