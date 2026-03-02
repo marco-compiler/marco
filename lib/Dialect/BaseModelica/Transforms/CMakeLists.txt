@@ -1,3 +1,5 @@
+get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
+
 add_mlir_dialect_library(MLIRBaseModelicaTransforms
     AutomaticDifferentiation/AutomaticDifferentiation.cpp
     AutomaticDifferentiation/ForwardAD.cpp
@@ -69,4 +71,5 @@ add_mlir_dialect_library(MLIRBaseModelicaTransforms
 
     LINK_LIBS PUBLIC
     MLIRBaseModelica
-    MLIRBaseModelicaAnalysis)
+    MLIRBaseModelicaAnalysis
+    ${dialect_libs})

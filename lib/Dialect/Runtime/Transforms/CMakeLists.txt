@@ -1,3 +1,5 @@
+get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
+
 add_mlir_dialect_library(MLIRRuntimeTransforms
     AllInterfaces.cpp
     BufferizableOpInterfaceImpl.cpp
@@ -7,4 +9,5 @@ add_mlir_dialect_library(MLIRRuntimeTransforms
     MLIRRuntimeTransformsIncGen
 
     LINK_LIBS PUBLIC
-    MLIRRuntime)
+    MLIRRuntime
+    ${dialect_libs})
