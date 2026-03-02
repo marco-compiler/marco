@@ -143,8 +143,10 @@ endif()
 
 if (MARCO_BUILD_SHARED_LIBS)
 	set(MARCO_LIB_TYPE SHARED)
+	set(BUILD_SHARED_LIBS ON)
 else()
 	set(MARCO_LIB_TYPE STATIC)
+	set(BUILD_SHARED_LIBS OFF)
 endif()
 
 # Add sanitizer
