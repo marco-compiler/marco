@@ -16,8 +16,8 @@ def Modelica_Dialect : Dialect {
     }];
 
     let cppNamespace = "::mlir::modelica";
-    let useDefaultAttributePrinterParser = 1;
-    let useDefaultTypePrinterParser = 1;
+    let useDefaultAttributePrinterParser = 0;
+    let useDefaultTypePrinterParser = 0;
 
     let extraClassDeclaration = [{
         void registerTypes();
