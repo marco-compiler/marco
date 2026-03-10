@@ -1118,8 +1118,6 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
   if (ci.getCodeGenOptions().loopHoisting) {
     pm.addNestedPass<mlir::func::FuncOp>(createAggressiveLICMPass());
   }
-  pm.addPass(mlir::bmodelica::createDataRecomputationPass());
-  // pm.addPass(mlir::bmodelica::createDataRecomputationPass());
   pm.addPass(mlir::createDataRecomputationPass());
 
   pm.addNestedPass<mlir::func::FuncOp>(mlir::createLowerAffinePass());
