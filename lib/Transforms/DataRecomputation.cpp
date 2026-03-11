@@ -5,10 +5,8 @@
 // This file contains the DataRecomputation pass (pending a better name).
 //===----------------------------------------------------------------------===//
 
-#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "marco/Transforms/DataRecomputation.h"
-
-#include "marco/Modeling/IndexSet.h"
+#include "marco/Transforms/DataRecomputationIndexing.h"
 #include "mlir/Analysis/DataLayoutAnalysis.h"
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
@@ -29,12 +27,8 @@
 #include "mlir/Interfaces/DataLayoutInterfaces.h"
 #include "mlir/Interfaces/SideEffectInterfaces.h"
 #include "mlir/Support/LLVM.h"
-#include "llvm/ADT/DirectedGraph.h"
 #include "llvm/ADT/STLExtras.h"
-#include "llvm/ADT/SmallSet.h"
-#include "llvm/ADT/TypeSwitch.h"
 #include "llvm/Support/FileSystem.h"
-#include "llvm/Support/Format.h"
 #include "llvm/Support/FormatVariadic.h"
 
 #define DRDBG() llvm::dbgs() << "DRCOMP: "
@@ -97,15 +91,6 @@ OpTypePack<mlir::memref::GlobalOp, mlir::LLVM::GlobalOp>;
 using ViewLike =
 OpTypePack<mlir::memref::SubViewOp, mlir::memref::ReinterpretCastOp,
 mlir::memref::ViewOp, mlir::memref::CastOp>;
-using AllocLike = OpTypePack<mlir::memref::AllocOp, mlir::memref::AllocaOp>;
-using LoadLike = OpTypePack<mlir::memref::LoadOp>;
-using StoreLike = OpTypePack<mlir::memref::StoreOp>;
-
-struct NumberedStore {
-  mlir::Operation *store;
-  mlir::Operation *allocatingOp;
-};
-
 bool isGlobalStaticAllocationOp(mlir::Operation *op) {
   if (mlir::isa<mlir::SymbolOpInterface>(op)) {
     return OpTypeHelper<GlobalStaticAllocOps>::anyOf(op);
@@ -128,28 +113,17 @@ collectGlobalStaticAllocations(DRPassContext &passCtx) {
   return result;
 }
 
-/// The result of collectAllocationRoots.
-struct CollectAllocationRootsResult
-{
-  /// A set of operations that allocate either as the op itself or an op in the tree.
-  llvm::DenseSet<mlir::Operation *> allocatingOps{};
+/// Maps each value that stems from an allocation to the allocating operation.
+using AllocationRoots = llvm::DenseMap<mlir::Value, mlir::Operation *>;
 
-  /// Values that stem from an allocation. These will be memory handles (i.e., memref, ptr, etc.)
-  llvm::DenseMap<mlir::Value, mlir::Operation *> allocationRoots{};
-};
-
-/// From a root Operation, walk its IR and mark Operations and Values
-/// that *allocate*.
-///
-/// \see CollectAllocationRootsResult
-CollectAllocationRootsResult collectAllocationRoots(DRPassContext &passCtx, mlir::Operation *rootOp) {
-  CollectAllocationRootsResult result{};
-  auto &allocatingOps = result.allocatingOps;
-  auto &allocRootFor = result.allocationRoots;
+/// Walk \p rootOp and build a map from each allocated memref Value to the
+/// operation that created it (alloc ops and memref.get_global).
+static AllocationRoots collectAllocationRoots(DRPassContext &passCtx,
+                                               mlir::Operation *rootOp) {
+  AllocationRoots allocRootFor;
 
   rootOp->walk([&](mlir::Operation *op){
     if (mlir::hasEffect<mlir::MemoryEffects::Allocate>(op)) {
-      allocatingOps.insert(op);
       for (mlir::Value res : op->getResults()) {
         if (mlir::isa<mlir::MemRefType>(res.getType())) {
           allocRootFor.try_emplace(res, op);
@@ -170,7 +144,7 @@ CollectAllocationRootsResult collectAllocationRoots(DRPassContext &passCtx, mlir
     }
   });
 
-  return result;
+  return allocRootFor;
 }
 
 //< Take a value and trace it back via ViewLike Ops to find base memrefs.
@@ -310,12 +284,6 @@ static StoreValueDeps computeStoreValueDeps(
   return result;
 }
 
-//< Holds information about allocation roots for access operations.
-struct AccessProvenance {
-  mlir::Operation *accessOp;
-  llvm::SmallVector<mlir::Operation *, 4> roots;
-};
-
 // ===== Reaching Stores Analysis (Custom Region-Walking) =====
 
 /// Set of memref.store operations (plus null for external writes) that may
@@ -327,7 +295,7 @@ struct IndexedStore {
   mlir::Operation *storeOp;  // nullptr = external write
   /// Concrete indices this store must-write-to.
   /// nullopt = may-write-anywhere (dynamic indices, through views, rank-0).
-  std::optional<marco::modeling::IndexSet> coverage;
+  std::optional<PointSet> coverage;
 };
 
 /// Vector of indexed store entries for one allocation root.
@@ -404,11 +372,11 @@ static void killDependentStores(
 }
 
 /// Try to extract concrete constant indices from a store/load's index operands.
-/// Returns an IndexSet containing the single accessed point, or nullopt if
+/// Returns a PointSet containing the single accessed point, or nullopt if
 /// any index is non-constant.
-static std::optional<marco::modeling::IndexSet> computeAccessIndices(
+static std::optional<PointSet> computeAccessIndices(
     mlir::Operation::operand_range indices) {
-  llvm::SmallVector<marco::modeling::Point::data_type> coords;
+  llvm::SmallVector<int64_t> coords;
   for (mlir::Value idx : indices) {
     auto constOp = idx.getDefiningOp<mlir::arith::ConstantOp>();
     if (!constOp) return std::nullopt;
@@ -416,8 +384,7 @@ static std::optional<marco::modeling::IndexSet> computeAccessIndices(
     if (!intAttr) return std::nullopt;
     coords.push_back(intAttr.getInt());
   }
-  marco::modeling::Point pt(coords);
-  return marco::modeling::IndexSet(llvm::ArrayRef<marco::modeling::Point>(&pt, 1));
+  return PointSet::fromCoords(coords);
 }
 
 /// Update state to reflect a memref.store.
@@ -1156,61 +1123,6 @@ llvm::DenseSet<mlir::FunctionOpInterface> getPotentialEscapingFunctions(DRPassCo
   return result;
 }
 
-// If no callable region, all bets are off.
-// Can touch anything leaked.
-std::optional<llvm::DenseSet<mlir::Operation *>> getGlobalFunctionClobbers(DRPassContext &ctx, mlir::FunctionOpInterface funcOpIface) {
-  mlir::Region *callableRegion = funcOpIface.getCallableRegion();
-
-  if ( ! callableRegion ) {
-    return std::nullopt;
-  }
-
-  callableRegion->walk([&](mlir::Operation *op) {
-
-  });
-
-}
-
-llvm::DenseSet<mlir::Operation *> getEscapingOps(DRPassContext &ctx, llvm::DenseSet<mlir::FunctionOpInterface> &leakyFunctions) {
-  llvm::DenseSet<mlir::Operation *> result;
-  mlir::ModuleOp moduleOp = ctx.getModuleOp();
-
-  auto &symTabCollection = ctx.getSymTabCollection();
-
-  moduleOp.walk([&](mlir::Operation *op){
-    auto callSiteOp = mlir::dyn_cast<mlir::CallOpInterface>(op);
-    if ( ! callSiteOp ) return mlir::WalkResult::advance();
-    auto callable = callSiteOp.getCallableForCallee();
-    auto calleeSym = mlir::dyn_cast<mlir::SymbolRefAttr>(callable);
-
-    mlir::Operation *calleeOp = symTabCollection.lookupSymbolIn(moduleOp, calleeSym);
-    mlir::FunctionOpInterface funcIface = mlir::dyn_cast<mlir::FunctionOpInterface>(calleeOp);
-
-    if ( leakyFunctions.contains(funcIface) ) {
-      result.insert(op);
-    }
-
-    return mlir::WalkResult::advance();
-  });
-
-
-  // TODO: Cases to handle
-  // - Function that reads private symbol and either:
-  //    - (a) Writes it somewhere public, or
-  //    - (b) Returns it
-  // moduleOp.walk([&](mlir::func::ReturnOp returnOp) {
-  //   auto parentFunction = returnOp.getParentOp<mlir::func::FuncOp>();
-  //   auto funcIface = mlir::dyn_cast<mlir::FunctionOpInterface>(parentFunction.getOperation());
-
-  //   bool externallyVisible = funcIface.isPublic();
-
-  //   if ( leakyFunctions.contains(funcIface) ) {
-  //     result.insert(returnOp.getOperation());
-  //   }
-  // });
-
-  return result;
-}
 /// Check if a value's SSA operand tree contains any function entry arguments.
 static bool dependsOnFuncArg(mlir::Value val) {
   llvm::SmallVector<mlir::Value, 8> worklist;
@@ -1268,12 +1180,7 @@ void DataRecomputationPass::runOnOperation() {
 
   // Collect allocation roots for the whole module so the analysis can resolve
   // memref bases that are allocated in one function and passed to another.
-
-  auto collectAllocationRootsResult =
-      collectAllocationRoots(passCtx, moduleOp);
-
-  auto &allocatingOps = collectAllocationRootsResult.allocatingOps;
-  auto &allocRootFor = collectAllocationRootsResult.allocationRoots;
+  auto allocRootFor = collectAllocationRoots(passCtx, moduleOp);
 
   // Log functions that may let memory escape to external callers.
   for (auto &f : getPotentialEscapingFunctions(passCtx))
