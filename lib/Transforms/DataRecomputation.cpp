@@ -1,16 +1,36 @@
-//===- DataRecomputation.cpp - Handles recomputation candidates -----------===//
+//===- DataRecomputation.cpp - Load-store provenance analysis pass ---------===//
 //
 //===----------------------------------------------------------------------===//
 //
-// This file contains the DataRecomputation pass (pending a better name).
+// This pass computes load-store provenance: for each memref.load, it determines
+// which memref.store operations could have been the last writer.
+//
+// Loads are classified into four categories:
+//   SINGLE  — exactly one known store (recomputation candidate)
+//   MULTI   — multiple possible stores
+//   LEAKED  — provenance includes an external/unknown write (nullptr)
+//   KILLED  — all reaching stores were killed (empty provenance set)
+//
+// The analysis phases are:
+//   1. Allocation root collection
+//   2. Base memref tracing (through view-like ops)
+//   3. Store value dependency analysis (SSA chain → allocation roots)
+//   4. Reaching store state updates (join, kill, apply)
+//   5. Call site analysis (callee argument effects, global clobbering)
+//   6. Region walking (core analysis: analyzeBlock / analyzeOp)
+//
+// See AnalysisState.h for the data model (type aliases and structs).
+// See DotEmitter.h for GraphViz visualization of the results.
+//
 //===----------------------------------------------------------------------===//
 
 #include "marco/Transforms/DataRecomputation.h"
+#include "marco/Transforms/DataRecomputation/AnalysisState.h"
+#include "marco/Transforms/DataRecomputation/DotEmitter.h"
 #include "marco/Transforms/DataRecomputationIndexing.h"
 #include "mlir/Analysis/DataLayoutAnalysis.h"
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
-#include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/Ptr/IR/PtrOps.h"
@@ -38,38 +58,11 @@ namespace mlir {
 #include "marco/Transforms/Passes.h.inc"
 } // namespace mlir
 
-using namespace ::mlir::memref;
-using namespace ::mlir::func;
+using namespace dr;
 
 namespace {
 
-class DRPassContext {
-public:
-  DRPassContext(mlir::MLIRContext *context,
-                mlir::SymbolTableCollection &symTabCollection,
-                mlir::ModuleOp moduleOp)
-    : context{context}, symTabCollection{symTabCollection},
-    moduleOp{moduleOp} {}
-
-  mlir::MLIRContext *getContext() { return context; }
-
-  mlir::SymbolTableCollection &getSymTabCollection() {
-    return symTabCollection;
-  }
-
-  mlir::ModuleOp getModuleOp() { return moduleOp; }
-
-private:
-  mlir::MLIRContext *context;
-  std::reference_wrapper<mlir::SymbolTableCollection> symTabCollection;
-  mlir::ModuleOp moduleOp;
-
-public:
-  DRPassContext(const DRPassContext &) = default;
-  DRPassContext(DRPassContext &&) = default;
-  DRPassContext &operator=(const DRPassContext &) = default;
-  DRPassContext &operator=(DRPassContext &&) = default;
-};
+// ===== Op Type Dispatch Helpers =====
 
 template <class... OpTys>
 struct OpTypePack {};
@@ -87,10 +80,13 @@ struct OpTypeHelper<OpTypePack<OpTys...>> {
 };
 
 using GlobalStaticAllocOps =
-OpTypePack<mlir::memref::GlobalOp, mlir::LLVM::GlobalOp>;
+    OpTypePack<mlir::memref::GlobalOp, mlir::LLVM::GlobalOp>;
 using ViewLike =
-OpTypePack<mlir::memref::SubViewOp, mlir::memref::ReinterpretCastOp,
-mlir::memref::ViewOp, mlir::memref::CastOp>;
+    OpTypePack<mlir::memref::SubViewOp, mlir::memref::ReinterpretCastOp,
+               mlir::memref::ViewOp, mlir::memref::CastOp>;
+
+// ===== Phase 1: Allocation Root Collection =====
+
 bool isGlobalStaticAllocationOp(mlir::Operation *op) {
   if (mlir::isa<mlir::SymbolOpInterface>(op)) {
     return OpTypeHelper<GlobalStaticAllocOps>::anyOf(op);
@@ -112,9 +108,6 @@ collectGlobalStaticAllocations(DRPassContext &passCtx) {
 
   return result;
 }
-
-/// Maps each value that stems from an allocation to the allocating operation.
-using AllocationRoots = llvm::DenseMap<mlir::Value, mlir::Operation *>;
 
 /// Walk \p rootOp and build a map from each allocated memref Value to the
 /// operation that created it (alloc ops and memref.get_global).
@@ -146,6 +139,8 @@ static AllocationRoots collectAllocationRoots(DRPassContext &passCtx,
 
   return allocRootFor;
 }
+
+// ===== Phase 2: Base Memref Tracing =====
 
 //< Take a value and trace it back via ViewLike Ops to find base memrefs.
 //< Base Memref = The closest to the alloc result as possible.
@@ -197,11 +192,7 @@ void collectBaseMemrefs(
   }
 }
 
-/// Maps each store op to the allocation roots its stored value depends on
-/// (via loads in the SSA operand chain).
-using StoreValueDeps =
-    llvm::DenseMap<mlir::Operation *,
-                   llvm::SmallDenseSet<mlir::Operation *, 4>>;
+// ===== Phase 3: Store Value Dependency Analysis =====
 
 /// Trace each store's value operand through SSA to find all allocation roots
 /// the value depends on via memory loads.
@@ -284,54 +275,7 @@ static StoreValueDeps computeStoreValueDeps(
   return result;
 }
 
-// ===== Reaching Stores Analysis (Custom Region-Walking) =====
-
-/// Set of memref.store operations (plus null for external writes) that may
-/// have been the most recent write to a given allocation root.
-using StoreSet = llvm::SmallDenseSet<mlir::Operation *, 4>;
-
-/// An entry in the reaching-stores analysis: a store op plus offset coverage.
-struct IndexedStore {
-  mlir::Operation *storeOp;  // nullptr = external write
-  /// Concrete indices this store must-write-to.
-  /// nullopt = may-write-anywhere (dynamic indices, through views, rank-0).
-  std::optional<PointSet> coverage;
-};
-
-/// Vector of indexed store entries for one allocation root.
-using IndexedStoreVec = llvm::SmallVector<IndexedStore, 4>;
-
-/// Maps each allocation root (the op that created the memory) to its
-/// reaching indexed stores.
-using StoreMap = llvm::DenseMap<mlir::Operation *, IndexedStoreVec>;
-
-/// Maps each load op to the set of stores that may have been the last writer.
-using LoadProvenanceMap = llvm::DenseMap<mlir::Operation *, StoreSet>;
-
-/// Stores reaching one argument position at a call site.
-using ArgStoreSet = StoreSet;
-
-/// One directed call edge annotated with per-argument reaching stores.
-struct EnrichedCallEdge {
-  mlir::Operation *callSiteOp;
-  mlir::FunctionOpInterface callee;
-  llvm::SmallVector<ArgStoreSet> argStores;
-};
-
-/// Maps callee Operation* -> all incoming enriched call edges.
-using EnrichedCallGraph =
-    llvm::DenseMap<mlir::Operation *, llvm::SmallVector<EnrichedCallEdge>>;
-
-/// Bundles all analysis state threaded through analyzeBlock/analyzeOp.
-struct AnalysisContext {
-  DRPassContext &passCtx;
-  llvm::DenseMap<mlir::Value, mlir::Operation *> &allocRootFor;
-  LoadProvenanceMap &loadProv;
-  EnrichedCallGraph &callGraph;
-  llvm::DenseSet<mlir::Operation *> inProgress;
-  const StoreValueDeps &storeValueDeps;
-  const llvm::DenseSet<mlir::Operation *> &globalAllocOps;
-};
+// ===== Phase 4: Reaching Store State Updates =====
 
 /// Union-join two StoreMaps. Returns a new map containing,
 /// for each root, the merged entries from both maps.
@@ -429,15 +373,11 @@ void applyStore(
   }
 }
 
+// ===== Phase 5: Call Site Analysis =====
+
 /// Analyze how a defined callee uses a specific memref argument.
 /// Returns whether the callee may write through that argument, whether it
 /// passes the argument to further calls, and the direct store operations.
-struct CalleeArgEffect {
-  bool mayWrite = false;
-  bool passedToCall = false;
-  llvm::SmallVector<mlir::Operation *, 4> storeOps;
-};
-
 static CalleeArgEffect analyzeCalleeArg(
     mlir::FunctionOpInterface callee, unsigned argIdx) {
   CalleeArgEffect effect;
@@ -600,6 +540,8 @@ void applyCall(
     state[globalOp].push_back({nullptr, std::nullopt});
   }
 }
+
+// ===== Phase 6: Region Walking (Core Analysis) =====
 
 // Forward declarations for the recursive analysis.
 static void analyzeBlock(mlir::Block &block, StoreMap &state,
@@ -789,287 +731,7 @@ static void analyzeOp(mlir::Operation *op, StoreMap &state,
   }
 }
 
-
-// ===== DOT Graph Emission Helpers =====
-
-/// Produce a stable unique node ID from an operation pointer.
-static std::string dotNodeId(mlir::Operation *op) {
-  return llvm::formatv("op_{0}", (const void *)op);
-}
-
-/// Escape a string for use inside a DOT label.
-static std::string dotEscape(llvm::StringRef s) {
-  std::string result;
-  result.reserve(s.size());
-  for (char c : s) {
-    switch (c) {
-    case '"':  result += "\\\""; break;
-    case '\\': result += "\\\\"; break;
-    case '<':  result += "\\<";  break;
-    case '>':  result += "\\>";  break;
-    case '{':  result += "\\{";  break;
-    case '}':  result += "\\}";  break;
-    case '|':  result += "\\|";  break;
-    case '\n': result += "\\n";  break;
-    default:   result += c;      break;
-    }
-  }
-  return result;
-}
-
-/// Compact operation label: print without regions, truncate to 120 chars.
-static std::string dotOpLabel(mlir::Operation *op) {
-  std::string buf;
-  llvm::raw_string_ostream os(buf);
-  mlir::OpPrintingFlags flags;
-  flags.skipRegions();
-  op->print(os, flags);
-  os.flush();
-  if (buf.size() > 120)
-    buf = buf.substr(0, 117) + "...";
-  return dotEscape(buf);
-}
-
-/// Produce a stable unique node ID for a block argument.
-static std::string dotBlockArgId(mlir::BlockArgument arg) {
-  return llvm::formatv("barg_{0}_{1}",
-      (const void *)arg.getOwner(), arg.getArgNumber());
-}
-
-/// Emit the full SSA operand tree rooted at `rootVal` into the DOT graph.
-/// Each defining operation becomes a rounded-box node, block arguments become
-/// hexagon nodes, and dashed edges show the dataflow.
-static void emitOperandTree(
-    mlir::Value rootVal,
-    llvm::raw_ostream &out,
-    llvm::DenseSet<mlir::Operation *> &emittedNodes,
-    llvm::DenseSet<mlir::Value> &emittedBlockArgs,
-    llvm::DenseSet<mlir::Operation *> &processedTreeOps) {
-  llvm::SmallVector<mlir::Value, 8> worklist;
-  worklist.push_back(rootVal);
-
-  while (!worklist.empty()) {
-    mlir::Value current = worklist.pop_back_val();
-
-    if (auto blockArg = mlir::dyn_cast<mlir::BlockArgument>(current)) {
-      if (emittedBlockArgs.insert(current).second) {
-        std::string id = dotBlockArgId(blockArg);
-        std::string typeBuf;
-        llvm::raw_string_ostream tos(typeBuf);
-        blockArg.getType().print(tos);
-        tos.flush();
-        std::string label = llvm::formatv("arg#{0} : {1}",
-            blockArg.getArgNumber(), typeBuf);
-        out << "  \"" << id
-            << "\" [shape=hexagon, style=filled, fillcolor=\"#f0e6ff\", label=\""
-            << dotEscape(label) << "\"];\n";
-      }
-      continue;
-    }
-
-    mlir::Operation *defOp = current.getDefiningOp();
-    if (!defOp) continue;
-    if (!processedTreeOps.insert(defOp).second) continue;
-
-    // Emit node only if not already present (as a store or load node).
-    if (emittedNodes.insert(defOp).second) {
-      out << "  \"" << dotNodeId(defOp)
-          << "\" [shape=box, style=\"filled,rounded\", fillcolor=\"#f5f5f5\", label=\""
-          << dotOpLabel(defOp) << "\"];\n";
-    }
-
-    for (mlir::Value operand : defOp->getOperands()) {
-      std::string fromId;
-      if (auto barg = mlir::dyn_cast<mlir::BlockArgument>(operand))
-        fromId = dotBlockArgId(barg);
-      else if (auto *opDef = operand.getDefiningOp())
-        fromId = dotNodeId(opDef);
-      if (!fromId.empty()) {
-        out << "  \"" << fromId << "\" -> \"" << dotNodeId(defOp)
-            << "\" [style=dashed, color=\"#888888\"];\n";
-      }
-      worklist.push_back(operand);
-    }
-  }
-}
-
-/// Emit a GraphViz DOT file visualizing load-provenance analysis results.
-static void emitProvenanceDot(
-    llvm::StringRef filePath,
-    llvm::SmallVectorImpl<std::pair<mlir::Operation *, StoreSet *>> &singleLoads,
-    llvm::SmallVectorImpl<std::pair<mlir::Operation *, StoreSet *>> &multiLoads,
-    llvm::SmallVectorImpl<std::pair<mlir::Operation *, StoreSet *>> &leakedLoads,
-    llvm::SmallVectorImpl<std::pair<mlir::Operation *, StoreSet *>> &killedLoads) {
-  std::error_code ec;
-  llvm::raw_fd_ostream out(filePath, ec, llvm::sys::fs::OF_TextWithCRLF);
-  if (ec) {
-    llvm::errs() << "error: cannot open DOT file '" << filePath
-                 << "': " << ec.message() << "\n";
-    return;
-  }
-
-  out << "digraph load_provenance {\n";
-  out << "  rankdir=LR;\n";
-  out << "  node [fontname=\"Courier\", fontsize=10];\n";
-  out << "  edge [fontname=\"Courier\", fontsize=9];\n\n";
-
-  // Track emitted nodes to avoid duplicate/conflicting node definitions.
-  llvm::DenseSet<mlir::Operation *> emittedNodes;
-  llvm::SmallVector<mlir::Operation *> allStoreOps;
-  bool needsExternalNode = false;
-
-  // Helper: emit a store node if not already emitted.
-  auto emitStoreNode = [&](mlir::Operation *storeOp) {
-    if (!storeOp) {
-      needsExternalNode = true;
-      return;
-    }
-    if (!emittedNodes.insert(storeOp).second)
-      return;
-    allStoreOps.push_back(storeOp);
-    out << "  \"" << dotNodeId(storeOp)
-        << "\" [shape=ellipse, style=filled, fillcolor=\"#d4edda\", label=\""
-        << dotOpLabel(storeOp) << "\"];\n";
-  };
-
-  // --- SINGLE loads: store --> load ---
-  out << "  // === SINGLE loads ===\n";
-  for (auto &[loadOp, stores] : singleLoads) {
-    emittedNodes.insert(loadOp);
-    out << "  \"" << dotNodeId(loadOp)
-        << "\" [shape=box, style=filled, fillcolor=\"#cce5ff\", label=\""
-        << dotOpLabel(loadOp) << "\"];\n";
-    for (mlir::Operation *s : *stores) {
-      emitStoreNode(s);
-      if (s) {
-        out << "  \"" << dotNodeId(s) << "\" -> \"" << dotNodeId(loadOp)
-            << "\";\n";
-      }
-    }
-  }
-
-  // --- MULTI loads: stores --> diamond --> load ---
-  out << "\n  // === MULTI loads ===\n";
-  unsigned mergeId = 0;
-  for (auto &[loadOp, stores] : multiLoads) {
-    emittedNodes.insert(loadOp);
-    out << "  \"" << dotNodeId(loadOp)
-        << "\" [shape=box, style=filled, fillcolor=\"#cce5ff\", label=\""
-        << dotOpLabel(loadOp) << "\"];\n";
-
-    std::string diamondId = llvm::formatv("merge_{0}", mergeId++);
-    out << "  \"" << diamondId
-        << "\" [shape=diamond, style=filled, fillcolor=\"#fff3cd\", label=\"merge\"];\n";
-    out << "  \"" << diamondId << "\" -> \"" << dotNodeId(loadOp) << "\";\n";
-
-    for (mlir::Operation *s : *stores) {
-      emitStoreNode(s);
-      if (s) {
-        out << "  \"" << dotNodeId(s) << "\" -> \"" << diamondId << "\";\n";
-      }
-    }
-  }
-
-  // --- LEAKED loads: stores --> diamond --> load (red) ---
-  out << "\n  // === LEAKED loads ===\n";
-  for (auto &[loadOp, stores] : leakedLoads) {
-    emittedNodes.insert(loadOp);
-    out << "  \"" << dotNodeId(loadOp)
-        << "\" [shape=box, style=filled, fillcolor=\"#f8d7da\", "
-           "color=red, penwidth=2, label=\""
-        << dotOpLabel(loadOp) << "\"];\n";
-
-    std::string diamondId = llvm::formatv("merge_{0}", mergeId++);
-    out << "  \"" << diamondId
-        << "\" [shape=diamond, style=filled, fillcolor=\"#fff3cd\", label=\"merge\"];\n";
-    out << "  \"" << diamondId << "\" -> \"" << dotNodeId(loadOp) << "\";\n";
-
-    for (mlir::Operation *s : *stores) {
-      if (!s) {
-        needsExternalNode = true;
-        out << "  external_write -> \"" << diamondId << "\";\n";
-      } else {
-        emitStoreNode(s);
-        out << "  \"" << dotNodeId(s) << "\" -> \"" << diamondId << "\";\n";
-      }
-    }
-  }
-
-  // --- KILLED loads: all reaching stores were killed ---
-  out << "\n  // === KILLED loads ===\n";
-  for (auto &[loadOp, stores] : killedLoads) {
-    emittedNodes.insert(loadOp);
-    out << "  \"" << dotNodeId(loadOp)
-        << "\" [shape=box, style=filled, fillcolor=\"#e0e0e0\", "
-           "color=\"#666666\", penwidth=2, label=\""
-        << dotOpLabel(loadOp) << "\"];\n";
-  }
-
-  // Emit the shared external write node if needed.
-  if (needsExternalNode) {
-    out << "\n  external_write [shape=octagon, style=filled, "
-           "fillcolor=\"#e2e3e5\", label=\"<external>\"];\n";
-  }
-
-  // --- Operand trees: full SSA computation chains for each store ---
-  out << "\n  // === Operand Trees ===\n";
-  {
-    llvm::DenseSet<mlir::Operation *> processedTreeOps;
-    llvm::DenseSet<mlir::Value> emittedBlockArgs;
-    for (mlir::Operation *storeOp : allStoreOps) {
-      auto memStoreOp = mlir::dyn_cast<mlir::memref::StoreOp>(storeOp);
-      if (!memStoreOp) continue;
-      mlir::Value val = memStoreOp.getValueToStore();
-      std::string fromId;
-      if (auto barg = mlir::dyn_cast<mlir::BlockArgument>(val))
-        fromId = dotBlockArgId(barg);
-      else if (auto *opDef = val.getDefiningOp())
-        fromId = dotNodeId(opDef);
-      if (!fromId.empty()) {
-        out << "  \"" << fromId << "\" -> \"" << dotNodeId(storeOp)
-            << "\" [style=dashed, color=\"#888888\", label=\"val\"];\n";
-      }
-      emitOperandTree(val, out, emittedNodes, emittedBlockArgs,
-                       processedTreeOps);
-    }
-  }
-
-  // Legend subgraph.
-  out << R"(
-  subgraph cluster_legend {
-    label="Legend";
-    style=dashed;
-    fontsize=12;
-    legend_store [shape=ellipse, style=filled, fillcolor="#d4edda", label="store"];
-    legend_load [shape=box, style=filled, fillcolor="#cce5ff", label="load"];
-    legend_leaked [shape=box, style=filled, fillcolor="#f8d7da", color=red, penwidth=2, label="leaked load"];
-    legend_killed [shape=box, style=filled, fillcolor="#e0e0e0", color="#666666", penwidth=2, label="killed load"];
-    legend_merge [shape=diamond, style=filled, fillcolor="#fff3cd", label="merge"];
-    legend_ext [shape=octagon, style=filled, fillcolor="#e2e3e5", label="<external>"];
-    legend_compute [shape=box, style="filled,rounded", fillcolor="#f5f5f5", label="computation"];
-    legend_arg [shape=hexagon, style=filled, fillcolor="#f0e6ff", label="block arg"];
-  }
-)";
-
-  out << "}\n";
-  DRDBG() << "Wrote load-provenance DOT graph to " << filePath << "\n";
-}
-
-using namespace mlir::detail;
-
-class DataRecomputationPass final
-    : public mlir::impl::DataRecomputationPassBase<DataRecomputationPass> {
-public:
-  using DataRecomputationPassBase<
-      DataRecomputationPass>::DataRecomputationPassBase;
-
-  void runOnOperation() override;
-
-private:
-  mlir::ModuleOp moduleOp;
-};
-
-
+// ===== Debug Utilities =====
 
 // Simple Escape Analysis
 llvm::DenseSet<mlir::FunctionOpInterface> getPotentialEscapingFunctions(DRPassContext &ctx)
@@ -1166,6 +828,20 @@ static void printOperandTree(mlir::Value val, unsigned indent = 0) {
   for (mlir::Value operand : defOp->getOperands())
     printOperandTree(operand, indent + 1);
 }
+
+// ===== Pass Class =====
+
+class DataRecomputationPass final
+    : public mlir::impl::DataRecomputationPassBase<DataRecomputationPass> {
+public:
+  using DataRecomputationPassBase<
+      DataRecomputationPass>::DataRecomputationPassBase;
+
+  void runOnOperation() override;
+
+private:
+  mlir::ModuleOp moduleOp;
+};
 
 } // namespace
 
@@ -1277,8 +953,8 @@ void DataRecomputationPass::runOnOperation() {
   }
 
   if (!drDotFile.empty())
-    emitProvenanceDot(drDotFile, singleLoads, multiLoads, leakedLoads,
-                      killedLoads);
+    dr::emitProvenanceDot(drDotFile, singleLoads, multiLoads, leakedLoads,
+                          killedLoads);
 
   // Log store value dependencies
   for (auto &[storeOp, deps] : storeValueDeps) {
