@@ -1,5 +1,3 @@
-add_mlir_doc(Dialect KINSOL Dialects/ -gen-dialect-doc)
-
 set(LLVM_TARGET_DEFINITIONS Attributes.td)
 mlir_tablegen(Attributes.h.inc -gen-attrdef-decls)
 mlir_tablegen(Attributes.cpp.inc -gen-attrdef-defs)
@@ -24,6 +22,7 @@ add_dependencies(MLIRKINSOLIncGen MLIRKINSOLAttributesIncGen)
 add_dependencies(MLIRKINSOLIncGen MLIRKINSOLTypesIncGen)
 add_dependencies(MLIRKINSOLIncGen MLIRKINSOLOpsIncGen)
 
+add_mlir_doc(Dialect KINSOL Dialects/ -gen-dialect-doc)
 add_mlir_doc(Attributes KINSOLAttributes Dialects/ -gen-attrdef-doc)
 add_mlir_doc(Types KINSOLTypes Dialects/ -gen-typedef-doc)
 add_mlir_doc(Ops KINSOLOps Dialects/ -gen-op-doc)

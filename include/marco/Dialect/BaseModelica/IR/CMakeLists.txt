@@ -1,5 +1,3 @@
-add_mlir_doc(Dialect BaseModelica Dialects/ -gen-dialect-doc)
-
 set(LLVM_TARGET_DEFINITIONS Attributes.td)
 mlir_tablegen(Attributes.h.inc -gen-attrdef-decls)
 mlir_tablegen(Attributes.cpp.inc -gen-attrdef-defs)
@@ -48,6 +46,7 @@ add_dependencies(MLIRBaseModelicaIncGen MLIRBaseModelicaOpInterfacesIncGen)
 add_dependencies(MLIRBaseModelicaIncGen MLIRBaseModelicaAttrInterfacesIncGen)
 add_dependencies(MLIRBaseModelicaIncGen MLIRBaseModelicaTypeInterfacesIncGen)
 
+add_mlir_doc(Dialect BaseModelica Dialects/ -gen-dialect-doc)
 add_mlir_doc(Attributes BaseModelicaAttributes Dialects/ -gen-attrdef-doc)
 add_mlir_doc(Types BaseModelicaTypes Dialects/ -gen-typedef-doc)
 add_mlir_doc(Ops BaseModelicaOps Dialects/ -gen-op-doc)

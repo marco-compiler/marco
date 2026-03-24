@@ -1,5 +1,3 @@
-add_mlir_doc(Dialect IDA Dialects/ -gen-dialect-doc)
-
 set(LLVM_TARGET_DEFINITIONS Attributes.td)
 mlir_tablegen(Attributes.h.inc -gen-attrdef-decls)
 mlir_tablegen(Attributes.cpp.inc -gen-attrdef-defs)
@@ -24,6 +22,7 @@ add_dependencies(MLIRIDAIncGen MLIRIDAAttributesIncGen)
 add_dependencies(MLIRIDAIncGen MLIRIDATypesIncGen)
 add_dependencies(MLIRIDAIncGen MLIRIDAOpsIncGen)
 
+add_mlir_doc(Dialect IDA Dialects/ -gen-dialect-doc)
 add_mlir_doc(Attributes IDAAttributes Dialects/ -gen-attrdef-doc)
 add_mlir_doc(Types IDATypes Dialects/ -gen-typedef-doc)
 add_mlir_doc(Ops IDAOps Dialects/ -gen-op-doc)

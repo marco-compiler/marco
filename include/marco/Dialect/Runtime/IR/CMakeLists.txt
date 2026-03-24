@@ -1,5 +1,3 @@
-add_mlir_doc(Dialect Runtime Dialects/ -gen-dialect-doc)
-
 set(LLVM_TARGET_DEFINITIONS Attributes.td)
 mlir_tablegen(Attributes.h.inc -gen-attrdef-decls)
 mlir_tablegen(Attributes.cpp.inc -gen-attrdef-defs)
@@ -24,5 +22,6 @@ add_dependencies(MLIRRuntimeIncGen MLIRRuntimeAttributesIncGen)
 add_dependencies(MLIRRuntimeIncGen MLIRRuntimeTypesIncGen)
 add_dependencies(MLIRRuntimeIncGen MLIRRuntimeOpsIncGen)
 
+add_mlir_doc(Dialect Runtime Dialects/ -gen-dialect-doc)
 add_mlir_doc(Attributes RuntimeAttributes Dialects/ -gen-attrdef-doc)
 add_mlir_doc(Ops RuntimeOps Dialects/ -gen-op-doc)
