@@ -23,50 +23,19 @@ mlir::Location Lowerer::loc(const SourceRange &location) {
 
 mlir::OpBuilder &Lowerer::builder() { return getContext().getBuilder(); }
 
-mlir::SymbolTableCollection &Lowerer::getSymbolTable() {
-  return getContext().getSymbolTable();
+mlir::SymbolTableCollection &Lowerer::getSymbolTables() {
+  return getContext().getSymbolTables();
 }
 
-void Lowerer::getVisibleSymbols(
-    mlir::Operation *scope, std::set<std::string> &visibleSymbols,
-    llvm::function_ref<bool(mlir::Operation *)> filterFn) {
-  // Check the global symbol table.
-  mlir::SymbolTable::walkSymbolTables(
-      getRoot(), true,
-      [this, &scope, &visibleSymbols, &filterFn](mlir::Operation *op,
-                                                 bool visible) {
-        const mlir::StringAttr attr = op->getAttrOfType<mlir::StringAttr>(
-            mlir::SymbolTable::getSymbolAttrName());
-        if (attr) {
-          llvm::StringRef symbolName = attr;
-          if (resolveSymbolName(symbolName, scope, filterFn)) {
-            visibleSymbols.insert(symbolName.str());
-          }
-        }
-      });
-
-  // Check the variables symbol table.
-  std::set<std::string> declaredVariables =
-      getVariablesSymbolTable().getVariables(false);
-  for (auto pVar = declaredVariables.cbegin(); pVar != declaredVariables.cend();
-       ++pVar) {
-    if (resolveSymbolName(llvm::StringRef(*pVar), scope, filterFn)) {
-      visibleSymbols.insert(*pVar);
-    }
-  }
+ScopedSymbolTable &Lowerer::getScopedSymbolTable() {
+  return getContext().getScopedSymbolTable();
 }
 
-void Lowerer::getVisibleSymbols(mlir::Operation *scope,
-                                std::set<std::string> &visibleSymbols) {
-  return getVisibleSymbols(scope, visibleSymbols,
-                           [](mlir::Operation *op) { return true; });
+const ScopedSymbolTable &Lowerer::getScopedSymbolTable() const {
+  return getContext().getScopedSymbolTable();
 }
 
-VariablesSymbolTable &Lowerer::getVariablesSymbolTable() {
-  return getContext().getVariablesSymbolTable();
-}
-
-mlir::Operation *Lowerer::getLookupScope() {
+mlir::Operation *Lowerer::getLookupScope() const {
   return getContext().getLookupScope();
 }
 
@@ -88,7 +57,7 @@ mlir::Operation *Lowerer::getClass(const ast::bmodelica::Class &cls) {
   while (!classes.empty() && result != nullptr) {
     const ast::bmodelica::Class *node = classes.back();
 
-    result = getSymbolTable().lookupSymbolIn(
+    result = getSymbolTables().lookupSymbolIn(
         result, builder().getStringAttr(node->getName()));
 
     classes.pop_back();
@@ -141,21 +110,15 @@ Lowerer::resolveType(const ast::bmodelica::UserDefinedType &type,
     scope = getRoot();
   }
 
-  mlir::Operation *originalScope = scope;
-
   scope = resolveSymbolName<ClassInterface>(type.getElement(0), scope);
 
   if (!scope) {
-    std::set<std::string> visibleTypes;
-    getVisibleSymbols<ClassInterface>(originalScope, visibleTypes);
-
-    emitIdentifierError(IdentifierError::IdentifierType::TYPE,
-                        type.getElement(0), visibleTypes, type.getLocation());
+    emitUndeclaredTypeError(type.getElement(0), loc(type.getLocation()));
     return std::nullopt;
   }
 
   for (size_t i = 1, e = type.getPathLength(); i < e && scope != nullptr; ++i) {
-    scope = getSymbolTable().lookupSymbolIn(
+    scope = getSymbolTables().lookupSymbolIn(
         scope, builder().getStringAttr(type.getElement(i)));
   }
 
@@ -164,14 +127,14 @@ Lowerer::resolveType(const ast::bmodelica::UserDefinedType &type,
 
 mlir::Operation *Lowerer::resolveTypeFromRoot(mlir::SymbolRefAttr name) {
   mlir::Operation *scope = getRoot();
-  scope = getSymbolTable().lookupSymbolIn(scope, name.getRootReference());
+  scope = getSymbolTables().lookupSymbolIn(scope, name.getRootReference());
 
   for (mlir::FlatSymbolRefAttr nestedRef : name.getNestedReferences()) {
     if (scope == nullptr) {
       return nullptr;
     }
 
-    scope = getSymbolTable().lookupSymbolIn(scope, nestedRef.getAttr());
+    scope = getSymbolTables().lookupSymbolIn(scope, nestedRef.getAttr());
   }
 
   return scope;
@@ -190,8 +153,8 @@ mlir::Operation *Lowerer::resolveSymbolName(
 
   while (scope != nullptr) {
     if (scope->hasTrait<mlir::OpTrait::SymbolTable>()) {
-      mlir::Operation *result =
-          getSymbolTable().lookupSymbolIn(scope, builder().getStringAttr(name));
+      mlir::Operation *result = getSymbolTables().lookupSymbolIn(
+          scope, builder().getStringAttr(name));
 
       if (result != nullptr && filterFn(result)) {
         return result;
@@ -205,11 +168,21 @@ mlir::Operation *Lowerer::resolveSymbolName(
 }
 
 std::optional<Reference> Lowerer::lookupVariable(llvm::StringRef name) {
-  return getVariablesSymbolTable().lookup(name);
+  auto symbolInfo = getScopedSymbolTable().lookup(name);
+
+  if (!symbolInfo) {
+    return std::nullopt;
+  }
+
+  return symbolInfo->reference;
 }
 
 void Lowerer::insertVariable(llvm::StringRef name, Reference reference) {
-  getVariablesSymbolTable().insert(name, reference);
+  getScopedSymbolTable().insert(name, reference, SymbolType::Variable);
+}
+
+void Lowerer::insertVariableBuiltIn(llvm::StringRef name, Reference reference) {
+  getScopedSymbolTable().insert(name, reference, SymbolType::VariableBuiltIn);
 }
 
 bool Lowerer::isScalarType(mlir::Type type) {
@@ -425,47 +398,264 @@ bool Lowerer::lower(const ast::bmodelica::WhileStatement &statement) {
   return bridge->lower(statement);
 }
 
-void Lowerer::emitIdentifierError(
-    IdentifierError::IdentifierType identifierType, llvm::StringRef name,
-    const std::set<std::string> &declaredIdentifiers,
-    const marco::SourceRange &location) {
-  IdentifierError error(identifierType, name, declaredIdentifiers);
-  std::string actual = error.getActual();
-  std::string predicted = error.getPredicted();
+void Lowerer::emitUndeclaredClassError(llvm::StringRef name,
+                                       mlir::Location location) const {
+  emitUndeclaredSymbolError(
+      name, location,
+      getClassNamesVisibleFromScope(getLookupScope(),
+                                    [](mlir::Operation *op) { return true; }));
+}
 
-  std::string errorString = "Unknown ";
-  switch (identifierType) {
-  case marco::codegen::lowering::bmodelica::IdentifierError::IdentifierType::
-      FUNCTION: {
-    errorString += "function";
-    break;
-  }
-  case marco::codegen::lowering::bmodelica::IdentifierError::IdentifierType::
-      VARIABLE: {
-    errorString += "variable";
-    break;
-  }
-  case marco::codegen::lowering::bmodelica::IdentifierError::IdentifierType::
-      TYPE: {
-    errorString += "type or class";
-    break;
-  }
-  case marco::codegen::lowering::bmodelica::IdentifierError::IdentifierType::
-      FIELD: {
-    errorString += "field";
-    break;
-  }
-  default: {
-    llvm_unreachable("Unkown error type.");
-    break;
-  }
-  }
-  errorString += " identifier " + actual + ".";
+void Lowerer::emitUndeclaredFunctionError(llvm::StringRef name,
+                                          mlir::Location location,
+                                          int64_t numArguments) const {
+  llvm::StringSet<> symbols = getFunctionNamesVisibleFromScope(
+      getLookupScope(), [&](mlir::Operation *op) {
+        // Include only the functions with the same number of arguments as the
+        // undeclared function.
+        auto cls = mlir::cast<ClassInterface>(op);
 
-  if (predicted != "") {
-    errorString += " Did you mean " + predicted + "?";
+        return llvm::count_if(cls.getBody().getOps<VariableOp>(),
+                              [&](VariableOp variableOp) {
+                                return variableOp.isInput();
+                              }) == numArguments;
+      });
+
+  for (const auto &symbol : symbols) {
+    llvm::outs() << "Available symbol: " << symbol.first() << "\n";
   }
 
-  mlir::emitError(loc(location)) << errorString;
+  // Add the built-in functions to the list of available symbols, according to
+  // the number of arguments.
+  if (numArguments == 1) {
+    symbols.insert("abs");
+    symbols.insert("acos");
+    symbols.insert("asin");
+    symbols.insert("atan");
+    symbols.insert("atan2");
+    symbols.insert("ceil");
+    symbols.insert("cos");
+    symbols.insert("cosh");
+
+    if (mlir::isa<ModelOp>(getLookupScope())) {
+      symbols.insert("der");
+    }
+
+    symbols.insert("diagonal");
+    symbols.insert("exp");
+    symbols.insert("floor");
+    symbols.insert("identity");
+    symbols.insert("integer");
+    symbols.insert("log");
+    symbols.insert("log10");
+    symbols.insert("ndims");
+    symbols.insert("product");
+    symbols.insert("sign");
+    symbols.insert("sin");
+    symbols.insert("sinh");
+    symbols.insert("sqrt");
+    symbols.insert("sum");
+    symbols.insert("symmetric");
+    symbols.insert("tan");
+    symbols.insert("tanh");
+    symbols.insert("transpose");
+  } else if (numArguments == 2) {
+    symbols.insert("div");
+    symbols.insert("mod");
+    symbols.insert("rem");
+  } else if (numArguments == 3) {
+    symbols.insert("linspace");
+  }
+
+  if (numArguments >= 1) {
+    symbols.insert("ones");
+    symbols.insert("zeros");
+  }
+
+  if (numArguments >= 1 && numArguments <= 2) {
+    symbols.insert("max");
+    symbols.insert("min");
+    symbols.insert("size");
+  }
+
+  if (numArguments >= 2) {
+    symbols.insert("fill");
+  }
+
+  // Emit the error.
+  emitUndeclaredSymbolError(name, location, symbols);
+}
+
+void Lowerer::emitUndeclaredTypeError(llvm::StringRef name,
+                                      mlir::Location location) const {
+  llvm::StringSet<> symbols =
+      getClassNamesVisibleFromScope(getLookupScope(), [](mlir::Operation *op) {
+        return mlir::isa<RecordOp>(op);
+      });
+
+  symbols.insert("Boolean");
+  symbols.insert("Integer");
+  symbols.insert("Real");
+  symbols.insert("String");
+
+  emitUndeclaredSymbolError(name, location, symbols);
+}
+
+void Lowerer::emitUndeclaredVariableError(llvm::StringRef name,
+                                          mlir::Location location) const {
+  bool timeVariable = mlir::isa<ModelOp>(getLookupScope());
+
+  llvm::StringSet<> availableSymbols = getScopedSymbolTable().getSymbolNames(
+      [&](llvm::StringRef symbolName, Reference reference, SymbolType type) {
+        if (symbolName == "time" && type == SymbolType::VariableBuiltIn &&
+            !timeVariable) {
+          return false;
+        }
+
+        return type == SymbolType::Variable ||
+               type == SymbolType::VariableBuiltIn;
+      });
+
+  emitUndeclaredSymbolError(name, location, availableSymbols, 2);
+}
+
+void Lowerer::emitUndeclaredComponentError(llvm::StringRef name,
+                                           mlir::Location location,
+                                           mlir::Operation *parent) const {
+  llvm::StringSet<> commponentNames;
+  auto classInterface = mlir::dyn_cast<ClassInterface>(parent);
+
+  for (VariableOp variableOp : classInterface.getBody().getOps<VariableOp>()) {
+    commponentNames.insert(variableOp.getName());
+  }
+
+  emitUndeclaredSymbolError(name, location, commponentNames);
+}
+
+void Lowerer::emitUndeclaredSymbolError(
+    llvm::StringRef name, mlir::Location loc,
+    const llvm::StringSet<> &availableSymbols, unsigned int maxDistance) const {
+  std::string message = "'" + name.str() + "' was not declared in this scope";
+
+  if (!availableSymbols.empty()) {
+    llvm::StringRef closestSymbol;
+    unsigned int minDistance = std::numeric_limits<unsigned int>::max();
+
+    for (llvm::StringRef symbol : availableSymbols.keys()) {
+      unsigned int distance = name.edit_distance_insensitive(symbol);
+
+      if (distance <= maxDistance && distance < minDistance) {
+        minDistance = distance;
+        closestSymbol = symbol;
+      }
+    }
+
+    if (!closestSymbol.empty()) {
+      message += "; did you mean '" + closestSymbol.str() + "'?";
+    }
+  }
+
+  mlir::emitError(loc, message);
+}
+
+llvm::StringSet<> Lowerer::getAllClassNames(
+    llvm::function_ref<bool(mlir::Operation *)> filterFn) const {
+  return getClassNamesWithRoot(getRoot(), filterFn,
+                               [](mlir::Operation *op) { return true; });
+}
+
+llvm::StringSet<> Lowerer::getAllFunctionNames(
+    llvm::function_ref<bool(mlir::Operation *)> filterFn) const {
+  return getClassNamesWithRoot(
+      getRoot(),
+      [&](mlir::Operation *op) {
+        return mlir::isa<FunctionOp, DerFunctionOp>(op) && filterFn(op);
+      },
+      [](mlir::Operation *op) { return true; });
+}
+
+llvm::StringSet<> Lowerer::getClassNamesWithRoot(
+    mlir::Operation *root, llvm::function_ref<bool(mlir::Operation *)> filterFn,
+    llvm::function_ref<bool(mlir::Operation *)> visitFn) const {
+  llvm::StringSet<> result;
+  llvm::SmallVector<std::pair<ClassInterface, std::string>> worklist;
+
+  if (visitFn(root)) {
+    if (mlir::isa<mlir::ModuleOp>(root)) {
+      for (ClassInterface cls :
+           mlir::cast<mlir::ModuleOp>(root).getOps<ClassInterface>()) {
+        std::string name = cls.getClassName().str();
+        worklist.emplace_back(cls, name);
+
+        if (filterFn(cls)) {
+          result.insert(name);
+        }
+      }
+    } else if (auto cls = mlir::dyn_cast<ClassInterface>(root)) {
+      std::string name = cls.getClassName().str();
+      worklist.emplace_back(cls, name);
+
+      if (filterFn(cls)) {
+        result.insert(name);
+      }
+    }
+  }
+
+  while (!worklist.empty()) {
+    auto [cls, prefix] = worklist.pop_back_val();
+
+    for (ClassInterface innerCls : cls.getBody().getOps<ClassInterface>()) {
+      if (visitFn(innerCls)) {
+        std::string name = prefix + "." + cls.getClassName().str();
+        worklist.emplace_back(innerCls, name);
+
+        if (filterFn(cls)) {
+          result.insert(name);
+        }
+      }
+    }
+  }
+
+  return result;
+}
+
+llvm::StringSet<> Lowerer::getClassNamesVisibleFromScope(
+    mlir::Operation *scope,
+    llvm::function_ref<bool(mlir::Operation *)> filterFn) const {
+  llvm::StringSet<> result;
+  llvm::DenseSet<mlir::Operation *> visited;
+
+  while (scope) {
+    llvm::StringSet<> names =
+        getClassNamesWithRoot(scope, filterFn, [&](mlir::Operation *op) {
+          return !visited.contains(op);
+        });
+
+    visited.insert(scope);
+
+    for (const auto &name : names) {
+      result.insert(name.first());
+    }
+
+    scope = scope->getParentWithTrait<ClassInterface::Trait>();
+  }
+
+  for (const auto &name : getAllClassNames(filterFn)) {
+    if (!result.contains(name.first())) {
+      result.insert(name.first());
+    } else {
+      result.insert("." + name.first().str());
+    }
+  }
+
+  return result;
+}
+
+llvm::StringSet<> Lowerer::getFunctionNamesVisibleFromScope(
+    mlir::Operation *scope,
+    llvm::function_ref<bool(mlir::Operation *)> filterFn) const {
+  return getClassNamesVisibleFromScope(scope, [&](mlir::Operation *op) {
+    return mlir::isa<FunctionOp, DerFunctionOp>(op) && filterFn(op);
+  });
 }
 } // namespace marco::codegen::lowering::bmodelica

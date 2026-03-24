@@ -52,7 +52,7 @@ bool RecordLowerer::declareVariables(const ast::bmodelica::Record &record) {
 bool RecordLowerer::lower(const ast::bmodelica::Record &record) {
   mlir::OpBuilder::InsertionGuard guard(builder());
 
-  VariablesSymbolTable::VariablesScope varScope(getVariablesSymbolTable());
+  ScopedSymbolTable::Scope varScope(getScopedSymbolTable());
   LookupScopeGuard lookupScopeGuard(&getContext());
 
   // Get the operation.
@@ -61,13 +61,12 @@ bool RecordLowerer::lower(const ast::bmodelica::Record &record) {
   builder().setInsertionPointToEnd(recordOp.getBody());
 
   // Map the variables.
-  insertVariable("time", Reference::time(builder(), builder().getUnknownLoc()));
+  insertVariableBuiltIn("time",
+                        Reference::time(builder(), builder().getUnknownLoc()));
 
   for (VariableOp variableOp : recordOp.getVariables()) {
     insertVariable(variableOp.getSymName(),
-                   Reference::variable(builder(), variableOp->getLoc(),
-                                       variableOp.getSymName(),
-                                       variableOp.getVariableType().unwrap()));
+                   Reference::variable(builder(), variableOp));
   }
 
   // Lower the body.

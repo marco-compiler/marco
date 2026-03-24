@@ -16,6 +16,8 @@ public:
 
   mlir::Location getLoc() const { return loc; }
 
+  virtual mlir::Operation *getOperation() const = 0;
+
   virtual mlir::Value getReference() const = 0;
 
   virtual mlir::Value get(mlir::Location loc) const = 0;
@@ -41,6 +43,10 @@ public:
 
   mlir::Value getReference() const override { return reference; }
 
+  mlir::Operation *getOperation() const override {
+    return reference.getDefiningOp();
+  }
+
   mlir::Value get(mlir::Location loc) const override { return reference; }
 
   void set(mlir::Location loc, mlir::ValueRange indices,
@@ -61,6 +67,10 @@ public:
 
   std::unique_ptr<Reference::Impl> clone() override {
     return std::make_unique<TensorReference>(*this);
+  }
+
+  mlir::Operation *getOperation() const override {
+    return reference.getDefiningOp();
   }
 
   mlir::Value get(mlir::Location loc) const override {
@@ -86,16 +96,17 @@ private:
 
 class VariableReference : public Reference::Impl {
 public:
-  VariableReference(mlir::OpBuilder &builder, mlir::Location loc,
-                    llvm::StringRef name, mlir::Type type)
-      : Reference::Impl(builder, loc), name(name.str()), type(type) {}
+  VariableReference(mlir::OpBuilder &builder, VariableOp variableOp)
+      : Reference::Impl(builder, variableOp.getLoc()), variableOp(variableOp) {}
 
   std::unique_ptr<Reference::Impl> clone() override {
     return std::make_unique<VariableReference>(*this);
   }
 
+  mlir::Operation *getOperation() const override { return variableOp; }
+
   mlir::Value get(mlir::Location loc) const override {
-    return builder->create<VariableGetOp>(loc, type, name);
+    return builder->create<VariableGetOp>(loc, variableOp);
   }
 
   mlir::Value getReference() const override {
@@ -104,12 +115,11 @@ public:
 
   void set(mlir::Location loc, mlir::ValueRange indices,
            mlir::Value value) override {
-    builder->create<VariableSetOp>(loc, name, indices, value);
+    builder->create<VariableSetOp>(loc, variableOp, indices, value);
   }
 
 private:
-  std::string name;
-  mlir::Type type;
+  VariableOp variableOp;
 };
 
 class ComponentReference : public Reference::Impl {
@@ -124,6 +134,11 @@ public:
     return std::make_unique<ComponentReference>(*this);
   }
 
+  mlir::Operation *getOperation() const override {
+    llvm_unreachable("Component references have no defining operation");
+    return nullptr;
+  }
+
   mlir::Value get(mlir::Location loc) const override {
     return builder->create<ComponentGetOp>(loc, componentType, parent,
                                            componentName);
@@ -131,6 +146,7 @@ public:
 
   mlir::Value getReference() const override {
     llvm_unreachable("Variable components have no SSA value");
+    return {};
   }
 
   void set(mlir::Location loc, mlir::ValueRange indices,
@@ -153,12 +169,18 @@ public:
     return std::make_unique<TimeReference>(*this);
   }
 
+  mlir::Operation *getOperation() const override {
+    llvm_unreachable("The 'time' reference has no defining operation");
+    return nullptr;
+  }
+
   mlir::Value get(mlir::Location loc) const override {
     return builder->create<TimeOp>(loc);
   }
 
   mlir::Value getReference() const override {
     llvm_unreachable("No reference for the 'time' variable");
+    return {};
   }
 
   void set(mlir::Location loc, mlir::ValueRange indices,
@@ -175,7 +197,11 @@ Reference::Reference(std::unique_ptr<Impl> impl) : impl(std::move(impl)) {}
 
 Reference::~Reference() = default;
 
-Reference::Reference(const Reference &other) : impl(other.impl->clone()) {}
+Reference::Reference(const Reference &other) {
+  if (other.impl) {
+    impl = other.impl->clone();
+  }
+}
 
 Reference &Reference::operator=(const Reference &other) {
   Reference result(other);
@@ -198,10 +224,8 @@ Reference Reference::tensor(mlir::OpBuilder &builder, mlir::Value value) {
   return Reference(std::make_unique<TensorReference>(builder, value));
 }
 
-Reference Reference::variable(mlir::OpBuilder &builder, mlir::Location loc,
-                              llvm::StringRef name, mlir::Type type) {
-  return Reference(
-      std::make_unique<VariableReference>(builder, loc, name, type));
+Reference Reference::variable(mlir::OpBuilder &builder, VariableOp variableOp) {
+  return Reference(std::make_unique<VariableReference>(builder, variableOp));
 }
 
 Reference Reference::component(mlir::OpBuilder &builder, mlir::Location loc,
@@ -218,6 +242,10 @@ Reference Reference::time(mlir::OpBuilder &builder, mlir::Location loc) {
 mlir::Value Reference::get(mlir::Location loc) const { return impl->get(loc); }
 
 mlir::Location Reference::getLoc() const { return impl->getLoc(); }
+
+mlir::Operation *Reference::getOperation() const {
+  return impl->getOperation();
+}
 
 mlir::Value Reference::getReference() const { return impl->getReference(); }
 

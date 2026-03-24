@@ -76,11 +76,9 @@ bool AssignmentStatementLowerer::lowerAssignmentToComponentReference(
         mlir::cast<mlir::FlatSymbolRefAttr>(path.front()).getValue());
 
     if (!variableRef) {
-      emitIdentifierError(
-          IdentifierError::IdentifierType::VARIABLE,
+      emitUndeclaredVariableError(
           mlir::cast<mlir::FlatSymbolRefAttr>(path.front()).getValue(),
-          getVariablesSymbolTable().getVariables(true),
-          destination.getLocation());
+          loc(destination.getLocation()));
 
       return false;
     }

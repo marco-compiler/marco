@@ -103,12 +103,10 @@ std::optional<Results> CallLowerer::lower(const ast::bmodelica::Call &call) {
   }
 
   // The function doesn't exist.
-  std::set<std::string> visibleFunctions;
-  getVisibleSymbols(getLookupScope(), visibleFunctions);
+  emitUndeclaredFunctionError(callee->getElement(0)->getName(),
+                              loc(callee->getElement(0)->getLocation()),
+                              call.getNumOfArguments());
 
-  emitIdentifierError(IdentifierError::IdentifierType::FUNCTION,
-                      callee->getElement(0)->getName(), visibleFunctions,
-                      callee->getElement(0)->getLocation());
   return std::nullopt;
 }
 
@@ -131,7 +129,7 @@ CallLowerer::resolveCallee(const ast::bmodelica::ComponentReference &callee) {
       return nullptr;
     }
 
-    result = getSymbolTable().lookupSymbolIn(
+    result = getSymbolTables().lookupSymbolIn(
         result, builder().getStringAttr(callee.getElement(i)->getName()));
   }
 
@@ -166,13 +164,13 @@ void CallLowerer::getCustomFunctionInputVariables(
   auto moduleOp = derFunctionOp->getParentOfType<mlir::ModuleOp>();
 
   mlir::Operation *derivedFunctionOp = resolveSymbol(
-      moduleOp, getSymbolTable(), derFunctionOp.getDerivedFunction());
+      moduleOp, getSymbolTables(), derFunctionOp.getDerivedFunction());
 
   while (mlir::isa_and_nonnull<DerFunctionOp>(derivedFunctionOp)) {
     auto baseDerFunctionOp =
         mlir::cast_if_present<DerFunctionOp>(derivedFunctionOp);
 
-    derivedFunctionOp = resolveSymbol(moduleOp, getSymbolTable(),
+    derivedFunctionOp = resolveSymbol(moduleOp, getSymbolTables(),
                                       baseDerFunctionOp.getDerivedFunction());
   }
 
@@ -369,12 +367,12 @@ void CallLowerer::getFunctionExpectedArgRanks(
     auto moduleOp = derFunctionOp->getParentOfType<mlir::ModuleOp>();
 
     mlir::Operation *derivedFunctionOp = resolveSymbol(
-        moduleOp, getSymbolTable(), derFunctionOp.getDerivedFunction());
+        moduleOp, getSymbolTables(), derFunctionOp.getDerivedFunction());
 
     while (mlir::isa_and_nonnull<DerFunctionOp>(derivedFunctionOp)) {
       auto baseDerFunctionOp = mlir::cast<DerFunctionOp>(derivedFunctionOp);
 
-      derivedFunctionOp = resolveSymbol(moduleOp, getSymbolTable(),
+      derivedFunctionOp = resolveSymbol(moduleOp, getSymbolTables(),
                                         baseDerFunctionOp.getDerivedFunction());
     }
 
@@ -410,12 +408,12 @@ void CallLowerer::getFunctionResultTypes(
     auto moduleOp = derFunctionOp->getParentOfType<mlir::ModuleOp>();
 
     mlir::Operation *derivedFunctionOp = resolveSymbol(
-        moduleOp, getSymbolTable(), derFunctionOp.getDerivedFunction());
+        moduleOp, getSymbolTables(), derFunctionOp.getDerivedFunction());
 
     while (mlir::isa_and_nonnull<DerFunctionOp>(derivedFunctionOp)) {
       auto baseDerFunctionOp = mlir::cast<DerFunctionOp>(derivedFunctionOp);
 
-      derivedFunctionOp = resolveSymbol(moduleOp, getSymbolTable(),
+      derivedFunctionOp = resolveSymbol(moduleOp, getSymbolTables(),
                                         baseDerFunctionOp.getDerivedFunction());
     }
 
@@ -2278,12 +2276,11 @@ std::optional<Results> CallLowerer::reduction(const ast::bmodelica::Call &call,
   assert(reductionArg->getNumOfForIndices() ==
          reductionOp.getInductions().size());
 
-  VariablesSymbolTable::VariablesScope scope(getVariablesSymbolTable());
+  ScopedSymbolTable::Scope scope(getScopedSymbolTable());
 
   for (size_t i = 0, e = reductionArg->getNumOfForIndices(); i < e; ++i) {
-    const llvm::StringRef name = reductionArg->getForIndex(i)->getName();
-    getVariablesSymbolTable().insert(
-        name, Reference::ssa(builder(), reductionOp.getInductions()[i]));
+    insertVariable(reductionArg->getForIndex(i)->getName(),
+                   Reference::ssa(builder(), reductionOp.getInductions()[i]));
   }
 
   // Lower the expression.

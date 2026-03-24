@@ -18,7 +18,7 @@ bool WhileStatementLowerer::lower(
 
   {
     // Condition.
-    VariablesSymbolTable::VariablesScope scope(getVariablesSymbolTable());
+    ScopedSymbolTable::Scope scope(getScopedSymbolTable());
     assert(whileOp.getConditionRegion().empty());
 
     mlir::Block *conditionBlock =
@@ -40,7 +40,7 @@ bool WhileStatementLowerer::lower(
 
   {
     // Body.
-    VariablesSymbolTable::VariablesScope scope(getVariablesSymbolTable());
+    ScopedSymbolTable::Scope scope(getScopedSymbolTable());
     assert(whileOp.getBodyRegion().empty());
     mlir::Block *bodyBlock = builder().createBlock(&whileOp.getBodyRegion());
     builder().setInsertionPointToStart(bodyBlock);

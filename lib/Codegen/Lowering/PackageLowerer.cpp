@@ -51,7 +51,7 @@ bool PackageLowerer::declareVariables(const ast::bmodelica::Package &package) {
 bool PackageLowerer::lower(const ast::bmodelica::Package &package) {
   mlir::OpBuilder::InsertionGuard guard(builder());
 
-  VariablesSymbolTable::VariablesScope varScope(getVariablesSymbolTable());
+  ScopedSymbolTable::Scope varScope(getScopedSymbolTable());
   LookupScopeGuard lookupScopeGuard(&getContext());
 
   // Get the operation.
@@ -60,13 +60,12 @@ bool PackageLowerer::lower(const ast::bmodelica::Package &package) {
   builder().setInsertionPointToEnd(packageOp.bodyBlock());
 
   // Map the variables.
-  insertVariable("time", Reference::time(builder(), builder().getUnknownLoc()));
+  insertVariableBuiltIn("time",
+                        Reference::time(builder(), builder().getUnknownLoc()));
 
   for (VariableOp variableOp : packageOp.getVariables()) {
     insertVariable(variableOp.getSymName(),
-                   Reference::variable(builder(), variableOp->getLoc(),
-                                       variableOp.getSymName(),
-                                       variableOp.getVariableType().unwrap()));
+                   Reference::variable(builder(), variableOp));
   }
 
   // Lower the body.

@@ -94,7 +94,7 @@ bool ClassLowerer::declare(const ast::bmodelica::Member &variable) {
       location, variable.getName(), *variableType,
       builder().getStrArrayAttr(dimensionsConstraints));
 
-  mlir::SymbolTable &symbolTable = getSymbolTable().getSymbolTable(
+  mlir::SymbolTable &symbolTable = getSymbolTables().getSymbolTable(
       variableOp->getParentOfType<ClassInterface>());
 
   symbolTable.insert(variableOp);
@@ -202,7 +202,7 @@ bool ClassLowerer::lowerClassBody(const ast::bmodelica::Class &cls) {
   // Lower the constraints for the dynamic dimensions of the variables.
   for (const auto &variable : cls.getVariables()) {
     if (!lowerVariableDimensionConstraints(
-            getSymbolTable().getSymbolTable(getClass(cls)),
+            getSymbolTables().getSymbolTable(getClass(cls)),
             *variable->cast<ast::bmodelica::Member>())) {
       return false;
     }
