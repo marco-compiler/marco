@@ -44,11 +44,13 @@ protected:
 
   mlir::OpBuilder &builder();
 
-  mlir::SymbolTableCollection &getSymbolTable();
+  mlir::SymbolTableCollection &getSymbolTables();
 
-  VariablesSymbolTable &getVariablesSymbolTable();
+  ScopedSymbolTable &getScopedSymbolTable();
 
-  mlir::Operation *getLookupScope();
+  const ScopedSymbolTable &getScopedSymbolTable() const;
+
+  mlir::Operation *getLookupScope() const;
 
   void pushLookupScope(mlir::Operation *lookupScope);
 
@@ -76,9 +78,15 @@ protected:
     });
   }
 
+  mlir::Operation *
+  resolveSymbolName(llvm::StringRef name, mlir::Operation *currentScope,
+                    llvm::function_ref<bool(mlir::Operation *)> filterFn);
+
   std::optional<Reference> lookupVariable(llvm::StringRef name);
 
   void insertVariable(llvm::StringRef name, Reference reference);
+
+  void insertVariableBuiltIn(llvm::StringRef name, Reference reference);
 
   bool isScalarType(mlir::Type type);
 
@@ -229,22 +237,54 @@ protected:
   [[nodiscard]] virtual bool
   lower(const ast::bmodelica::WhileStatement &statement) override;
 
-  virtual void
-  emitIdentifierError(IdentifierError::IdentifierType identifierType,
-                      llvm::StringRef name,
-                      const std::set<std::string> &declaredIdentifiers,
-                      const marco::SourceRange &location);
-
   /// }
+  /// @name Error messages.
+  /// {
+
+  void emitUndeclaredClassError(llvm::StringRef name,
+                                mlir::Location location) const;
+
+  void emitUndeclaredFunctionError(llvm::StringRef name,
+                                   mlir::Location location,
+                                   int64_t numArguments) const;
+
+  void emitUndeclaredTypeError(llvm::StringRef name,
+                               mlir::Location location) const;
+
+  void emitUndeclaredVariableError(llvm::StringRef name,
+                                   mlir::Location location) const;
+
+  void emitUndeclaredComponentError(llvm::StringRef name,
+                                    mlir::Location location,
+                                    mlir::Operation *parent) const;
 
 private:
-  mlir::Operation *
-  resolveSymbolName(llvm::StringRef name, mlir::Operation *currentScope,
-                    llvm::function_ref<bool(mlir::Operation *)> filterFn);
+  void
+  emitUndeclaredSymbolError(llvm::StringRef name, mlir::Location location,
+                            const llvm::StringSet<> &availableSymbols = {},
+                            unsigned int maxDistance =
+                                std::numeric_limits<unsigned int>::max()) const;
 
-  void getVisibleSymbols(mlir::Operation *scope,
-                         std::set<std::string> &visibleSymbols,
-                         llvm::function_ref<bool(mlir::Operation *)> filterFn);
+  llvm::StringSet<>
+  getAllClassNames(llvm::function_ref<bool(mlir::Operation *)> filterFn) const;
+
+  llvm::StringSet<> getAllFunctionNames(
+      llvm::function_ref<bool(mlir::Operation *)> filterFn) const;
+
+  llvm::StringSet<> getClassNamesWithRoot(
+      mlir::Operation *root,
+      llvm::function_ref<bool(mlir::Operation *)> filterFn,
+      llvm::function_ref<bool(mlir::Operation *)> visitFn) const;
+
+  llvm::StringSet<> getClassNamesVisibleFromScope(
+      mlir::Operation *scope,
+      llvm::function_ref<bool(mlir::Operation *)> filterFn) const;
+
+  llvm::StringSet<> getFunctionNamesVisibleFromScope(
+      mlir::Operation *scope,
+      llvm::function_ref<bool(mlir::Operation *)> filterFn) const;
+
+  /// }
 
 private:
   BridgeInterface *bridge;

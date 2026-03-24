@@ -852,8 +852,7 @@ struct VariableGetOpInterface
     mlir::OpBuilder::InsertionGuard guard(builder);
     builder.setInsertionPointAfter(castedOp);
 
-    mlir::Operation *parentClass =
-        castedOp->getParentWithTrait<ClassInterface::Trait>();
+    auto parentClass = castedOp->getParentOfType<ClassInterface>();
 
     auto variableOp = symbolTableCollection.lookupSymbolIn<VariableOp>(
         parentClass, castedOp.getVariableAttr());
@@ -935,8 +934,7 @@ struct VariableSetOpInterface
     mlir::OpBuilder::InsertionGuard guard(builder);
     builder.setInsertionPointAfter(castedOp);
 
-    mlir::Operation *parentClass =
-        castedOp->getParentWithTrait<ClassInterface::Trait>();
+    auto parentClass = castedOp->getParentOfType<ClassInterface>();
 
     auto variableOp = symbolTableCollection.lookupSymbolIn<VariableOp>(
         parentClass, castedOp.getVariableAttr());

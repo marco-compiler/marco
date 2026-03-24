@@ -44,7 +44,7 @@ public:
 
   mlir::LogicalResult
   matchAndRewrite(DerOp op, mlir::PatternRewriter &rewriter) const override {
-    mlir::Operation *classOp = op->getParentWithTrait<ClassInterface::Trait>();
+    mlir::Operation *classOp = op->getParentOfType<ClassInterface>();
 
     if (!mlir::isa<FunctionOp>(classOp)) {
       return mlir::failure();

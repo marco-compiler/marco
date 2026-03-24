@@ -9,7 +9,7 @@ ForStatementLowerer::ForStatementLowerer(BridgeInterface *bridge)
     : Lowerer(bridge) {}
 
 bool ForStatementLowerer::lower(const ast::bmodelica::ForStatement &statement) {
-  VariablesSymbolTable::VariablesScope varScope(getVariablesSymbolTable());
+  ScopedSymbolTable::Scope varScope(getScopedSymbolTable());
   mlir::Location location = loc(statement.getLocation());
 
   size_t numOfForIndices = statement.getNumOfForIndices();
@@ -92,16 +92,15 @@ bool ForStatementLowerer::lower(const ast::bmodelica::ForStatement &statement) {
 
     {
       // Body.
-      VariablesSymbolTable::VariablesScope scope(getVariablesSymbolTable());
+      ScopedSymbolTable::Scope scope(getScopedSymbolTable());
 
       builder().setInsertionPointToStart(bodyBlock);
 
       mlir::Value inductionValue =
           builder().create<LoadOp>(location, inductionVar);
 
-      llvm::StringRef name = forIndex->getName();
-      getVariablesSymbolTable().insert(
-          name, Reference::ssa(builder(), inductionValue));
+      insertVariable(forIndex->getName(),
+                     Reference::ssa(builder(), inductionValue));
 
       for (size_t statementIndex = 0, e = statement.getNumOfStatements();
            statementIndex < e; ++statementIndex) {

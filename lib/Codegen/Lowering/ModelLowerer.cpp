@@ -52,7 +52,7 @@ bool ModelLowerer::declareVariables(const ast::bmodelica::Model &model) {
 bool ModelLowerer::lower(const ast::bmodelica::Model &model) {
   mlir::OpBuilder::InsertionGuard guard(builder());
 
-  VariablesSymbolTable::VariablesScope varScope(getVariablesSymbolTable());
+  ScopedSymbolTable::Scope varScope(getScopedSymbolTable());
   LookupScopeGuard lookupScopeGuard(&getContext());
 
   // Get the operation.
@@ -61,13 +61,12 @@ bool ModelLowerer::lower(const ast::bmodelica::Model &model) {
   builder().setInsertionPointToEnd(modelOp.getBody());
 
   // Map the variables.
-  insertVariable("time", Reference::time(builder(), builder().getUnknownLoc()));
+  insertVariableBuiltIn("time",
+                        Reference::time(builder(), builder().getUnknownLoc()));
 
   for (VariableOp variableOp : modelOp.getVariables()) {
     insertVariable(variableOp.getSymName(),
-                   Reference::variable(builder(), variableOp->getLoc(),
-                                       variableOp.getSymName(),
-                                       variableOp.getVariableType().unwrap()));
+                   Reference::variable(builder(), variableOp));
   }
 
   // Create the binding equations.
@@ -223,7 +222,7 @@ bool ModelLowerer::lowerVariableAttributes(
     auto moduleOp = modelOp->getParentOfType<mlir::ModuleOp>();
 
     auto recordOp = mlir::cast<RecordOp>(
-        recordType.getRecordOp(getSymbolTable(), moduleOp));
+        recordType.getRecordOp(getSymbolTables(), moduleOp));
 
     assert(recordOp != nullptr && "Record not found");
 

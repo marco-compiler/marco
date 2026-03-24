@@ -27,8 +27,8 @@ public:
 
   static Reference tensor(mlir::OpBuilder &builder, mlir::Value value);
 
-  static Reference variable(mlir::OpBuilder &builder, mlir::Location loc,
-                            llvm::StringRef name, mlir::Type type);
+  static Reference variable(mlir::OpBuilder &builder,
+                            mlir::bmodelica::VariableOp variableOp);
 
   static Reference component(mlir::OpBuilder &builder, mlir::Location loc,
                              mlir::Value parent, mlir::Type componentType,
@@ -37,6 +37,8 @@ public:
   static Reference time(mlir::OpBuilder &builder, mlir::Location loc);
 
   mlir::Location getLoc() const;
+
+  mlir::Operation *getOperation() const;
 
   mlir::Value getReference() const;
 
@@ -48,7 +50,7 @@ private:
   Reference(std::unique_ptr<Impl> impl);
 
 private:
-  std::unique_ptr<Impl> impl;
+  std::unique_ptr<Impl> impl{nullptr};
 };
 } // namespace marco::codegen::lowering::bmodelica
 

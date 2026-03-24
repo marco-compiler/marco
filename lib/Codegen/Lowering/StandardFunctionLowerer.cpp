@@ -56,7 +56,7 @@ bool StandardFunctionLowerer::lower(
     const ast::bmodelica::StandardFunction &function) {
   mlir::OpBuilder::InsertionGuard guard(builder());
 
-  VariablesSymbolTable::VariablesScope varScope(getVariablesSymbolTable());
+  ScopedSymbolTable::Scope varScope(getScopedSymbolTable());
   LookupScopeGuard lookupScopeGuard(&getContext());
 
   // Get the operation.
@@ -65,13 +65,12 @@ bool StandardFunctionLowerer::lower(
   builder().setInsertionPointToEnd(functionOp.getBody());
 
   // Map the variables.
-  insertVariable("time", Reference::time(builder(), builder().getUnknownLoc()));
+  insertVariableBuiltIn("time",
+                        Reference::time(builder(), builder().getUnknownLoc()));
 
   for (VariableOp variableOp : functionOp.getVariables()) {
     insertVariable(variableOp.getSymName(),
-                   Reference::variable(builder(), variableOp->getLoc(),
-                                       variableOp.getSymName(),
-                                       variableOp.getVariableType().unwrap()));
+                   Reference::variable(builder(), variableOp));
   }
 
   // Lower the annotations.
@@ -307,10 +306,10 @@ bool StandardFunctionLowerer::lowerExternalFunctionCall(
           componentReference->getElement(0)->getName());
 
       if (!variableOp) {
-        emitIdentifierError(IdentifierError::IdentifierType::VARIABLE,
-                            componentReference->getElement(0)->getName(),
-                            getVariablesSymbolTable().getVariables(),
-                            componentReference->getLocation());
+        emitUndeclaredVariableError(
+            componentReference->getElement(0)->getName(),
+            loc(componentReference->getLocation()));
+
         return false;
       }
 

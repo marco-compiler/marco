@@ -24,15 +24,19 @@ LoweringContext::LoweringContext(mlir::MLIRContext &context)
 
 mlir::OpBuilder &LoweringContext::getBuilder() { return builder; }
 
-mlir::SymbolTableCollection &LoweringContext::getSymbolTable() {
-  return symbolTable;
+mlir::SymbolTableCollection &LoweringContext::getSymbolTables() {
+  return symbolTables;
 }
 
-VariablesSymbolTable &LoweringContext::getVariablesSymbolTable() {
-  return variablesSymbolTable;
+ScopedSymbolTable &LoweringContext::getScopedSymbolTable() {
+  return scopedSymbolTable;
 }
 
-mlir::Operation *LoweringContext::getLookupScope() {
+const ScopedSymbolTable &LoweringContext::getScopedSymbolTable() const {
+  return scopedSymbolTable;
+}
+
+mlir::Operation *LoweringContext::getLookupScope() const {
   assert(!lookupScopes.empty());
   return lookupScopes.back();
 }

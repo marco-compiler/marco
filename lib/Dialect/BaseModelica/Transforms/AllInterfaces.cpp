@@ -1,6 +1,7 @@
 #include "marco/Dialect/BaseModelica/Transforms/AllInterfaces.h"
 #include "marco/Dialect/BaseModelica/Transforms/AllocationOpInterfaceImpl.h"
 #include "marco/Dialect/BaseModelica/Transforms/BufferizableOpInterfaceImpl.h"
+#include "marco/Dialect/BaseModelica/Transforms/ClassInterfaceImpl.h"
 #include "marco/Dialect/BaseModelica/Transforms/ConstantMaterializableTypeInterfaceImpl.h"
 #include "marco/Dialect/BaseModelica/Transforms/DerivableOpInterfaceImpl.h"
 #include "marco/Dialect/BaseModelica/Transforms/DerivableTypeInterfaceImpl.h"
@@ -15,6 +16,7 @@ void registerAllDialectInterfaceImplementations(
   // Operation interfaces.
   registerAllocationOpInterfaceExternalModels(registry);
   registerBufferizableOpInterfaceExternalModels(registry);
+  registerClassInterfaceExternalModels(registry);
   registerDerivableOpInterfaceExternalModels(registry);
   registerEquationExpressionOpInterfaceExternalModels(registry);
   registerInvertibleOpInterfaceExternalModels(registry);

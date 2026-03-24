@@ -2,7 +2,6 @@
 #define MARCO_CODEGEN_LOWERING_BASEMODELICA_BRIDGEINTERFACE_H
 
 #include "marco/AST/BaseModelica/AST.h"
-#include "marco/Codegen/Lowering/BaseModelica/IdentifierError.h"
 #include "marco/Codegen/Lowering/BaseModelica/LoweringContext.h"
 #include "marco/Codegen/Lowering/BaseModelica/Results.h"
 #include <optional>

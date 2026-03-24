@@ -21,10 +21,9 @@ std::optional<Results> ComponentReferenceLowerer::lower(
   std::optional<Reference> result = lookupVariable(firstEntry->getName());
 
   if (!result) {
-    emitIdentifierError(IdentifierError::IdentifierType::VARIABLE,
-                        firstEntry->getName(),
-                        getVariablesSymbolTable().getVariables(true),
-                        firstEntry->getLocation());
+    emitUndeclaredVariableError(firstEntry->getName(),
+                                loc(firstEntry->getLocation()));
+
     return std::nullopt;
   }
 
@@ -55,12 +54,9 @@ std::optional<Results> ComponentReferenceLowerer::lower(
           resolveSymbolName<VariableOp>(pathEntry->getName(), recordOp);
 
       if (!op) {
-        std::set<std::string> visibleFields;
-        getVisibleSymbols<VariableOp>(recordOp, visibleFields);
+        emitUndeclaredComponentError(pathEntry->getName(),
+                                     loc(pathEntry->getLocation()), recordOp);
 
-        emitIdentifierError(IdentifierError::IdentifierType::FIELD,
-                            pathEntry->getName(), visibleFields,
-                            pathEntry->getLocation());
         return std::nullopt;
       }
 

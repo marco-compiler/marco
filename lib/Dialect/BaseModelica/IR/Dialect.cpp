@@ -164,13 +164,13 @@ void walkClasses(mlir::Operation *root,
   while (!stack.empty()) {
     mlir::Operation *op = stack.pop_back_val();
 
-    if (op->hasTrait<ClassInterface::Trait>()) {
+    if (mlir::isa<ClassInterface>(op)) {
       callback(op);
     }
 
     for (auto &region : op->getRegions()) {
       for (auto &nestedOp : region.getOps()) {
-        if (nestedOp.hasTrait<ClassInterface::Trait>()) {
+        if (mlir::isa<ClassInterface>(nestedOp)) {
           stack.push_back(&nestedOp);
         }
       }

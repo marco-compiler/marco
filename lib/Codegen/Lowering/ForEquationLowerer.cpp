@@ -9,7 +9,7 @@ ForEquationLowerer::ForEquationLowerer(BridgeInterface *bridge)
     : Lowerer(bridge) {}
 
 bool ForEquationLowerer::lower(const ast::bmodelica::ForEquation &forEquation) {
-  VariablesSymbolTable::VariablesScope scope(getVariablesSymbolTable());
+  ScopedSymbolTable::Scope scope(getScopedSymbolTable());
   mlir::Location location = loc(forEquation.getLocation());
 
   // We need to keep track of the first loop in order to restore
@@ -69,9 +69,8 @@ bool ForEquationLowerer::lower(const ast::bmodelica::ForEquation &forEquation) {
     builder().setInsertionPointToStart(forEquationOp.bodyBlock());
 
     // Add the induction variable to the symbol table
-    llvm::StringRef name = forIndex->getName();
-    getVariablesSymbolTable().insert(
-        name, Reference::ssa(builder(), forEquationOp.induction()));
+    insertVariable(forIndex->getName(),
+                   Reference::ssa(builder(), forEquationOp.induction()));
 
     if (firstOp == nullptr) {
       firstOp = forEquationOp.getOperation();
