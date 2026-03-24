@@ -36,6 +36,7 @@ endmacro()
 macro(marco_add_tool name)
   add_llvm_executable(${name} ${ARGN})
   add_executable(marco::${name} ALIAS ${name})
+  add_dependencies(MARCO-Tools ${name})
 
   llvm_update_compile_flags(${name})
 

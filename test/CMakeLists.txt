@@ -21,8 +21,7 @@ configure_lit_site_cfg(
 #    ${CMAKE_CURRENT_SOURCE_DIR}/Unit/lit.cfg.py)
 
 set(MARCO_TEST_DEPENDS
-    marco
-    modelica-opt)
+    MARCO-Tools)
 
 #list(APPEND MARCO_TEST_DEPENDS MARCOUnitTests)
 
