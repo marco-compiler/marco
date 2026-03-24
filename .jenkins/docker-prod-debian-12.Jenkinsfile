@@ -26,6 +26,8 @@ node {
         " --build-arg LLVM_PARALLEL_LINK_JOBS=${LLVM_PARALLEL_LINK_JOBS}" +
         " --build-arg LLVM_BUILD_TYPE=Release" +
         " --build-arg LLVM_ENABLE_ASSERTIONS=OFF" +
+        " --build-arg LLVM_BUILD_LLVM_DYLIB=ON" +
+        " --build-arg LLVM_LINK_LLVM_DYLIB=ON" +
         " --build-arg MARCO_RUNTIME_BUILD_TYPE=Release" +
         " -f " + marcoSrcPath + "/.jenkins/" + devDockerfile +
         " " + marcoSrcPath + "/.jenkins";
