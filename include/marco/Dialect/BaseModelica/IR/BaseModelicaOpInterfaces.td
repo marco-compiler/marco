@@ -19,6 +19,16 @@ def ClassInterface : BaseModelica_OpInterface<"ClassInterface">
     let description = [{
         Interface for a Base Modelica class.
     }];
+
+    let methods = [
+        InterfaceMethod<"Get the class name.", "::llvm::StringRef", "getClassName">,
+        InterfaceMethod<
+            "Get the body region.", "::mlir::Region&", "getBody",
+            (ins), "", [{
+                return $_op->getRegion(0);
+            }]
+        >
+    ];
 }
 
 def VectorizableOpInterface : BaseModelica_OpInterface<"VectorizableOpInterface">

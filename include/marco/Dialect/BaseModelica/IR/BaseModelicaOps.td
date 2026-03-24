@@ -3393,8 +3393,7 @@ def BaseModelica_PackageOp : BaseModelica_Op<"package",
     NoRegionArguments,
     Symbol,
     SymbolTable,
-    NoTerminator,
-    DeclareOpInterfaceMethods<ClassInterface>]>
+    NoTerminator]>
 {
     let summary = "Modelica package.";
 
@@ -3433,8 +3432,7 @@ def BaseModelica_ModelOp : BaseModelica_Op<"model",
     SymbolTable,
     DeclareOpInterfaceMethods<RegionKindInterface>,
     SingleBlock,
-    NoTerminator,
-    DeclareOpInterfaceMethods<ClassInterface>]>
+    NoTerminator]>
 {
     let summary = "Modelica model.";
 
@@ -3525,8 +3523,7 @@ def BaseModelica_RecordOp : BaseModelica_Op<"record",
     Symbol,
     SymbolTable,
     SingleBlock,
-    NoTerminator,
-    DeclareOpInterfaceMethods<ClassInterface>]>
+    NoTerminator]>
 {
     let summary = "Modelica record.";
 
@@ -3573,8 +3570,7 @@ def BaseModelica_OperatorRecordOp : BaseModelica_Op<"operator_record",
     NoRegionArguments,
     Symbol,
     SymbolTable,
-    NoTerminator,
-    DeclareOpInterfaceMethods<ClassInterface>]>
+    NoTerminator]>
 {
     let summary = "Modelica operator record.";
 
@@ -4468,8 +4464,7 @@ def BaseModelica_FunctionOp : BaseModelica_Op<"function",
     Symbol,
     SymbolTable,
     SingleBlock,
-    NoTerminator,
-    DeclareOpInterfaceMethods<ClassInterface>]>
+    NoTerminator]>
 {
     let summary = "Modelica function.";
 
