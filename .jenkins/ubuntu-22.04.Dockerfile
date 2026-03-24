@@ -42,9 +42,6 @@ RUN chmod +x /tmp/install_marco_runtime.sh && \
     MARCO_RUNTIME_COMMIT=$(cat /tmp/version_marco_runtime.txt) \
     /tmp/install_marco_runtime.sh
 
-# Install additional MARCO dependencies.
-RUN pip install nltk
-
 # Reduce image size.
 RUN apt clean && \
     rm -rf /var/lib/apt/lists/*

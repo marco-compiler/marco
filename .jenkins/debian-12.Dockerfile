@@ -54,10 +54,6 @@ RUN chmod +x /tmp/install_marco_runtime.sh && \
     MARCO_RUNTIME_COMMIT=$(cat /tmp/version_marco_runtime.txt) \
     /tmp/install_marco_runtime.sh
 
-# Install additional MARCO dependencies.
-RUN apt update -y && \
-    apt install -y python3-nltk
-
 # Install OpenModelica.
 RUN apt update -y && \
     apt install -y autoconf automake libboost-all-dev expat default-jre uuid-dev
