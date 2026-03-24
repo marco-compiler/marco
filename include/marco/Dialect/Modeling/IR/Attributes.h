@@ -15,7 +15,7 @@
 #include "llvm/ADT/StringRef.h"
 
 #define GET_ATTRDEF_CLASSES
-#include "marco/Dialect/Modeling/IR/ModelingAttributes.h.inc"
+#include "marco/Dialect/Modeling/IR/Attributes.h.inc"
 
 namespace mlir {
 template <>

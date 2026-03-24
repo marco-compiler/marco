@@ -1,6 +1,6 @@
 add_mlir_dialect_library(MLIRKINSOL
     Attributes.cpp
-    KINSOL.cpp
+    Dialect.cpp
     Ops.cpp
     Types.cpp
 

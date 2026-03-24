@@ -1,8 +1,8 @@
-#include "marco/Dialect/Modelica/IR/Modelica.h"
+#include "marco/Dialect/Modelica/IR/Dialect.h"
 
 using namespace ::mlir::modelica;
 
-#include "marco/Dialect/Modelica/IR/Modelica.cpp.inc"
+#include "marco/Dialect/Modelica/IR/Dialect.cpp.inc"
 
 namespace mlir::modelica {
 //===-------------------------------------------------------------------===//

@@ -1,8 +1,8 @@
 #ifndef MARCO_CODEGEN_CONVERSION_BASEMODELICACOMMON_TYPECONVERTER_H
 #define MARCO_CODEGEN_CONVERSION_BASEMODELICACOMMON_TYPECONVERTER_H
 
-#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
-#include "marco/Dialect/IDA/IR/IDA.h"
+#include "marco/Dialect/BaseModelica/IR/Dialect.h"
+#include "marco/Dialect/IDA/IR/Dialect.h"
 #include "mlir/IR/BuiltinDialect.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/Transforms/DialectConversion.h"

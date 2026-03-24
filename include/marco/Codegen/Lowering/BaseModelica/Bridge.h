@@ -3,7 +3,7 @@
 
 #include "marco/AST/BaseModelica/AST.h"
 #include "marco/Codegen/Lowering/BaseModelica/Results.h"
-#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
+#include "marco/Dialect/BaseModelica/IR/Dialect.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/MLIRContext.h"
 #include <memory>

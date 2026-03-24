@@ -1,8 +1,8 @@
 #ifndef MARCO_DIALECT_BASEMODELICA_TRANSFORMS_SOLVERS_SUNDIALS_H
 #define MARCO_DIALECT_BASEMODELICA_TRANSFORMS_SOLVERS_SUNDIALS_H
 
-#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
-#include "marco/Dialect/SUNDIALS/IR/SUNDIALS.h"
+#include "marco/Dialect/BaseModelica/IR/Dialect.h"
+#include "marco/Dialect/SUNDIALS/IR/Dialect.h"
 
 namespace mlir::bmodelica {
 class PartialDerivativeTemplatesCollection {

@@ -1,5 +1,5 @@
 #include "marco/Dialect/BaseModelica/Transforms/OpDistribution.h"
-#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
+#include "marco/Dialect/BaseModelica/IR/Dialect.h"
 #include "mlir/IR/BuiltinOps.h"
 
 namespace mlir::bmodelica {

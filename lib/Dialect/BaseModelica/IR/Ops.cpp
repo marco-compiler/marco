@@ -1,5 +1,5 @@
 #include "marco/Dialect/BaseModelica/IR/Ops.h"
-#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
+#include "marco/Dialect/BaseModelica/IR/Dialect.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/OpImplementation.h"
@@ -21,7 +21,7 @@ namespace mlir::bmodelica {
 void BaseModelicaDialect::registerOperations() {
   addOperations<
 #define GET_OP_LIST
-#include "marco/Dialect/BaseModelica/IR/BaseModelicaOps.cpp.inc"
+#include "marco/Dialect/BaseModelica/IR/Ops.cpp.inc"
 
       >();
 }
@@ -145,7 +145,7 @@ void printEquationCallIndices(mlir::OpAsmPrinter &printer, mlir::Operation *op,
 } // namespace
 
 #define GET_OP_CLASSES
-#include "marco/Dialect/BaseModelica/IR/BaseModelicaOps.cpp.inc"
+#include "marco/Dialect/BaseModelica/IR/Ops.cpp.inc"
 
 namespace {
 template <typename T>

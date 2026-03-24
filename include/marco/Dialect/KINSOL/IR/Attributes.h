@@ -13,6 +13,6 @@ using MultidimensionalRangeAttr = ::mlir::modeling::MultidimensionalRangeAttr;
 } // namespace mlir::kinsol
 
 #define GET_ATTRDEF_CLASSES
-#include "marco/Dialect/KINSOL/IR/KINSOLAttributes.h.inc"
+#include "marco/Dialect/KINSOL/IR/Attributes.h.inc"
 
 #endif // MARCO_DIALECT_KINSOL_IR_ATTRIBUTES_H

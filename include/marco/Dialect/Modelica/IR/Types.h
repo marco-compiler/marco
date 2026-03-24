@@ -6,6 +6,6 @@
 #include "mlir/IR/Types.h"
 
 #define GET_TYPEDEF_CLASSES
-#include "marco/Dialect/Modelica/IR/ModelicaTypes.h.inc"
+#include "marco/Dialect/Modelica/IR/Types.h.inc"
 
 #endif // MARCO_DIALECT_MODELICA_IR_TYPES_H

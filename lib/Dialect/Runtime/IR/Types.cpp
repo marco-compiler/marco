@@ -1,4 +1,4 @@
-#include "marco/Dialect/Runtime/IR/Runtime.h"
+#include "marco/Dialect/Runtime/IR/Dialect.h"
 #include "llvm/ADT/TypeSwitch.h"
 
 using namespace ::mlir::runtime;
@@ -8,7 +8,7 @@ using namespace ::mlir::runtime;
 //===---------------------------------------------------------------------===//
 
 #define GET_TYPEDEF_CLASSES
-#include "marco/Dialect/Runtime/IR/RuntimeTypes.cpp.inc"
+#include "marco/Dialect/Runtime/IR/Types.cpp.inc"
 
 //===---------------------------------------------------------------------===//
 // RuntimeDialect
@@ -18,7 +18,7 @@ namespace mlir::runtime {
 void RuntimeDialect::registerTypes() {
   addTypes<
 #define GET_TYPEDEF_LIST
-#include "marco/Dialect/Runtime/IR/RuntimeTypes.cpp.inc"
+#include "marco/Dialect/Runtime/IR/Types.cpp.inc"
 
       >();
 }

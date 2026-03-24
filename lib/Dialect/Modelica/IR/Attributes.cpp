@@ -1,5 +1,5 @@
 #include "marco/Dialect/Modelica/IR/Attributes.h"
-#include "marco/Dialect/Modelica/IR/Modelica.h"
+#include "marco/Dialect/Modelica/IR/Dialect.h"
 #include "mlir/IR/DialectImplementation.h"
 #include "llvm/ADT/TypeSwitch.h"
 
@@ -10,7 +10,7 @@ using namespace ::mlir::modelica;
 //===----------------------------------------------------------------------===//
 
 #define GET_ATTRDEF_CLASSES
-#include "marco/Dialect/Modelica/IR/ModelicaAttributes.cpp.inc"
+#include "marco/Dialect/Modelica/IR/Attributes.cpp.inc"
 
 //===----------------------------------------------------------------------===//
 // Dialect
@@ -20,7 +20,7 @@ namespace mlir::modelica {
 void ModelicaDialect::registerAttributes() {
   addAttributes<
 #define GET_ATTRDEF_LIST
-#include "marco/Dialect/Modelica/IR/ModelicaAttributes.cpp.inc"
+#include "marco/Dialect/Modelica/IR/Attributes.cpp.inc"
 
       >();
 }

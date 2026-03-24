@@ -16,6 +16,6 @@ using MultidimensionalRangeAttr = ::mlir::modeling::MultidimensionalRangeAttr;
 } // namespace mlir::runtime
 
 #define GET_ATTRDEF_CLASSES
-#include "marco/Dialect/Runtime/IR/RuntimeAttributes.h.inc"
+#include "marco/Dialect/Runtime/IR/Attributes.h.inc"
 
 #endif // MARCO_DIALECT_RUNTIME_ATTRIBUTES_H

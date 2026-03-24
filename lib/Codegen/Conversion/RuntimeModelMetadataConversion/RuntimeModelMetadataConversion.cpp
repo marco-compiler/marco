@@ -1,5 +1,5 @@
 #include "marco/Codegen/Conversion/RuntimeModelMetadataConversion/RuntimeModelMetadataConversion.h"
-#include "marco/Dialect/Runtime/IR/Runtime.h"
+#include "marco/Dialect/Runtime/IR/Dialect.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"

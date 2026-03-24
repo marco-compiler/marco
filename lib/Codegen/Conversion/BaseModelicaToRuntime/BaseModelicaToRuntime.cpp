@@ -1,6 +1,6 @@
 #include "marco/Codegen/Conversion/BaseModelicaToRuntime/BaseModelicaToRuntime.h"
-#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
-#include "marco/Dialect/Runtime/IR/Runtime.h"
+#include "marco/Dialect/BaseModelica/IR/Dialect.h"
+#include "marco/Dialect/Runtime/IR/Dialect.h"
 #include "marco/VariableFilter/VariableFilter.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 

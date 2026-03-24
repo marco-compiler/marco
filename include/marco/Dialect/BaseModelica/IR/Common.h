@@ -1,7 +1,7 @@
 #ifndef MARCO_DIALECT_BASEMODELICA_IR_COMMON_H
 #define MARCO_DIALECT_BASEMODELICA_IR_COMMON_H
 
-#include "marco/Dialect/Modeling/IR/Modeling.h"
+#include "marco/Dialect/Modeling/IR/Dialect.h"
 
 namespace mlir::bmodelica {
 using Point = ::mlir::modeling::Point;

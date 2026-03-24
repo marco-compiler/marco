@@ -3,7 +3,7 @@
 
 using namespace ::mlir::bmodelica;
 
-#include "marco/Dialect/BaseModelica/IR/BaseModelicaOpInterfaces.cpp.inc"
+#include "marco/Dialect/BaseModelica/IR/OpInterfaces.cpp.inc"
 
 namespace mlir::bmodelica {
 uint64_t AdditionalInductions::addIterationSpace(IndexSet iterationSpace) {

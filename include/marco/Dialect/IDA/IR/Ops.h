@@ -14,6 +14,6 @@
 #include "marco/Dialect/IDA/IR/Types.h"
 
 #define GET_OP_CLASSES
-#include "marco/Dialect/IDA/IR/IDAOps.h.inc"
+#include "marco/Dialect/IDA/IR/Ops.h.inc"
 
 #endif // MARCO_DIALECT_IDA_IR_OPS_H

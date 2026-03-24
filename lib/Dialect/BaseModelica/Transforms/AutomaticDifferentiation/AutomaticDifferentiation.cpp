@@ -1,5 +1,5 @@
 #include "marco/Dialect/BaseModelica/Transforms/AutomaticDifferentiation.h"
-#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
+#include "marco/Dialect/BaseModelica/IR/Dialect.h"
 #include "marco/Dialect/BaseModelica/Transforms/AutomaticDifferentiation/ForwardAD.h"
 
 namespace mlir::bmodelica {

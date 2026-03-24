@@ -8,7 +8,7 @@
 #include "mlir/IR/OpDefinition.h"
 
 #define GET_OP_CLASSES
-#include "marco/Dialect/Modeling/IR/ModelingOps.h.inc"
+#include "marco/Dialect/Modeling/IR/Ops.h.inc"
 
 namespace mlir::modeling {
 bool parseIndexSet(mlir::OpAsmParser &parser, IndexSet &prop);

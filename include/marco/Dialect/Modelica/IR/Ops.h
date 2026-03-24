@@ -9,9 +9,9 @@
 #include "mlir/IR/OpDefinition.h"
 
 #define GET_OP_FWD_DEFINES
-#include "marco/Dialect/Modelica/IR/ModelicaOps.h.inc"
+#include "marco/Dialect/Modelica/IR/Ops.h.inc"
 
 #define GET_OP_CLASSES
-#include "marco/Dialect/Modelica/IR/ModelicaOps.h.inc"
+#include "marco/Dialect/Modelica/IR/Ops.h.inc"
 
 #endif // MARCO_DIALECT_MODELICA_IR_OPS_H

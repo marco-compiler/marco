@@ -106,6 +106,6 @@ llvm::hash_code hash_value(const InverseFunctionsMap &map);
 } // namespace mlir::bmodelica
 
 #define GET_ATTRDEF_CLASSES
-#include "marco/Dialect/BaseModelica/IR/BaseModelicaAttributes.h.inc"
+#include "marco/Dialect/BaseModelica/IR/Attributes.h.inc"
 
 #endif // MARCO_DIALECT_BASEMODELICA_IR_ATTRIBUTES_H

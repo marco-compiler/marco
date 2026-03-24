@@ -1,5 +1,5 @@
 #include "marco/Dialect/Modelica/IR/Types.h"
-#include "marco/Dialect/Modelica/IR/Modelica.h"
+#include "marco/Dialect/Modelica/IR/Dialect.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinDialect.h"
 #include "mlir/IR/DialectImplementation.h"
@@ -12,7 +12,7 @@ using namespace ::mlir::modelica;
 //===---------------------------------------------------------------------===//
 
 #define GET_TYPEDEF_CLASSES
-#include "marco/Dialect/Modelica/IR/ModelicaTypes.cpp.inc"
+#include "marco/Dialect/Modelica/IR/Types.cpp.inc"
 
 //===---------------------------------------------------------------------===//
 // Dialect
@@ -22,7 +22,7 @@ namespace mlir::modelica {
 void ModelicaDialect::registerTypes() {
   addTypes<
 #define GET_TYPEDEF_LIST
-#include "marco/Dialect/Modelica/IR/ModelicaTypes.cpp.inc"
+#include "marco/Dialect/Modelica/IR/Types.cpp.inc"
 
       >();
 }

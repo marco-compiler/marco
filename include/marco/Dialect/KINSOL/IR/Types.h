@@ -4,6 +4,6 @@
 #include "mlir/IR/Types.h"
 
 #define GET_TYPEDEF_CLASSES
-#include "marco/Dialect/KINSOL/IR/KINSOLTypes.h.inc"
+#include "marco/Dialect/KINSOL/IR/Types.h.inc"
 
 #endif // MARCO_DIALECT_KINSOL_IR_TYPES_H

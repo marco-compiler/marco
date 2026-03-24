@@ -1,5 +1,5 @@
 #include "marco/Dialect/BaseModelica/Transforms/DerivativesMaterialization.h"
-#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
+#include "marco/Dialect/BaseModelica/IR/Dialect.h"
 #include "mlir/IR/Threading.h"
 
 namespace mlir::bmodelica {

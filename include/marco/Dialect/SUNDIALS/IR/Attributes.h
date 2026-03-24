@@ -13,6 +13,6 @@ using MultidimensionalRangeAttr = ::mlir::modeling::MultidimensionalRangeAttr;
 } // namespace mlir::sundials
 
 #define GET_ATTRDEF_CLASSES
-#include "marco/Dialect/SUNDIALS/IR/SUNDIALSAttributes.h.inc"
+#include "marco/Dialect/SUNDIALS/IR/Attributes.h.inc"
 
 #endif // MARCO_DIALECT_SUNDIALS_IR_ATTRIBUTES_H

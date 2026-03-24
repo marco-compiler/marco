@@ -1,7 +1,7 @@
 #define DEBUG_TYPE "scc-detection"
 
 #include "marco/Dialect/BaseModelica/Transforms/SCCDetection.h"
-#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
+#include "marco/Dialect/BaseModelica/IR/Dialect.h"
 #include "marco/Dialect/BaseModelica/Transforms/Modeling/Bridge.h"
 #include "marco/Modeling/DependencyGraph.h"
 #include "mlir/Transforms/DialectConversion.h"

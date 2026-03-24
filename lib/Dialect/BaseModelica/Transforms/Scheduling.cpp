@@ -2,7 +2,7 @@
 
 #include "marco/Dialect/BaseModelica/Transforms/Scheduling.h"
 #include "marco/Dialect/BaseModelica/Analysis/VariableAccessAnalysis.h"
-#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
+#include "marco/Dialect/BaseModelica/IR/Dialect.h"
 #include "marco/Dialect/BaseModelica/Transforms/Modeling/Bridge.h"
 #include "marco/Modeling/Scheduling.h"
 #include "llvm/Support/Debug.h"

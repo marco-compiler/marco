@@ -1,7 +1,7 @@
 #ifndef MARCO_DIALECT_BASEMODELICA_ANALYSIS_VARIABLEACCESSANALYSIS_H
 #define MARCO_DIALECT_BASEMODELICA_ANALYSIS_VARIABLEACCESSANALYSIS_H
 
-#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
+#include "marco/Dialect/BaseModelica/IR/Dialect.h"
 #include "mlir/Pass/AnalysisManager.h"
 
 namespace mlir::bmodelica {

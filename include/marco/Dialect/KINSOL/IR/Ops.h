@@ -14,6 +14,6 @@
 #include "marco/Dialect/KINSOL/IR/Types.h"
 
 #define GET_OP_CLASSES
-#include "marco/Dialect/KINSOL/IR/KINSOLOps.h.inc"
+#include "marco/Dialect/KINSOL/IR/Ops.h.inc"
 
 #endif // MARCO_DIALECT_KINSOL_IR_OPS_H
