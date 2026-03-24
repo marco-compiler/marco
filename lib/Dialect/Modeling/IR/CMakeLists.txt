@@ -1,6 +1,6 @@
 add_mlir_dialect_library(MLIRModeling
     Attributes.cpp
-    Modeling.cpp
+    Dialect.cpp
     Ops.cpp
     Properties.cpp
 

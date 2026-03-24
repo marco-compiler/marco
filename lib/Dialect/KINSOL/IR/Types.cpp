@@ -1,5 +1,5 @@
 #include "marco/Dialect/KINSOL/IR/Types.h"
-#include "marco/Dialect/KINSOL/IR/KINSOL.h"
+#include "marco/Dialect/KINSOL/IR/Dialect.h"
 #include "llvm/ADT/TypeSwitch.h"
 
 using namespace ::mlir::kinsol;
@@ -9,4 +9,4 @@ using namespace ::mlir::kinsol;
 //===---------------------------------------------------------------------===//
 
 #define GET_TYPEDEF_CLASSES
-#include "marco/Dialect/KINSOL/IR/KINSOLTypes.cpp.inc"
+#include "marco/Dialect/KINSOL/IR/Types.cpp.inc"

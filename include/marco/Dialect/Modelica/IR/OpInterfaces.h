@@ -5,6 +5,6 @@
 
 namespace mlir::modelica {} // namespace mlir::modelica
 
-#include "marco/Dialect/Modelica/IR/ModelicaOpInterfaces.h.inc"
+#include "marco/Dialect/Modelica/IR/OpInterfaces.h.inc"
 
 #endif // MARCO_DIALECT_MODELICA_IR_OPINTERFACES_H

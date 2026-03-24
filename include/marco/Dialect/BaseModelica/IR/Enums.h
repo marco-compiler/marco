@@ -3,6 +3,6 @@
 
 #include "mlir/IR/BuiltinAttributes.h"
 
-#include "marco/Dialect/BaseModelica/IR/BaseModelicaEnums.h.inc"
+#include "marco/Dialect/BaseModelica/IR/Enums.h.inc"
 
 #endif // MARCO_DIALECT_BASEMODELICA_IR_ENUMS_H

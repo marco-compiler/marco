@@ -1,6 +1,6 @@
 #include "marco/Dialect/BaseModelica/Transforms/VariablesPromotion.h"
 #include "marco/Dialect/BaseModelica/Analysis/VariableAccessAnalysis.h"
-#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
+#include "marco/Dialect/BaseModelica/IR/Dialect.h"
 #include "marco/Modeling/Dependency.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/STLExtras.h"

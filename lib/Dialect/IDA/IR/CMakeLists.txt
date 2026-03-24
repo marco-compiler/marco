@@ -1,6 +1,6 @@
 add_mlir_dialect_library(MLIRIDA
     Attributes.cpp
-    IDA.cpp
+    Dialect.cpp
     Ops.cpp
     Types.cpp
 

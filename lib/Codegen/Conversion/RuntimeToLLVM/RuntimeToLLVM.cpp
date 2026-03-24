@@ -1,7 +1,7 @@
 #include "marco/Codegen/Conversion/RuntimeToLLVM/RuntimeToLLVM.h"
 #include "marco/Codegen/Conversion/RuntimeCommon/Mangling.h"
 #include "marco/Codegen/Conversion/RuntimeToLLVM/LLVMTypeConverter.h"
-#include "marco/Dialect/Runtime/IR/Runtime.h"
+#include "marco/Dialect/Runtime/IR/Dialect.h"
 #include "mlir/Conversion/ConvertToLLVM/ToLLVMInterface.h"
 #include "mlir/Conversion/LLVMCommon/Pattern.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"

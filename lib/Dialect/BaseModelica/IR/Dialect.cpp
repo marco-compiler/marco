@@ -1,10 +1,10 @@
-#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
+#include "marco/Dialect/BaseModelica/IR/Dialect.h"
 #include "mlir/Interfaces/FoldInterfaces.h"
 #include "mlir/Transforms/InliningUtils.h"
 
 using namespace ::mlir::bmodelica;
 
-#include "marco/Dialect/BaseModelica/IR/BaseModelica.cpp.inc"
+#include "marco/Dialect/BaseModelica/IR/Dialect.cpp.inc"
 
 namespace {
 struct BaseModelicaOpAsmDialectInterface : public mlir::OpAsmDialectInterface {

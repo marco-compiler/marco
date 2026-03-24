@@ -1,7 +1,7 @@
 #define DEBUG_TYPE "variables-pruning"
 
 #include "marco/Dialect/BaseModelica/Transforms/VariablesPruning.h"
-#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
+#include "marco/Dialect/BaseModelica/IR/Dialect.h"
 #include "marco/Dialect/BaseModelica/Transforms/Modeling/Bridge.h"
 #include "marco/Modeling/ArrayVariablesDependencyGraph.h"
 #include "marco/Modeling/SingleEntryDigraph.h"

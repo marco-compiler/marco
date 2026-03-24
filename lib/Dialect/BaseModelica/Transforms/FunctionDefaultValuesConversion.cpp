@@ -1,6 +1,6 @@
 #include "marco/Dialect/BaseModelica/Transforms/FunctionDefaultValuesConversion.h"
-#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "marco/Dialect/BaseModelica/IR/DefaultValuesDependencyGraph.h"
+#include "marco/Dialect/BaseModelica/IR/Dialect.h"
 
 namespace mlir::bmodelica {
 #define GEN_PASS_DEF_FUNCTIONDEFAULTVALUESCONVERSIONPASS

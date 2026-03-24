@@ -1,5 +1,5 @@
 #include "marco/Dialect/IDA/IR/Attributes.h"
-#include "marco/Dialect/IDA/IR/IDA.h"
+#include "marco/Dialect/IDA/IR/Dialect.h"
 #include "llvm/ADT/TypeSwitch.h"
 
 using namespace ::mlir::ida;
@@ -9,4 +9,4 @@ using namespace ::mlir::ida;
 //===---------------------------------------------------------------------===//
 
 #define GET_ATTRDEF_CLASSES
-#include "marco/Dialect/IDA/IR/IDAAttributes.cpp.inc"
+#include "marco/Dialect/IDA/IR/Attributes.cpp.inc"

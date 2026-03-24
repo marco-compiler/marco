@@ -1,4 +1,4 @@
-#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
+#include "marco/Dialect/BaseModelica/IR/Dialect.h"
 #include "marco/Dialect/BaseModelica/Transforms/AllInterfaces.h"
 #include "marco/JIT/EngineBuilder.h"
 #include "mlir/Dialect/Bufferization/IR/Bufferization.h"

@@ -1,5 +1,5 @@
 #include "marco/Dialect/BaseModelica/IR/Attributes.h"
-#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
+#include "marco/Dialect/BaseModelica/IR/Dialect.h"
 #include "mlir/IR/DialectImplementation.h"
 #include "llvm/ADT/TypeSwitch.h"
 
@@ -51,7 +51,7 @@ mlir::AsmPrinter &operator<<(mlir::AsmPrinter &printer,
 //===----------------------------------------------------------------------===//
 
 #define GET_ATTRDEF_CLASSES
-#include "marco/Dialect/BaseModelica/IR/BaseModelicaAttributes.cpp.inc"
+#include "marco/Dialect/BaseModelica/IR/Attributes.cpp.inc"
 
 //===----------------------------------------------------------------------===//
 // BaseModelicaDialect
@@ -61,7 +61,7 @@ namespace mlir::bmodelica {
 void BaseModelicaDialect::registerAttributes() {
   addAttributes<
 #define GET_ATTRDEF_LIST
-#include "marco/Dialect/BaseModelica/IR/BaseModelicaAttributes.cpp.inc"
+#include "marco/Dialect/BaseModelica/IR/Attributes.cpp.inc"
 
       >();
 }

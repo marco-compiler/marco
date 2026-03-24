@@ -24,9 +24,9 @@
 #include "mlir/Interfaces/ViewLikeInterface.h"
 
 #define GET_OP_FWD_DEFINES
-#include "marco/Dialect/BaseModelica/IR/BaseModelicaOps.h.inc"
+#include "marco/Dialect/BaseModelica/IR/Ops.h.inc"
 
 #define GET_OP_CLASSES
-#include "marco/Dialect/BaseModelica/IR/BaseModelicaOps.h.inc"
+#include "marco/Dialect/BaseModelica/IR/Ops.h.inc"
 
 #endif // MARCO_DIALECT_BASEMODELICA_IR_OPS_H

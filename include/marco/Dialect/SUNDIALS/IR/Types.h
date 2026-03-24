@@ -4,6 +4,6 @@
 #include "mlir/IR/Types.h"
 
 #define GET_TYPEDEF_CLASSES
-#include "marco/Dialect/SUNDIALS/IR/SUNDIALSTypes.h.inc"
+#include "marco/Dialect/SUNDIALS/IR/Types.h.inc"
 
 #endif // MARCO_DIALECT_SUNDIALS_IR_TYPES_H

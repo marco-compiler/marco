@@ -3,6 +3,6 @@
 
 #include "mlir/IR/Dialect.h"
 
-#include "marco/Dialect/BaseModelica/IR/BaseModelicaTypeInterfaces.h.inc"
+#include "marco/Dialect/BaseModelica/IR/TypeInterfaces.h.inc"
 
 #endif // MARCO_DIALECT_BASEMODELICA_IR_TYPEINTERFACES_H

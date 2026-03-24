@@ -1,8 +1,8 @@
 #define DEBUG_TYPE "euler-forward"
 
 #include "marco/Dialect/BaseModelica/Transforms/EulerForward.h"
-#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
-#include "marco/Dialect/Runtime/IR/Runtime.h"
+#include "marco/Dialect/BaseModelica/IR/Dialect.h"
+#include "marco/Dialect/Runtime/IR/Dialect.h"
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include "llvm/Support/Debug.h"

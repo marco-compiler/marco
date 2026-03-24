@@ -1,7 +1,7 @@
 #include "marco/Dialect/BaseModelica/Transforms/EquationTemplatesCreation.h"
 
 #include "marco/AST/BaseModelica/Equation.h"
-#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
+#include "marco/Dialect/BaseModelica/IR/Dialect.h"
 
 namespace mlir::bmodelica {
 #define GEN_PASS_DEF_EQUATIONTEMPLATESCREATIONPASS

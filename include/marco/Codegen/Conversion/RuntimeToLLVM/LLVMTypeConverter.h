@@ -1,7 +1,7 @@
 #ifndef MARCO_CODEGEN_CONVERSION_RUNTIMETOLLVM_LLVMTYPECONVERTER_H
 #define MARCO_CODEGEN_CONVERSION_RUNTIMETOLLVM_LLVMTYPECONVERTER_H
 
-#include "marco/Dialect/Runtime/IR/Runtime.h"
+#include "marco/Dialect/Runtime/IR/Dialect.h"
 #include "mlir/Conversion/LLVMCommon/TypeConverter.h"
 
 namespace mlir::runtime {

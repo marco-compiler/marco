@@ -1,5 +1,5 @@
 #include "marco/Codegen/Conversion/BaseModelicaToCF/BaseModelicaToCF.h"
-#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
+#include "marco/Dialect/BaseModelica/IR/Dialect.h"
 #include "marco/Dialect/BaseModelica/IR/VariablesDimensionsDependencyGraph.h"
 #include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"

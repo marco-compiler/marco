@@ -5,7 +5,7 @@
 #include "marco/Codegen/Lowering/BaseModelica/BridgeInterface.h"
 #include "marco/Codegen/Lowering/BaseModelica/LoweringContext.h"
 #include "marco/Codegen/Lowering/BaseModelica/Results.h"
-#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
+#include "marco/Dialect/BaseModelica/IR/Dialect.h"
 #include "mlir/IR/Builders.h"
 
 namespace marco::codegen::lowering::bmodelica {

@@ -1,5 +1,5 @@
 #include "marco/Dialect/Runtime/IR/Ops.h"
-#include "marco/Dialect/Runtime/IR/Runtime.h"
+#include "marco/Dialect/Runtime/IR/Dialect.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/OpImplementation.h"
 #include "mlir/Interfaces/FunctionImplementation.h"
@@ -65,7 +65,7 @@ void printSchedulerEquationIndices(mlir::OpAsmPrinter &printer,
 } // namespace
 
 #define GET_OP_CLASSES
-#include "marco/Dialect/Runtime/IR/RuntimeOps.cpp.inc"
+#include "marco/Dialect/Runtime/IR/Ops.cpp.inc"
 
 //===---------------------------------------------------------------------===//
 // InitFunctionOp

@@ -1,6 +1,6 @@
 #include "marco/Dialect/BaseModelica/Transforms/SchedulersInstantiation.h"
-#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
-#include "marco/Dialect/Runtime/IR/Runtime.h"
+#include "marco/Dialect/BaseModelica/IR/Dialect.h"
+#include "marco/Dialect/Runtime/IR/Dialect.h"
 
 namespace mlir::bmodelica {
 #define GEN_PASS_DEF_SCHEDULERSINSTANTIATIONPASS

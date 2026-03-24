@@ -115,6 +115,6 @@ private:
 } // namespace ad::forward
 } // namespace mlir::bmodelica
 
-#include "marco/Dialect/BaseModelica/IR/BaseModelicaOpInterfaces.h.inc"
+#include "marco/Dialect/BaseModelica/IR/OpInterfaces.h.inc"
 
 #endif // MARCO_DIALECT_BASEMODELICA_IR_OPINTERFACES_H

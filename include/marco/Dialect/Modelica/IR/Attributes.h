@@ -8,6 +8,6 @@
 namespace mlir::modelica {} // namespace mlir::modelica
 
 #define GET_ATTRDEF_CLASSES
-#include "marco/Dialect/Modelica/IR/ModelicaAttributes.h.inc"
+#include "marco/Dialect/Modelica/IR/Attributes.h.inc"
 
 #endif // MARCO_DIALECT_MODELICA_IR_ATTRIBUTES_H

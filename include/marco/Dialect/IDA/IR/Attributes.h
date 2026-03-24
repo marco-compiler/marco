@@ -13,6 +13,6 @@ using MultidimensionalRangeAttr = ::mlir::modeling::MultidimensionalRangeAttr;
 } // namespace mlir::ida
 
 #define GET_ATTRDEF_CLASSES
-#include "marco/Dialect/IDA/IR/IDAAttributes.h.inc"
+#include "marco/Dialect/IDA/IR/Attributes.h.inc"
 
 #endif // MARCO_DIALECT_IDA_IR_ATTRIBUTES_H

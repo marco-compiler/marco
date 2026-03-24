@@ -1,5 +1,5 @@
 #include "marco/Dialect/Modeling/IR/Attributes.h"
-#include "marco/Dialect/Modeling/IR/Modeling.h"
+#include "marco/Dialect/Modeling/IR/Dialect.h"
 #include "llvm/ADT/TypeSwitch.h"
 
 using namespace ::mlir::modeling;
@@ -144,7 +144,7 @@ operator<<(mlir::AsmPrinter &printer,
 //===---------------------------------------------------------------------===//
 
 #define GET_ATTRDEF_CLASSES
-#include "marco/Dialect/Modeling/IR/ModelingAttributes.cpp.inc"
+#include "marco/Dialect/Modeling/IR/Attributes.cpp.inc"
 
 //===---------------------------------------------------------------------===//
 // ModelingDialect
@@ -154,7 +154,7 @@ namespace mlir::modeling {
 void ModelingDialect::registerAttributes() {
   addAttributes<
 #define GET_ATTRDEF_LIST
-#include "marco/Dialect/Modeling/IR/ModelingAttributes.cpp.inc"
+#include "marco/Dialect/Modeling/IR/Attributes.cpp.inc"
       >();
 }
 } // namespace mlir::modeling

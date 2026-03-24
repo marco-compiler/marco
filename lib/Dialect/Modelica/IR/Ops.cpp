@@ -1,5 +1,5 @@
 #include "marco/Dialect/Modelica/IR/Ops.h"
-#include "marco/Dialect/Modelica/IR/Modelica.h"
+#include "marco/Dialect/Modelica/IR/Dialect.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/OpImplementation.h"
@@ -14,7 +14,7 @@ namespace mlir::modelica {
 void ModelicaDialect::registerOperations() {
   addOperations<
 #define GET_OP_LIST
-#include "marco/Dialect/Modelica/IR/ModelicaOps.cpp.inc"
+#include "marco/Dialect/Modelica/IR/Ops.cpp.inc"
       >();
 }
 } // namespace mlir::modelica

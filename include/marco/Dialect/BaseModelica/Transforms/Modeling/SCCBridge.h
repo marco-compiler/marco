@@ -2,7 +2,7 @@
 #define MARCO_DIALECT_BASEMODELICA_TRANSFORMS_MODELING_SCCBRIDGE_H
 
 #include "marco/Dialect/BaseModelica/Analysis/VariableAccessAnalysis.h"
-#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
+#include "marco/Dialect/BaseModelica/IR/Dialect.h"
 #include "marco/Dialect/BaseModelica/Transforms/Modeling/EquationBridge.h"
 #include "marco/Dialect/BaseModelica/Transforms/Modeling/VariableBridge.h"
 #include "llvm/ADT/DenseMap.h"

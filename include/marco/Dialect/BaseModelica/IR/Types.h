@@ -52,7 +52,7 @@ public:
 } // namespace mlir::bmodelica
 
 #define GET_TYPEDEF_CLASSES
-#include "marco/Dialect/BaseModelica/IR/BaseModelicaTypes.h.inc"
+#include "marco/Dialect/BaseModelica/IR/Types.h.inc"
 
 namespace mlir::bmodelica {
 //===-------------------------------------------------------------------===//

@@ -1,3 +1,3 @@
 #include "marco/Dialect/BaseModelica/IR/AttrInterfaces.h"
 
-#include "marco/Dialect/BaseModelica/IR/BaseModelicaAttrInterfaces.cpp.inc"
+#include "marco/Dialect/BaseModelica/IR/AttrInterfaces.cpp.inc"

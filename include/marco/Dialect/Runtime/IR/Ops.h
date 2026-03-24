@@ -16,6 +16,6 @@
 #include "marco/Dialect/Runtime/IR/Types.h"
 
 #define GET_OP_CLASSES
-#include "marco/Dialect/Runtime/IR/RuntimeOps.h.inc"
+#include "marco/Dialect/Runtime/IR/Ops.h.inc"
 
 #endif // MARCO_DIALECT_RUNTIME_OPS_H

@@ -1,7 +1,7 @@
 #include "marco/Codegen/Conversion/BaseModelicaToLLVM/BaseModelicaToLLVM.h"
 #include "marco/Codegen/Conversion/BaseModelicaCommon/LLVMTypeConverter.h"
 #include "marco/Codegen/Conversion/RuntimeCommon/Mangling.h"
-#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
+#include "marco/Dialect/BaseModelica/IR/Dialect.h"
 #include "mlir/Conversion/ConvertToLLVM/ToLLVMInterface.h"
 #include "mlir/Conversion/LLVMCommon/Pattern.h"
 #include "mlir/Dialect/LLVMIR/FunctionCallUtils.h"

@@ -14,6 +14,6 @@
 #include "marco/Dialect/SUNDIALS/IR/Types.h"
 
 #define GET_OP_CLASSES
-#include "marco/Dialect/SUNDIALS/IR/SUNDIALSOps.h.inc"
+#include "marco/Dialect/SUNDIALS/IR/Ops.h.inc"
 
 #endif // MARCO_DIALECT_SUNDIALS_IR_OPS_H

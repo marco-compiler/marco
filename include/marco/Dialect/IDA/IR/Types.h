@@ -4,6 +4,6 @@
 #include "mlir/IR/Types.h"
 
 #define GET_TYPEDEF_CLASSES
-#include "marco/Dialect/IDA/IR/IDATypes.h.inc"
+#include "marco/Dialect/IDA/IR/Types.h.inc"
 
 #endif // MARCO_DIALECT_IDA_IR_TYPES_H
