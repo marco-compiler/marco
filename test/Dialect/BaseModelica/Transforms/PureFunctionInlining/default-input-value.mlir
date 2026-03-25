@@ -14,7 +14,7 @@ bmodelica.function @Foo attributes {inline = true} {
         %0 = bmodelica.variable.get @x : !bmodelica.real
         %1 = bmodelica.variable.get @y : !bmodelica.real
         %2 = bmodelica.add %0, %1 : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
-        bmodelica.variable_set @z, %2 : !bmodelica.real
+        bmodelica.variable.set @z, %2 : !bmodelica.real
     }
 }
 
@@ -60,7 +60,7 @@ bmodelica.function @Foo attributes {inline = true} {
         %0 = bmodelica.variable.get @x : !bmodelica.real
         %1 = bmodelica.variable.get @y : !bmodelica.real
         %2 = bmodelica.add %0, %1 : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
-        bmodelica.variable_set @z, %2 : !bmodelica.real
+        bmodelica.variable.set @z, %2 : !bmodelica.real
     }
 }
 

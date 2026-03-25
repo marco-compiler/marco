@@ -23,7 +23,7 @@ bmodelica.function @scalarIn1DVar {
     // CHECK-DAG:   %[[value:.*]] = bmodelica.constant #bmodelica<real 1.000000e+00>
     // CHECK-DAG:   %[[x:.*]] = bmodelica.variable.get @r.x : tensor<2x!bmodelica.real>
     // CHECK:       %[[x_insert:.*]] = bmodelica.tensor_insert %[[value]], %[[x]][%[[index]]]
-    // CHECK:       bmodelica.variable_set @r.x, %[[x_insert]]
+    // CHECK:       bmodelica.variable.set @r.x, %[[x_insert]]
 }
 
 // -----
@@ -51,7 +51,7 @@ bmodelica.function @scalarIn2DVar {
     // CHECK-DAG:   %[[value:.*]] = bmodelica.constant #bmodelica<real 1.000000e+00>
     // CHECK-DAG:   %[[x:.*]] = bmodelica.variable.get @r.x : tensor<2x3x!bmodelica.real>
     // CHECK:       %[[x_insert:.*]] = bmodelica.tensor_insert %[[value]], %[[x]][%[[index]], %[[index]]]
-    // CHECK:       bmodelica.variable_set @r.x, %[[x_insert]]
+    // CHECK:       bmodelica.variable.set @r.x, %[[x_insert]]
 }
 
 // -----
@@ -75,7 +75,7 @@ bmodelica.function @noSubscripts {
 
     // CHECK:       bmodelica.algorithm
     // CHECK:       %[[value:.*]] = tensor.empty()
-    // CHECK:       bmodelica.variable_set @r.x, %[[value]]
+    // CHECK:       bmodelica.variable.set @r.x, %[[value]]
 }
 
 // -----
@@ -104,7 +104,7 @@ bmodelica.function @subscriptOnRecord {
     // CHECK-DAG:   %[[value:.*]] = tensor.empty()
     // CHECK-DAG:   %[[x:.*]] = bmodelica.variable.get @r.x : tensor<2x3x!bmodelica.real>
     // CHECK:       %[[x_insert:.*]] = bmodelica.tensor_insert_slice %[[value]], %[[x]][%[[index]], %[[unbounded]]]
-    // CHECK:       bmodelica.variable_set @r.x, %[[x_insert]]
+    // CHECK:       bmodelica.variable.set @r.x, %[[x_insert]]
 }
 
 // -----
@@ -132,7 +132,7 @@ bmodelica.function @partialSubscriptOnRecord {
     // CHECK-DAG:   %[[value:.*]] = tensor.empty()
     // CHECK-DAG:   %[[x:.*]] = bmodelica.variable.get @r.x : tensor<2x3x!bmodelica.real>
     // CHECK:       %[[x_insert:.*]] = bmodelica.tensor_insert_slice %[[value]], %[[x]][%[[index]]]
-    // CHECK:       bmodelica.variable_set @r.x, %[[x_insert]]
+    // CHECK:       bmodelica.variable.set @r.x, %[[x_insert]]
 }
 
 // -----
@@ -161,5 +161,5 @@ bmodelica.function @componentSubscript {
     // CHECK-DAG:   %[[value:.*]] = tensor.empty()
     // CHECK-DAG:   %[[x:.*]] = bmodelica.variable.get @r.x : tensor<2x3x!bmodelica.real>
     // CHECK:       %[[x_insert:.*]] = bmodelica.tensor_insert_slice %[[value]], %[[x]][%[[unbounded]], %[[index]]]
-    // CHECK:       bmodelica.variable_set @r.x, %[[x_insert]]
+    // CHECK:       bmodelica.variable.set @r.x, %[[x_insert]]
 }

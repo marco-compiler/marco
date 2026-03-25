@@ -21,7 +21,7 @@ bmodelica.function @callee {
 
     bmodelica.algorithm {
         %0 = bmodelica.variable.get @x : !bmodelica.real
-        bmodelica.variable_set @y, %0 : !bmodelica.real
+        bmodelica.variable.set @y, %0 : !bmodelica.real
     }
 }
 

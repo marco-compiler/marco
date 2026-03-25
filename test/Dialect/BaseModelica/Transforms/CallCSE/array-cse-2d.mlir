@@ -10,7 +10,7 @@ module @Test {
             %0 = bmodelica.variable.get @x : i32
             %1 = bmodelica.variable.get @y : i32
             %2 = bmodelica.add %0, %1 : (i32, i32) -> i32
-            bmodelica.variable_set @z, %2 : i32
+            bmodelica.variable.set @z, %2 : i32
         }
     }
 

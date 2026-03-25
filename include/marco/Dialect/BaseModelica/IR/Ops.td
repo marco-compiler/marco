@@ -1254,7 +1254,7 @@ def BaseModelica_VariableGetOp : BaseModelica_Op<"variable.get",
     ];
 }
 
-def Modelica_VariableSetOp : BaseModelica_Op<"variable_set",
+def Modelica_VariableSetOp : BaseModelica_Op<"variable.set",
     [DeclareOpInterfaceMethods<SymbolUserOpInterface>]>
 {
     let summary = "Store data into a class variable.";
@@ -1265,9 +1265,9 @@ def Modelica_VariableSetOp : BaseModelica_Op<"variable_set",
         Example with scalar variable:
 
         ```mlir
-        modelica.variable @x : !modelica.variable<!modelica.real, parameter>
-        %0 = modelica.constant #modelica<real 0.0>
-        modelica.variable_store @x, %0 : !modelica.real
+        bmodelica.variable @x : !bmodelica.variable<!bmodelica.real, parameter>
+        %0 = bmodelica.constant #bmodelica<real 0.0>
+        bmodelica.variable.set @x, %0 : !bmodelica.real
         ```
 
         Example with array variable:

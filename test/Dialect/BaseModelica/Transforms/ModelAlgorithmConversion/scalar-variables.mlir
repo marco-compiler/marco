@@ -18,7 +18,7 @@ bmodelica.model @scalarVariables {
     bmodelica.dynamic {
         bmodelica.algorithm {
             %0 = bmodelica.variable.get @x : !bmodelica.int
-            bmodelica.variable_set @y, %0 : !bmodelica.int
+            bmodelica.variable.set @y, %0 : !bmodelica.int
         }
     }
 
@@ -48,5 +48,5 @@ bmodelica.model @scalarVariables {
 
 // CHECK:       bmodelica.algorithm {
 // CHECK-NEXT:      %0 = bmodelica.variable.get @x
-// CHECK-NEXT:      bmodelica.variable_set @y, %0
+// CHECK-NEXT:      bmodelica.variable.set @y, %0
 // CHECK-NEXT:  }

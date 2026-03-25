@@ -4,7 +4,7 @@
 // CHECK:           bmodelica.algorithm {
 // CHECK-NEXT:          %[[r:.*]] = bmodelica.variable.get @r : !bmodelica<record @R>
 // CHECK-NEXT:          %[[r_x:.*]] = bmodelica.component_get %[[r]], @x : !bmodelica<record @R> -> !bmodelica.real
-// CHECK-NEXT:          bmodelica.variable_set @x, %[[r_x]]
+// CHECK-NEXT:          bmodelica.variable.set @x, %[[r_x]]
 // CHECK-NEXT:      }
 // CHECK-NEXT:  }
 

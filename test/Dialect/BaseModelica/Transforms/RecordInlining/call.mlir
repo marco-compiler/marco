@@ -21,7 +21,7 @@ bmodelica.function @inputRecordFunction {
         %1 = bmodelica.component_get %0, @x : !bmodelica<record @R> -> !bmodelica.real
         %2 = bmodelica.component_get %0, @y : !bmodelica<record @R> -> !bmodelica.real
         %3 = bmodelica.add %1, %2 : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
-        bmodelica.variable_set @s, %3 : !bmodelica.real
+        bmodelica.variable.set @s, %3 : !bmodelica.real
     }
 }
 

@@ -9,7 +9,7 @@
 // CHECK:               %[[view:.*]] = bmodelica.tensor_view %[[r]][%[[subscript]]] : tensor<3x!bmodelica<record @R>>, index -> tensor<!bmodelica<record @R>>
 // CHECK:               %[[extract:.*]] = bmodelica.tensor_extract %[[view]][] : tensor<!bmodelica<record @R>>
 // CHECK:               %[[component:.*]] = bmodelica.component_get %[[extract]], @x : !bmodelica<record @R> -> tensor<2x!bmodelica.real>
-// CHECK:               bmodelica.variable_set @x, %[[component]]
+// CHECK:               bmodelica.variable.set @x, %[[component]]
 // CHECK-NEXT:      }
 // CHECK-NEXT:  }
 

@@ -8,7 +8,7 @@
 // CHECK-DAG:       %[[minus_one:.*]] = bmodelica.constant -1 : index
 // CHECK-DAG:       %[[index:.*]] = bmodelica.add %[[one]], %[[minus_one]]
 // CHECK-DAG:       %[[x:.*]] = bmodelica.variable.get @x : !bmodelica.int
-// CHECK-NEXT:      bmodelica.variable_set @y[%[[index]]], %[[x]]
+// CHECK-NEXT:      bmodelica.variable.set @y[%[[index]]], %[[x]]
 // CHECK-NEXT:  }
 
 function variableCopy
@@ -24,7 +24,7 @@ end variableCopy;
 // CHECK-DAG: bmodelica.variable @y : !bmodelica.variable<?x!bmodelica.int, output>
 // CHECK:       bmodelica.algorithm {
 // CHECK-NEXT:      %[[x:.*]] = bmodelica.variable.get @x : tensor<?x!bmodelica.int>
-// CHECK-NEXT:      bmodelica.variable_set @y, %[[x]]
+// CHECK-NEXT:      bmodelica.variable.set @y, %[[x]]
 // CHECK-NEXT:  }
 
 function arrayCopy
@@ -39,7 +39,7 @@ end arrayCopy;
 // CHECK: bmodelica.variable @x : !bmodelica.variable<!bmodelica.int, output>
 // CHECK:       bmodelica.algorithm {
 // CHECK-NEXT:      %[[const:.*]] = bmodelica.constant #bmodelica<int 10>
-// CHECK-NEXT:      bmodelica.variable_set @x, %[[const]]
+// CHECK-NEXT:      bmodelica.variable.set @x, %[[const]]
 // CHECK-NEXT:  }
 
 function constantOutput
@@ -54,7 +54,7 @@ end constantOutput;
 // CHECK-DAG: bmodelica.variable @y : !bmodelica.variable<!bmodelica.real, output>
 // CHECK:       bmodelica.algorithm {
 // CHECK-NEXT:      %[[x:.*]] = bmodelica.variable.get @x : !bmodelica.int
-// CHECK-NEXT:      bmodelica.variable_set @y, %[[x]]
+// CHECK-NEXT:      bmodelica.variable.set @y, %[[x]]
 // CHECK-NEXT:  }
 
 function implicitCastIntegerToReal

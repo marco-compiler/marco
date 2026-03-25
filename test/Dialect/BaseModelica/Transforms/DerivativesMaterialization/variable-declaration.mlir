@@ -135,7 +135,7 @@ bmodelica.model @algorithm {
             %1 = bmodelica.constant 3 : index
             %2 = bmodelica.tensor_extract %0[%1] : tensor<5x!bmodelica.real>
             %3 = bmodelica.der %2 : !bmodelica.real -> !bmodelica.real
-            bmodelica.variable_set @x[%1], %3 : index, !bmodelica.real
+            bmodelica.variable.set @x[%1], %3 : index, !bmodelica.real
         }
     }
 }
@@ -157,7 +157,7 @@ bmodelica.model @initialAlgorithm {
             %1 = bmodelica.constant 3 : index
             %2 = bmodelica.tensor_extract %0[%1] : tensor<5x!bmodelica.real>
             %3 = bmodelica.der %2 : !bmodelica.real -> !bmodelica.real
-            bmodelica.variable_set @x[%1], %3 : index, !bmodelica.real
+            bmodelica.variable.set @x[%1], %3 : index, !bmodelica.real
         }
     }
 }

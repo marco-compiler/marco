@@ -40,7 +40,7 @@ bmodelica.function @scalarVariableSet {
 
     bmodelica.algorithm {
         %0 = arith.constant 0 : i64
-        bmodelica.variable_set @x, %0 : i64
+        bmodelica.variable.set @x, %0 : i64
     }
 }
 
@@ -86,7 +86,7 @@ bmodelica.function @staticArraySet {
 
     bmodelica.algorithm {
         %0 = tensor.empty() : tensor<3x2xi64>
-        bmodelica.variable_set @x, %0 : tensor<3x2xi64>
+        bmodelica.variable.set @x, %0 : tensor<3x2xi64>
     }
 }
 
@@ -132,6 +132,6 @@ bmodelica.function @dynamicArraySet {
 
     bmodelica.algorithm {
         %0 = tensor.empty() : tensor<3x2xi64>
-        bmodelica.variable_set @x, %0 : tensor<3x2xi64>
+        bmodelica.variable.set @x, %0 : tensor<3x2xi64>
     }
 }

@@ -9,7 +9,7 @@ bmodelica.function @Foo attributes {inline = true} {
         %0 = bmodelica.variable.get @x : tensor<3xf64>
         %1 = bmodelica.variable.get @y : tensor<3xf64>
         %2 = bmodelica.add %0, %1 : (tensor<3xf64>, tensor<3xf64>) -> tensor<3xf64>
-        bmodelica.variable_set @z, %2 : tensor<3xf64>
+        bmodelica.variable.set @z, %2 : tensor<3xf64>
     }
 }
 

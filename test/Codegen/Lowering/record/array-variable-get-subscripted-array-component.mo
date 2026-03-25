@@ -9,7 +9,7 @@
 // CHECK-DAG:           %[[r:.*]] = bmodelica.variable.get @r : tensor<3x!bmodelica<record @R>>
 // CHECK-DAG:           %[[r_x:.*]] = bmodelica.component_get %[[r]], @x : tensor<3x!bmodelica<record @R>> -> tensor<3x2x!bmodelica.real>
 // CHECK-DAG:           %[[view:.*]] = bmodelica.tensor_view %[[r_x]][%[[unbounded]], %[[subscript]]]
-// CHECK:               bmodelica.variable_set @x, %[[view]]
+// CHECK:               bmodelica.variable.set @x, %[[view]]
 // CHECK-NEXT:      }
 // CHECK-NEXT:  }
 

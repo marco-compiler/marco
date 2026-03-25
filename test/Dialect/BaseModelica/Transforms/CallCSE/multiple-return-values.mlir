@@ -10,8 +10,8 @@ module @Test {
         bmodelica.algorithm {
             %0 = bmodelica.variable.get @in : f64
             %1 = bmodelica.constant 1.0 : f32
-            bmodelica.variable_set @out1, %0 : f64
-            bmodelica.variable_set @out2, %1 : f32
+            bmodelica.variable.set @out1, %0 : f64
+            bmodelica.variable.set @out2, %1 : f32
         }
     }
 

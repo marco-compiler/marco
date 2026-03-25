@@ -8,7 +8,7 @@ module @Test {
 
         bmodelica.algorithm {
             %0 = bmodelica.variable.get @x : f64
-            bmodelica.variable_set @y, %0 : f64
+            bmodelica.variable.set @y, %0 : f64
         }
     }
 

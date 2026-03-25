@@ -12,16 +12,16 @@ bmodelica.function @scalarVariable {
 
     bmodelica.algorithm {
         %0 = bmodelica.constant #bmodelica<int 1>
-        bmodelica.variable_set @x, %0 : !bmodelica.int
+        bmodelica.variable.set @x, %0 : !bmodelica.int
     }
 
     // CHECK: bmodelica.algorithm
 
     // CHECK-NEXT: %[[default:.*]] = bmodelica.constant #bmodelica<int 0>
-    // CHECK-NEXT: bmodelica.variable_set @x, %[[default]]
+    // CHECK-NEXT: bmodelica.variable.set @x, %[[default]]
 
     // CHECK-NEXT: %[[non_default:.*]] = bmodelica.constant #bmodelica<int 1>
-    // CHECK-NEXT: bmodelica.variable_set @x, %[[non_default]]
+    // CHECK-NEXT: bmodelica.variable.set @x, %[[non_default]]
 }
 
 // -----
@@ -38,16 +38,16 @@ bmodelica.function @arrayVariable {
 
     bmodelica.algorithm {
         %0 = bmodelica.constant #bmodelica.dense_int<[1, 1, 1]> : tensor<3x!bmodelica.int>
-        bmodelica.variable_set @x, %0 : tensor<3x!bmodelica.int>
+        bmodelica.variable.set @x, %0 : tensor<3x!bmodelica.int>
     }
 
     // CHECK: bmodelica.algorithm
 
     // CHECK-NEXT: %[[default:.*]] = bmodelica.constant #bmodelica.dense_int<[0, 0, 0]> : tensor<3x!bmodelica.int>
-    // CHECK-NEXT: bmodelica.variable_set @x, %[[default]]
+    // CHECK-NEXT: bmodelica.variable.set @x, %[[default]]
 
     // CHECK-NEXT: %[[non_default:.*]] = bmodelica.constant #bmodelica.dense_int<[1, 1, 1]> : tensor<3x!bmodelica.int>
-    // CHECK-NEXT: bmodelica.variable_set @x, %[[non_default]]
+    // CHECK-NEXT: bmodelica.variable.set @x, %[[non_default]]
 }
 
 // -----
@@ -64,5 +64,5 @@ bmodelica.function @missingAlgorithm {
 
     // CHECK:       bmodelica.algorithm
     // CHECK-NEXT:  %[[default:.*]] = bmodelica.constant #bmodelica<int 0>
-    // CHECK-NEXT:  bmodelica.variable_set @x, %[[default]]
+    // CHECK-NEXT:  bmodelica.variable.set @x, %[[default]]
 }

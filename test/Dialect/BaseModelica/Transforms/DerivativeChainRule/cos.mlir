@@ -7,7 +7,7 @@
 // CHECK-NEXT:      %[[sin:.*]] = bmodelica.sin %[[x]]
 // CHECK-NEXT:      %[[neg:.*]] = bmodelica.neg %[[sin]]
 // CHECK-NEXT:      %[[mul:.*]] = bmodelica.mul_ew %[[neg]], %[[der_x]]
-// CHECK-NEXT:      bmodelica.variable_set @y, %[[mul]]
+// CHECK-NEXT:      bmodelica.variable.set @y, %[[mul]]
 // CHECK-NEXT:  }
 
 bmodelica.function @cos_der {
@@ -19,6 +19,6 @@ bmodelica.function @cos_der {
         %0 = bmodelica.variable.get @x : !bmodelica.real
         %1 = bmodelica.cos %0 : !bmodelica.real -> !bmodelica.real
         %2 = bmodelica.der %1 : !bmodelica.real -> !bmodelica.real
-        bmodelica.variable_set @y, %2 : !bmodelica.real
+        bmodelica.variable.set @y, %2 : !bmodelica.real
     }
 }

@@ -26,11 +26,11 @@ bmodelica.function @if {
 
         bmodelica.if (%4 : i1) {
             %5 = arith.constant 1 : i64
-            bmodelica.variable_set @y, %5 : i64
+            bmodelica.variable.set @y, %5 : i64
             bmodelica.print %5 : i64
         } else {
             %5 = arith.constant 2 : i64
-            bmodelica.variable_set @y, %5 : i64
+            bmodelica.variable.set @y, %5 : i64
         }
     }
 }
