@@ -134,7 +134,7 @@ VariableOp resolveVariable(ModelOp modelOp,
 
   for (mlir::FlatSymbolRefAttr component : variable.getNestedReferences()) {
     auto recordOp = mlir::cast<RecordOp>(
-        mlir::cast<RecordType>(variableOp.getVariableType().unwrap())
+        mlir::cast<RecordType>(variableOp.getType().unwrap())
             .getRecordOp(symbolTableCollection, moduleOp));
 
     variableOp = symbolTableCollection.lookupSymbolIn<VariableOp>(
@@ -275,14 +275,14 @@ mlir::LogicalResult getShape(llvm::SmallVectorImpl<int64_t> &shape,
     return mlir::failure();
   }
 
-  auto variableShape = variableOp.getVariableType().getShape();
+  auto variableShape = variableOp.getType().getShape();
   shape.append(variableShape.begin(), variableShape.end());
 
   for (mlir::FlatSymbolRefAttr component : variable.getNestedReferences()) {
-    assert(mlir::isa<RecordType>(variableOp.getVariableType().unwrap()));
+    assert(mlir::isa<RecordType>(variableOp.getType().unwrap()));
 
     auto recordOp = mlir::cast<RecordOp>(
-        mlir::cast<RecordType>(variableOp.getVariableType().unwrap())
+        mlir::cast<RecordType>(variableOp.getType().unwrap())
             .getRecordOp(symbolTables, moduleOp));
 
     variableOp =
@@ -292,7 +292,7 @@ mlir::LogicalResult getShape(llvm::SmallVectorImpl<int64_t> &shape,
       return mlir::failure();
     }
 
-    auto componentShape = variableOp.getVariableType().getShape();
+    auto componentShape = variableOp.getType().getShape();
     shape.append(componentShape.begin(), componentShape.end());
   }
 

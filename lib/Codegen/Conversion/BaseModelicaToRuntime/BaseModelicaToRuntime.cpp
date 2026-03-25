@@ -589,7 +589,7 @@ mlir::LogicalResult BaseModelicaToRuntimeConversionPass::createVariableRanksOp(
       continue;
     }
 
-    VariableType variableType = variable.getVariableType();
+    VariableType variableType = variable.getType();
     ranks.push_back(variableType.getRank());
   }
 
@@ -664,7 +664,7 @@ BaseModelicaToRuntimeConversionPass::createPrintableIndicesOp(
       continue;
     }
 
-    VariableType variableType = variableOp.getVariableType();
+    VariableType variableType = variableOp.getType();
     std::vector<marco::VariableFilter::Filter> filters;
 
     if (auto stateName = derivativesMap.getDerivedVariable(
@@ -760,7 +760,7 @@ mlir::LogicalResult BaseModelicaToRuntimeConversionPass::createVariableGetters(
     }
 
     builder.setInsertionPointToEnd(moduleOp.getBody());
-    VariableType variableType = variable.getVariableType();
+    VariableType variableType = variable.getType();
 
     auto getterOp = builder.create<mlir::runtime::VariableGetterOp>(
         variable.getLoc(),
@@ -815,7 +815,7 @@ mlir::LogicalResult BaseModelicaToRuntimeConversionPass::createInitFunction(
 
   // Initialize the variables to zero.
   for (VariableOp variable : variables) {
-    VariableType variableType = variable.getVariableType();
+    VariableType variableType = variable.getType();
 
     auto constantMaterializableElementType =
         mlir::dyn_cast<ConstantMaterializableTypeInterface>(
@@ -831,8 +831,7 @@ mlir::LogicalResult BaseModelicaToRuntimeConversionPass::createInitFunction(
 
     if (!variableType.isScalar()) {
       zeroValue = rewriter.create<TensorBroadcastOp>(
-          zeroValue.getLoc(), variable.getVariableType().toTensorType(),
-          zeroValue);
+          zeroValue.getLoc(), variable.getType().toTensorType(), zeroValue);
     }
 
     rewriter.create<QualifiedVariableSetOp>(variable.getLoc(), variable,
@@ -885,7 +884,7 @@ mlir::LogicalResult BaseModelicaToRuntimeConversionPass::declareGlobalVariables(
 
   for (VariableOp variable : variables) {
     auto globalVariableOp = builder.create<GlobalVariableOp>(
-        variable.getLoc(), "var", variable.getVariableType().toArrayType());
+        variable.getLoc(), "var", variable.getType().toArrayType());
 
     symbolTableCollection.getSymbolTable(moduleOp).insert(
         globalVariableOp, moduleOp.getBody()->begin());
@@ -945,7 +944,7 @@ BaseModelicaToRuntimeConversionPass::convertQualifiedVariableAccesses(
       replacement = rewriter.create<LoadOp>(replacement.getLoc(), replacement);
     } else if (mlir::isa<mlir::TensorType>(getOp.getResult().getType())) {
       replacement = rewriter.create<ArrayToTensorOp>(
-          replacement.getLoc(), variableOp.getVariableType().toTensorType(),
+          replacement.getLoc(), variableOp.getType().toTensorType(),
           replacement);
     }
 

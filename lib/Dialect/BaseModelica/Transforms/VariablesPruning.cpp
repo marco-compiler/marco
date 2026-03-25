@@ -120,7 +120,7 @@ mlir::LogicalResult VariablesPruningPass::processModelOp(ModelOp modelOp) {
   llvm::DenseSet<VariableOp> outputVariables;
 
   for (VariableOp variableOp : variableOps) {
-    if (variableOp.getVariableType().isOutput()) {
+    if (variableOp.getType().isOutput()) {
       outputVariables.insert(variableOp);
     }
   }

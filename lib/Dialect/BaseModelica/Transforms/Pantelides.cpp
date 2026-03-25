@@ -234,7 +234,7 @@ VariableBridge *differentiateVariable(mlir::RewriterBase &rewriter,
 
   auto derVariableOp = rewriter.create<VariableOp>(
       variableOp.getLoc(), getDerivativeName(variable->getName()),
-      VariableType::get(variableOp.getVariableType().getShape(),
+      VariableType::get(variableOp.getType().getShape(),
                         RealType::get(rewriter.getContext()),
                         VariabilityProperty::none, IOProperty::none));
 

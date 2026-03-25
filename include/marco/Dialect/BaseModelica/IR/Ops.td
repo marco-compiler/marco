@@ -180,6 +180,9 @@ def EquationMatchAttr
     let convertFromStorage = "$_self";
 }
 
+def DimensionConstraintArrayAttr
+    : TypedArrayAttrBase<DimensionConstraint, "Dimension constraints">;
+
 //===---------------------------------------------------------------------===//
 // Properties
 //===---------------------------------------------------------------------===//
@@ -1129,54 +1132,64 @@ def Modelica_ArrayToTensorOp : BaseModelica_Op<"array_to_tensor",
 // Variable operations
 //===---------------------------------------------------------------------===//
 
-def BaseModelica_VariableOp : BaseModelica_Op<"variable",
-    [Symbol,
-    ParentOneOf<["ModelOp", "FunctionOp", "RecordOp"]>]>
+def BaseModelica_VariableOp : BaseModelica_Op<"variable", [
+        Symbol,
+        ParentOneOf<["ModelOp", "FunctionOp", "RecordOp"]>
+    ]>
 {
     let summary = "Declare a variable of a class.";
 
     let description = [{
         The operation is used to declare a variable of a class.
-        It takes the name of the symbol, its type and provides a region
-        allowing to specify contraints for fixed but dinamically sized
-        dimensions.
+        It takes the name of the variable, its type and provides a region
+        allowing to specify contraints for its dimensions.
+        Each dimension can be either free or fixed: a 'free' dimension can be
+        of any size and such value is completely unknown at compile-time; a
+        'fixed' dimension allows to specify the size of the dimension in the
+        constraints region, thus allowing for more complex sizing that can be
+        potentially inferred. A number of index values equal to the number of
+        fixed dimensions must be yielded from the constraints region. These
+        values are associated to the fixed dimensions in the order of their
+        declaration.
         The variable value can be then read and written by means of the
-        `modelica.variable_get` and `modelica.variable_set` operations.
-        Notice that, in case of array variables, the array must be retrieved
-        using `modelica.variable_get` if wanting to operate on some specific
-        element instead of replacing the whole array.
+        `variable_get` and `variable_set` operations.
 
         Example:
 
         ```mlir
-        modelica.variable @x : !modelica.variable<?x5x?x?x!modelica.int> [fixed, unbounded, fixed] {
+        bmodelica.variable @x : !bmodelica.variable<?x5x?x?x!bmodelica.int> [fixed, free, fixed] {
             %0 = ... : index
             %1 = ... : index
-            modelica.yield %0, %1 : index, index
+            bmodelica.yield %0, %1 : index, index
         } attributes {...}
         ```
     }];
 
     let arguments = (ins
         SymbolNameAttr:$sym_name,
-        TypeAttr:$type,
-        StrArrayAttr:$dimensionsConstraints
+        TypeAttrBase<"VariableType", "Variable type">:$type,
+        DefaultValuedAttr<DimensionConstraintArrayAttr, "{}">:$dimensionConstraints
     );
 
     let results = (outs);
-    let regions = (region AnyRegion:$constraintsRegion);
-    let hasCustomAssemblyFormat = 1;
+    let regions = (region MaxSizedRegion<1>:$constraintsRegion);
+
+    let assemblyFormat = [{
+         $sym_name `:` $type
+         custom<VariableDimensionConstraints>($dimensionConstraints) ($constraintsRegion^)?
+         attr-dict-with-keyword
+    }];
+
     let hasVerifier = 1;
 
     let builders = [
-        OpBuilder<(ins "llvm::StringRef":$name, "VariableType":$variableType)>
+        OpBuilder<(ins "llvm::StringRef":$name, "VariableType":$type)>,
+        OpBuilder<(ins "llvm::StringRef":$name, "VariableType":$type, "llvm::ArrayRef<DimensionConstraint>":$dimensionConstraints)>
     ];
 
     let extraClassDeclaration = [{
-        static constexpr llvm::StringLiteral kDimensionConstraintUnbounded = "unbounded";
-        static constexpr llvm::StringLiteral kDimensionConstraintFixed = "fixed";
-
-        VariableType getVariableType();
+        /// Change the variable type.
+        void setType(VariableType newType);
 
         /// Get whether the variable has the 'input' modifier.
         bool isInput();
@@ -1196,8 +1209,8 @@ def BaseModelica_VariableOp : BaseModelica_Op<"variable",
         /// Get whether the parameter is a parameter or a constant.
         bool isReadOnly();
 
-        /// Get the number of unbounded dimensions among the unknown ones.
-        size_t getNumOfUnboundedDimensions();
+        /// Get the number of free dimensions among the unknown ones.
+        size_t getNumOfFreeDimensions();
 
         /// Get the number of fixed dimensions among the unknown ones.
         size_t getNumOfFixedDimensions();
@@ -4694,7 +4707,7 @@ def Modelica_RawVariableOp : BaseModelica_Op<"raw_variable",
 
     let arguments = (ins
         StrAttr:$name,
-        DefaultValuedAttr<StrArrayAttr, "{}">:$dimensionsConstraints,
+        DefaultValuedAttr<DimensionConstraintArrayAttr, "{}">:$dimensionsConstraints,
         Variadic<Index>:$dynamicSizes,
         UnitAttr:$output,
         DefaultValuedAttr<BoolAttr, "true">:$heap);
@@ -4704,9 +4717,6 @@ def Modelica_RawVariableOp : BaseModelica_Op<"raw_variable",
     let assemblyFormat = "$dynamicSizes attr-dict `:` type($variable)";
 
     let extraClassDeclaration = [{
-        static constexpr llvm::StringLiteral kDimensionConstraintUnbounded = "unbounded";
-        static constexpr llvm::StringLiteral kDimensionConstraintFixed = "fixed";
-
         static bool isScalarVariable(mlir::Type variableType);
         static bool isStaticArrayVariable(mlir::Type variableType);
         static bool isDynamicArrayVariable(mlir::Type variableType);

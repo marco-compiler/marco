@@ -777,10 +777,9 @@ VariableOp declareFutureVariable(mlir::OpBuilder &builder,
   std::string name =
       getReservedVariableName("rk_" + variableOp.getSymName().str());
 
-  auto variableType =
-      VariableType::get(variableOp.getVariableType().getShape(),
-                        RealType::get(builder.getContext()),
-                        VariabilityProperty::none, IOProperty::none);
+  auto variableType = VariableType::get(
+      variableOp.getType().getShape(), RealType::get(builder.getContext()),
+      VariabilityProperty::none, IOProperty::none);
 
   return builder.create<VariableOp>(variableOp.getLoc(), name, variableType);
 }
@@ -790,10 +789,9 @@ VariableOp declareSlopeVariable(mlir::OpBuilder &builder, VariableOp variableOp,
   std::string name = getReservedVariableName(
       "rk_k" + std::to_string(order) + "_" + variableOp.getSymName().str());
 
-  auto variableType =
-      VariableType::get(variableOp.getVariableType().getShape(),
-                        RealType::get(builder.getContext()),
-                        VariabilityProperty::none, IOProperty::none);
+  auto variableType = VariableType::get(
+      variableOp.getType().getShape(), RealType::get(builder.getContext()),
+      VariabilityProperty::none, IOProperty::none);
 
   return builder.create<VariableOp>(variableOp.getLoc(), name, variableType);
 }
@@ -803,10 +801,9 @@ VariableOp declareErrorVariable(mlir::OpBuilder &builder,
   std::string name =
       getReservedVariableName("rk_e_" + variableOp.getSymName().str());
 
-  auto variableType =
-      VariableType::get(variableOp.getVariableType().getShape(),
-                        RealType::get(builder.getContext()),
-                        VariabilityProperty::none, IOProperty::none);
+  auto variableType = VariableType::get(
+      variableOp.getType().getShape(), RealType::get(builder.getContext()),
+      VariabilityProperty::none, IOProperty::none);
 
   return builder.create<VariableOp>(variableOp.getLoc(), name, variableType);
 }
@@ -938,7 +935,7 @@ RungeKuttaPass::createEquationFunction(
 
   auto mappedStateVariableOp = rewriter.create<VariableOp>(
       functionOp.getLoc(), stateVariableOp.getSymName(),
-      stateVariableOp.getVariableType().withIOProperty(IOProperty::input));
+      stateVariableOp.getType().withIOProperty(IOProperty::input));
 
   llvm::SmallVector<VariableOp, 3> inductionVariablesOps;
   size_t numOfInductions = explicitEquationOp.getInductionVariables().size();
@@ -974,7 +971,7 @@ RungeKuttaPass::createEquationFunction(
   for (size_t i = 0, e = originalInductions.size(); i < e; ++i) {
     auto mappedInduction = rewriter.create<VariableGetOp>(
         inductionVariablesOps[i].getLoc(),
-        inductionVariablesOps[i].getVariableType().unwrap(),
+        inductionVariablesOps[i].getType().unwrap(),
         inductionVariablesOps[i].getSymName());
 
     mappedInductions.insert(mappedInduction);
@@ -1546,7 +1543,7 @@ createAcceptEquation(llvm::SmallVectorImpl<EquationInstanceOp> &newEquations,
   rewriter.setInsertionPointToEnd(modelOp.getBody());
 
   auto templateOp = rewriter.create<EquationTemplateOp>(loc);
-  templateOp.createBody(currentVariableOp.getVariableType().getRank());
+  templateOp.createBody(currentVariableOp.getType().getRank());
   rewriter.setInsertionPointToStart(templateOp.getBody());
 
   // Get the current variable.

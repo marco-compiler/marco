@@ -294,7 +294,7 @@ mlir::LogicalResult EulerForwardPass::createRangedStateVariableUpdateBlocks(
 
   // Create the equation function.
   builder.setInsertionPointToEnd(moduleOp.getBody());
-  auto variableType = stateVariable.getVariableType();
+  auto variableType = stateVariable.getType();
   int64_t variableRank = variableType.getRank();
 
   auto equationFuncOp = builder.create<EquationFunctionOp>(
@@ -339,12 +339,11 @@ mlir::LogicalResult EulerForwardPass::createRangedStateVariableUpdateBlocks(
   } else {
     // Array variable.
     mlir::Value state = builder.create<QualifiedVariableGetOp>(
-        equationFuncOp.getLoc(), stateVariable.getVariableType().toArrayType(),
+        equationFuncOp.getLoc(), stateVariable.getType().toArrayType(),
         getSymbolRefFromRoot(stateVariable));
 
     mlir::Value derivative = builder.create<QualifiedVariableGetOp>(
-        equationFuncOp.getLoc(),
-        derivativeVariable.getVariableType().toArrayType(),
+        equationFuncOp.getLoc(), derivativeVariable.getType().toArrayType(),
         getSymbolRefFromRoot(derivativeVariable));
 
     llvm::SmallVector<mlir::Value> lowerBounds;

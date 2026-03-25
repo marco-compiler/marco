@@ -69,7 +69,7 @@ std::optional<Results> ComponentReferenceLowerer::lower(
         llvm::append_range(shape, parentShapedType.getShape());
       }
 
-      mlir::Type componentType = variableOp.getVariableType().unwrap();
+      mlir::Type componentType = variableOp.getType().unwrap();
 
       if (auto componentShapedType =
               mlir::dyn_cast<mlir::ShapedType>(componentType)) {

@@ -545,7 +545,7 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp) {
 
   for (VariableOp variableOp : promotableVariables) {
     // Change the variable type.
-    auto newVariableType = variableOp.getVariableType().asParameter();
+    auto newVariableType = variableOp.getType().asParameter();
     variableOp.setType(newVariableType);
 
     // Determine the indices of the variable that are currently handled only by
