@@ -73,15 +73,5 @@ mlir::LogicalResult DiagnosticHandler::emit(mlir::DiagnosticSeverity severity,
   }
 
   return mlir::failure();
-
-  /*
-  clang::TextDiagnostic textDiagnostic(
-      OS, Ctx.getLangOpts(), &Diags.getDiagnosticOptions());
-
-  textDiagnostic.emitDiagnostic(
-      fullSourceLoc, level, message,
-      clang::CharSourceRange::getTokenRange(R),
-      clang::FixItHint::CreateInsertion(clangLoc, note));
-      */
 }
 } // namespace marco::frontend

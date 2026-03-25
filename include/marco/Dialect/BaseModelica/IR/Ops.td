@@ -1123,17 +1123,6 @@ def Modelica_ArrayToTensorOp : BaseModelica_Op<"array_to_tensor",
     let assemblyFormat = [{
         $array attr-dict `:` type($array) `->` type($tensor)
     }];
-
-    let extraClassDeclaration = [{
-        /*
-        mlir::LogicalResult bufferize(
-            mlir::RewriterBase &rewriter,
-            const mlir::bufferization::BufferizationOptions &options) const
-        {
-          return success();
-        }
-        */
-    }];
 }
 
 //===---------------------------------------------------------------------===//
