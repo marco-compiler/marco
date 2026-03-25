@@ -13,8 +13,8 @@ bmodelica.model @propagatedScalarConstant {
 
     bmodelica.dynamic {
         bmodelica.equation {
-            %0 = bmodelica.variable_get @x : !bmodelica.int
-            %1 = bmodelica.variable_get @y : !bmodelica.int
+            %0 = bmodelica.variable.get @x : !bmodelica.int
+            %1 = bmodelica.variable.get @y : !bmodelica.int
             %2 = bmodelica.equation_side %0 : tuple<!bmodelica.int>
             %3 = bmodelica.equation_side %1 : tuple<!bmodelica.int>
             bmodelica.equation_sides %2, %3 : tuple<!bmodelica.int>, tuple<!bmodelica.int>
@@ -23,7 +23,7 @@ bmodelica.model @propagatedScalarConstant {
 
     // CHECK:       bmodelica.equation
     // CHECK-DAG:       %[[lhsValue:.*]] = bmodelica.constant #bmodelica<int 0>
-    // CHECK-DAG:       %[[rhsValue:.*]] = bmodelica.variable_get @y
+    // CHECK-DAG:       %[[rhsValue:.*]] = bmodelica.variable.get @y
     // CHECK-DAG:       %[[lhs:.*]] = bmodelica.equation_side %[[lhsValue]]
     // CHECK-DAG:       %[[rhs:.*]] = bmodelica.equation_side %[[rhsValue]]
     // CHECK-DAG:       bmodelica.equation_sides %[[lhs]], %[[rhs]]
@@ -44,8 +44,8 @@ bmodelica.model @propagatedScalarParameter {
 
     bmodelica.dynamic {
         bmodelica.equation {
-            %0 = bmodelica.variable_get @x : !bmodelica.int
-            %1 = bmodelica.variable_get @y : !bmodelica.int
+            %0 = bmodelica.variable.get @x : !bmodelica.int
+            %1 = bmodelica.variable.get @y : !bmodelica.int
             %2 = bmodelica.equation_side %0 : tuple<!bmodelica.int>
             %3 = bmodelica.equation_side %1 : tuple<!bmodelica.int>
             bmodelica.equation_sides %2, %3 : tuple<!bmodelica.int>, tuple<!bmodelica.int>
@@ -54,7 +54,7 @@ bmodelica.model @propagatedScalarParameter {
 
     // CHECK:       bmodelica.equation
     // CHECK-DAG:       %[[lhsValue:.*]] = bmodelica.constant #bmodelica<int 0>
-    // CHECK-DAG:       %[[rhsValue:.*]] = bmodelica.variable_get @y
+    // CHECK-DAG:       %[[rhsValue:.*]] = bmodelica.variable.get @y
     // CHECK-DAG:       %[[lhs:.*]] = bmodelica.equation_side %[[lhsValue]]
     // CHECK-DAG:       %[[rhs:.*]] = bmodelica.equation_side %[[rhsValue]]
     // CHECK-DAG:       bmodelica.equation_sides %[[lhs]], %[[rhs]]

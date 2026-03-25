@@ -30,16 +30,16 @@ module {
 
     // COM: x' = u
     %t0 = bmodelica.equation_template inductions = [] {
-      %0 = bmodelica.variable_get @der_x : f64
-      %1 = bmodelica.variable_get @u : f64
+      %0 = bmodelica.variable.get @der_x : f64
+      %1 = bmodelica.variable.get @u : f64
       %2 = bmodelica.equation_side %0 : tuple<f64>
       %3 = bmodelica.equation_side %1 : tuple<f64>
       bmodelica.equation_sides %2, %3 : tuple<f64>, tuple<f64>
     }
 
     // CHECK:       %[[t0:.*]] = bmodelica.equation_template inductions = [] {
-    // CHECK-DAG:       %[[der_x:.*]] = bmodelica.variable_get @der_x
-    // CHECK-DAG:       %[[u:.*]] = bmodelica.variable_get @u
+    // CHECK-DAG:       %[[der_x:.*]] = bmodelica.variable.get @der_x
+    // CHECK-DAG:       %[[u:.*]] = bmodelica.variable.get @u
     // CHECK-DAG:       %[[lhs:.*]] = bmodelica.equation_side %[[der_x]]
     // CHECK-DAG:       %[[rhs:.*]] = bmodelica.equation_side %[[u]]
     // CHECK-NEXT:      bmodelica.equation_sides %[[lhs]], %[[rhs]]
@@ -47,8 +47,8 @@ module {
 
     // COM: x'' = u'
     // CHECK:       %[[t0_der:.*]] = bmodelica.equation_template inductions = [] {
-    // CHECK-DAG:       %[[der_der_x:.*]] = bmodelica.variable_get @der_der_x
-    // CHECK-DAG:       %[[der_u:.*]] = bmodelica.variable_get @der_u
+    // CHECK-DAG:       %[[der_der_x:.*]] = bmodelica.variable.get @der_der_x
+    // CHECK-DAG:       %[[der_u:.*]] = bmodelica.variable.get @der_u
     // CHECK-DAG:       %[[lhs:.*]] = bmodelica.equation_side %[[der_der_x]]
     // CHECK-DAG:       %[[rhs:.*]] = bmodelica.equation_side %[[der_u]]
     // CHECK-NEXT:      bmodelica.equation_sides %[[lhs]], %[[rhs]]
@@ -56,16 +56,16 @@ module {
 
     // COM: y' = v
     %t1 = bmodelica.equation_template inductions = [] {
-      %0 = bmodelica.variable_get @der_y : f64
-      %1 = bmodelica.variable_get @v : f64
+      %0 = bmodelica.variable.get @der_y : f64
+      %1 = bmodelica.variable.get @v : f64
       %2 = bmodelica.equation_side %0 : tuple<f64>
       %3 = bmodelica.equation_side %1 : tuple<f64>
       bmodelica.equation_sides %2, %3 : tuple<f64>, tuple<f64>
     }
 
     // CHECK:       %[[t1:.*]] = bmodelica.equation_template inductions = [] {
-    // CHECK-DAG:       %[[der_y:.*]] = bmodelica.variable_get @der_y
-    // CHECK-DAG:       %[[v:.*]] = bmodelica.variable_get @v
+    // CHECK-DAG:       %[[der_y:.*]] = bmodelica.variable.get @der_y
+    // CHECK-DAG:       %[[v:.*]] = bmodelica.variable.get @v
     // CHECK-DAG:       %[[lhs:.*]] = bmodelica.equation_side %[[der_y]]
     // CHECK-DAG:       %[[rhs:.*]] = bmodelica.equation_side %[[v]]
     // CHECK-NEXT:      bmodelica.equation_sides %[[lhs]], %[[rhs]]
@@ -73,8 +73,8 @@ module {
 
     // COM: y'' = v'
     // CHECK:       %[[t1_der:.*]] = bmodelica.equation_template inductions = [] {
-    // CHECK-DAG:       %[[der_der_y:.*]] = bmodelica.variable_get @der_der_y
-    // CHECK-DAG:       %[[der_v:.*]] = bmodelica.variable_get @der_v
+    // CHECK-DAG:       %[[der_der_y:.*]] = bmodelica.variable.get @der_der_y
+    // CHECK-DAG:       %[[der_v:.*]] = bmodelica.variable.get @der_v
     // CHECK-DAG:       %[[lhs:.*]] = bmodelica.equation_side %[[der_der_y]]
     // CHECK-DAG:       %[[rhs:.*]] = bmodelica.equation_side %[[der_v]]
     // CHECK-NEXT:      bmodelica.equation_sides %[[lhs]], %[[rhs]]
@@ -82,9 +82,9 @@ module {
 
     // COM: u' = lambda * x
     %t2 = bmodelica.equation_template inductions = [] {
-      %0 = bmodelica.variable_get @der_u : f64
-      %1 = bmodelica.variable_get @lambda : f64
-      %2 = bmodelica.variable_get @x : f64
+      %0 = bmodelica.variable.get @der_u : f64
+      %1 = bmodelica.variable.get @lambda : f64
+      %2 = bmodelica.variable.get @x : f64
       %3 = bmodelica.mul %1, %2 : (f64, f64) -> f64
       %4 = bmodelica.equation_side %0 : tuple<f64>
       %5 = bmodelica.equation_side %3 : tuple<f64>
@@ -92,9 +92,9 @@ module {
     }
 
     // CHECK:       %[[t2:.*]] = bmodelica.equation_template inductions = [] {
-    // CHECK-DAG:       %[[der_u:.*]] = bmodelica.variable_get @der_u
-    // CHECK-DAG:       %[[lambda:.*]] = bmodelica.variable_get @lambda
-    // CHECK-DAG:       %[[x:.*]] = bmodelica.variable_get @x
+    // CHECK-DAG:       %[[der_u:.*]] = bmodelica.variable.get @der_u
+    // CHECK-DAG:       %[[lambda:.*]] = bmodelica.variable.get @lambda
+    // CHECK-DAG:       %[[x:.*]] = bmodelica.variable.get @x
     // CHECK-DAG:       %[[mul:.*]] = bmodelica.mul %[[lambda]], %[[x]]
     // CHECK-DAG:       %[[lhs:.*]] = bmodelica.equation_side %[[der_u]]
     // CHECK-DAG:       %[[rhs:.*]] = bmodelica.equation_side %[[mul]]
@@ -103,10 +103,10 @@ module {
 
     // COM: v' = lambda * v - g
     %t3 = bmodelica.equation_template inductions = [] {
-      %0 = bmodelica.variable_get @der_v : f64
-      %1 = bmodelica.variable_get @lambda : f64
-      %2 = bmodelica.variable_get @y : f64
-      %3 = bmodelica.variable_get @g : f64
+      %0 = bmodelica.variable.get @der_v : f64
+      %1 = bmodelica.variable.get @lambda : f64
+      %2 = bmodelica.variable.get @y : f64
+      %3 = bmodelica.variable.get @g : f64
       %4 = bmodelica.mul %1, %2 : (f64, f64) -> f64
       %5 = bmodelica.sub %4, %3 : (f64, f64) -> f64
       %6 = bmodelica.equation_side %0 : tuple<f64>
@@ -115,10 +115,10 @@ module {
     }
 
     // CHECK:       %[[t3:.*]] = bmodelica.equation_template inductions = [] {
-    // CHECK-DAG:       %[[der_v:.*]] = bmodelica.variable_get @der_v
-    // CHECK-DAG:       %[[lambda:.*]] = bmodelica.variable_get @lambda
-    // CHECK-DAG:       %[[y:.*]] = bmodelica.variable_get @y
-    // CHECK-DAG:       %[[g:.*]] = bmodelica.variable_get @g
+    // CHECK-DAG:       %[[der_v:.*]] = bmodelica.variable.get @der_v
+    // CHECK-DAG:       %[[lambda:.*]] = bmodelica.variable.get @lambda
+    // CHECK-DAG:       %[[y:.*]] = bmodelica.variable.get @y
+    // CHECK-DAG:       %[[g:.*]] = bmodelica.variable.get @g
     // CHECK-DAG:       %[[mul:.*]] = bmodelica.mul %[[lambda]], %[[y]]
     // CHECK-DAG:       %[[sub:.*]] = bmodelica.sub %[[mul]], %[[g]]
     // CHECK-DAG:       %[[lhs:.*]] = bmodelica.equation_side %[[der_v]]
@@ -128,26 +128,26 @@ module {
 
     // COM: x^2 + y^2 = L
     %t4 = bmodelica.equation_template inductions = [] {
-      %0 = bmodelica.variable_get @x : f64
-      %1 = bmodelica.variable_get @y : f64
+      %0 = bmodelica.variable.get @x : f64
+      %1 = bmodelica.variable.get @y : f64
       %2 = bmodelica.constant 2.0 : f64
       %3 = bmodelica.pow %0, %2 : (f64, f64) -> f64
       %4 = bmodelica.pow %1, %2 : (f64, f64) -> f64
       %5 = bmodelica.add %3, %4 : (f64, f64) -> f64
-      %6 = bmodelica.variable_get @L : f64
+      %6 = bmodelica.variable.get @L : f64
       %7 = bmodelica.equation_side %5 : tuple<f64>
       %8 = bmodelica.equation_side %6 : tuple<f64>
       bmodelica.equation_sides %7, %8 : tuple<f64>, tuple<f64>
     }
 
     // CHECK:       %[[t4:.*]] = bmodelica.equation_template inductions = [] {
-    // CHECK-DAG:       %[[x:.*]] = bmodelica.variable_get @x
-    // CHECK-DAG:       %[[y:.*]] = bmodelica.variable_get @y
+    // CHECK-DAG:       %[[x:.*]] = bmodelica.variable.get @x
+    // CHECK-DAG:       %[[y:.*]] = bmodelica.variable.get @y
     // CHECK-DAG:       %[[const:.*]] = bmodelica.constant 2.0
     // CHECK-DAG:       %[[powX:.*]] = bmodelica.pow %[[x]], %[[const]]
     // CHECK-DAG:       %[[powY:.*]] = bmodelica.pow %[[y]], %[[const]]
     // CHECK-DAG:       %[[add:.*]] = bmodelica.add %[[powX]], %[[powY]]
-    // CHECK-DAG:       %[[L:.*]] = bmodelica.variable_get @L
+    // CHECK-DAG:       %[[L:.*]] = bmodelica.variable.get @L
     // CHECK-DAG:       %[[lhs:.*]] = bmodelica.equation_side %[[add]]
     // CHECK-DAG:       %[[rhs:.*]] = bmodelica.equation_side %[[L]]
     // CHECK-NEXT:      bmodelica.equation_sides %[[lhs]], %[[rhs]]
@@ -157,10 +157,10 @@ module {
     // CHECK:       %[[t4_der:.*]] = bmodelica.equation_template inductions = [] {
     // CHECK-DAG:       %[[zero:.*]] = bmodelica.constant 0.0
     // CHECK-DAG:       %[[two:.*]] = bmodelica.constant 2.0
-    // CHECK-DAG:       %[[x:.*]] = bmodelica.variable_get @x
-    // CHECK-DAG:       %[[der_x:.*]] = bmodelica.variable_get @der_x
-    // CHECK-DAG:       %[[y:.*]] = bmodelica.variable_get @y
-    // CHECK-DAG:       %[[der_y:.*]] = bmodelica.variable_get @der_y
+    // CHECK-DAG:       %[[x:.*]] = bmodelica.variable.get @x
+    // CHECK-DAG:       %[[der_x:.*]] = bmodelica.variable.get @der_x
+    // CHECK-DAG:       %[[y:.*]] = bmodelica.variable.get @y
+    // CHECK-DAG:       %[[der_y:.*]] = bmodelica.variable.get @der_y
     // CHECK-DAG:       %[[mul1:.*]] = bmodelica.mul %[[x]], %[[der_x]]
     // CHECK-DAG:       %[[mul2:.*]] = bmodelica.mul %[[mul1]], %[[two]]
     // CHECK-DAG:       %[[mul3:.*]] = bmodelica.mul %[[y]], %[[der_y]]
@@ -175,14 +175,14 @@ module {
     // CHECK:       %[[t4_der_der:.*]] = bmodelica.equation_template inductions = [] {
     // CHECK:           %[[zero:.*]] = bmodelica.constant 0.0
     // CHECK:           %[[two:.*]] = bmodelica.constant 2.0
-    // CHECK:           %[[x:.*]] = bmodelica.variable_get @x
-    // CHECK:           %[[der_x_1:.*]] = bmodelica.variable_get @der_x
-    // CHECK:           %[[der_x_2:.*]] = bmodelica.variable_get @der_x
-    // CHECK:           %[[der_der_x:.*]] = bmodelica.variable_get @der_der_x
-    // CHECK:           %[[y:.*]] = bmodelica.variable_get @y
-    // CHECK:           %[[der_y_1:.*]] = bmodelica.variable_get @der_y
-    // CHECK:           %[[der_y_2:.*]] = bmodelica.variable_get @der_y
-    // CHECK:           %[[der_der_y:.*]] = bmodelica.variable_get @der_der_y
+    // CHECK:           %[[x:.*]] = bmodelica.variable.get @x
+    // CHECK:           %[[der_x_1:.*]] = bmodelica.variable.get @der_x
+    // CHECK:           %[[der_x_2:.*]] = bmodelica.variable.get @der_x
+    // CHECK:           %[[der_der_x:.*]] = bmodelica.variable.get @der_der_x
+    // CHECK:           %[[y:.*]] = bmodelica.variable.get @y
+    // CHECK:           %[[der_y_1:.*]] = bmodelica.variable.get @der_y
+    // CHECK:           %[[der_y_2:.*]] = bmodelica.variable.get @der_y
+    // CHECK:           %[[der_der_y:.*]] = bmodelica.variable.get @der_der_y
     // CHECK-DAG:       %[[mul1:.*]] = bmodelica.mul %[[der_x_1]], %[[der_x_2]]
     // CHECK-DAG:       %[[mul2:.*]] = bmodelica.mul %[[x]], %[[der_der_x]]
     // CHECK-DAG:       %[[add1:.*]] = bmodelica.add %[[mul1]], %[[mul2]]

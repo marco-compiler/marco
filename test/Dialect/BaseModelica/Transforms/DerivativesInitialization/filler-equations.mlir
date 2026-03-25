@@ -8,7 +8,7 @@ bmodelica.model @Partial1DArrayVariable der = [<@x, @der_x, {[1,2], [5,7]}>] {
 
     // CHECK:       %[[t0:.*]] = bmodelica.equation_template inductions = [%[[i0:.*]]]
     // CHECK-DAG:       %[[zero:.*]] = bmodelica.constant #bmodelica<real 0.000000e+00>
-    // CHECK-DAG:       %[[der_x:.*]] = bmodelica.variable_get @der_x
+    // CHECK-DAG:       %[[der_x:.*]] = bmodelica.variable.get @der_x
     // CHECK-DAG:       %[[extract:.*]] = bmodelica.tensor_extract %[[der_x]][%[[i0]]]
     // CHECK-DAG:       %[[lhs:.*]] = bmodelica.equation_side %[[extract]]
     // CHECK-DAG:       %[[rhs:.*]] = bmodelica.equation_side %[[zero]]
@@ -28,7 +28,7 @@ bmodelica.model @Partial2DArrayVariable der = [<@x, @der_x, {[3,5][12,14]}>] {
 
     // CHECK:       %[[t0:.*]] = bmodelica.equation_template inductions = [%[[i0:.*]], %[[i1:.*]]]
     // CHECK-DAG:       %[[zero:.*]] = bmodelica.constant #bmodelica<real 0.000000e+00>
-    // CHECK-DAG:       %[[der_x:.*]] = bmodelica.variable_get @der_x
+    // CHECK-DAG:       %[[der_x:.*]] = bmodelica.variable.get @der_x
     // CHECK-DAG:       %[[extract:.*]] = bmodelica.tensor_extract %[[der_x]][%[[i0]], %[[i1]]]
     // CHECK-DAG:       %[[lhs:.*]] = bmodelica.equation_side %[[extract]]
     // CHECK-DAG:       %[[rhs:.*]] = bmodelica.equation_side %[[zero]]

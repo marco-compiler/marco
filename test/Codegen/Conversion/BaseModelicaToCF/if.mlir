@@ -19,7 +19,7 @@ bmodelica.function @if {
     bmodelica.variable @y : !bmodelica.variable<i64, output>
 
     bmodelica.algorithm {
-        %2 = bmodelica.variable_get @x : i64
+        %2 = bmodelica.variable.get @x : i64
         %3 = arith.constant 0 : i64
 
         %4 = bmodelica.eq %2, %3 : (i64, i64) -> i1

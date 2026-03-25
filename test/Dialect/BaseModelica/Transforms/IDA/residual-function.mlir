@@ -14,8 +14,8 @@ module {
 
         // COM: x = der(x)
         %t0 = bmodelica.equation_template inductions = [] {
-            %0 = bmodelica.variable_get @x : !bmodelica.real
-            %1 = bmodelica.variable_get @der_x : !bmodelica.real
+            %0 = bmodelica.variable.get @x : !bmodelica.real
+            %1 = bmodelica.variable.get @der_x : !bmodelica.real
             %2 = bmodelica.equation_side %0 : tuple<!bmodelica.real>
             %3 = bmodelica.equation_side %1 : tuple<!bmodelica.real>
             bmodelica.equation_sides %2, %3 : tuple<!bmodelica.real>, tuple<!bmodelica.real>
@@ -47,9 +47,9 @@ module {
 
         // COM: x[i] = der(x[i])
         %t0 = bmodelica.equation_template inductions = [%i0] {
-            %0 = bmodelica.variable_get @x : tensor<2x!bmodelica.real>
+            %0 = bmodelica.variable.get @x : tensor<2x!bmodelica.real>
             %1 = bmodelica.tensor_extract %0[%i0] : tensor<2x!bmodelica.real>
-            %2 = bmodelica.variable_get @der_x : tensor<2x!bmodelica.real>
+            %2 = bmodelica.variable.get @der_x : tensor<2x!bmodelica.real>
             %3 = bmodelica.tensor_extract %2[%i0] : tensor<2x!bmodelica.real>
             %4 = bmodelica.equation_side %1 : tuple<!bmodelica.real>
             %5 = bmodelica.equation_side %3 : tuple<!bmodelica.real>

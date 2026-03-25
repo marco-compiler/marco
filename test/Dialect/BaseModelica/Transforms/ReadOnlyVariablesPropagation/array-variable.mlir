@@ -17,9 +17,9 @@ bmodelica.model @propagatedArrayConstant {
     bmodelica.dynamic {
         bmodelica.for_equation %i = 0 to 2 {
             bmodelica.equation {
-                %0 = bmodelica.variable_get @x : tensor<3x!bmodelica.int>
+                %0 = bmodelica.variable.get @x : tensor<3x!bmodelica.int>
                 %1 = bmodelica.tensor_extract %0[%i] : tensor<3x!bmodelica.int>
-                %2 = bmodelica.variable_get @y : tensor<3x!bmodelica.int>
+                %2 = bmodelica.variable.get @y : tensor<3x!bmodelica.int>
                 %3 = bmodelica.tensor_extract %2[%i] : tensor<3x!bmodelica.int>
                 %4 = bmodelica.equation_side %1 : tuple<!bmodelica.int>
                 %5 = bmodelica.equation_side %3 : tuple<!bmodelica.int>
@@ -34,7 +34,7 @@ bmodelica.model @propagatedArrayConstant {
     // CHECK-DAG:       %[[el2:.*]] = bmodelica.constant #bmodelica<int 2>
     // CHECK:           %[[tensor:.*]] = bmodelica.tensor_from_elements %[[el0]], %[[el1]], %[[el2]]
     // CHECK:           %[[lhsValue:.*]] = bmodelica.tensor_extract %[[tensor]][%[[i:.*]]]
-    // CHECK:           %[[y:.*]] = bmodelica.variable_get @y
+    // CHECK:           %[[y:.*]] = bmodelica.variable.get @y
     // CHECK:           %[[rhsValue:.*]] = bmodelica.tensor_extract %[[y]][%[[i]]]
     // CHECK-DAG:       %[[lhs:.*]] = bmodelica.equation_side %[[lhsValue]]
     // CHECK-DAG:       %[[rhs:.*]] = bmodelica.equation_side %[[rhsValue]]
@@ -60,9 +60,9 @@ bmodelica.model @propagatedArrayParameter {
     bmodelica.dynamic {
         bmodelica.for_equation %i = 0 to 2 {
             bmodelica.equation {
-                %0 = bmodelica.variable_get @x : tensor<3x!bmodelica.int>
+                %0 = bmodelica.variable.get @x : tensor<3x!bmodelica.int>
                 %1 = bmodelica.tensor_extract %0[%i] : tensor<3x!bmodelica.int>
-                %2 = bmodelica.variable_get @y : tensor<3x!bmodelica.int>
+                %2 = bmodelica.variable.get @y : tensor<3x!bmodelica.int>
                 %3 = bmodelica.tensor_extract %2[%i] : tensor<3x!bmodelica.int>
                 %4 = bmodelica.equation_side %1 : tuple<!bmodelica.int>
                 %5 = bmodelica.equation_side %3 : tuple<!bmodelica.int>
@@ -77,7 +77,7 @@ bmodelica.model @propagatedArrayParameter {
     // CHECK-DAG:       %[[el2:.*]] = bmodelica.constant #bmodelica<int 2>
     // CHECK:           %[[tensor:.*]] = bmodelica.tensor_from_elements %[[el0]], %[[el1]], %[[el2]]
     // CHECK:           %[[lhsValue:.*]] = bmodelica.tensor_extract %[[tensor]][%[[i:.*]]]
-    // CHECK:           %[[y:.*]] = bmodelica.variable_get @y
+    // CHECK:           %[[y:.*]] = bmodelica.variable.get @y
     // CHECK:           %[[rhsValue:.*]] = bmodelica.tensor_extract %[[y]][%[[i]]]
     // CHECK-DAG:       %[[lhs:.*]] = bmodelica.equation_side %[[lhsValue]]
     // CHECK-DAG:       %[[rhs:.*]] = bmodelica.equation_side %[[rhsValue]]

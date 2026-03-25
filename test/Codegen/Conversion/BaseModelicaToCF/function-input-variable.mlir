@@ -21,7 +21,7 @@ bmodelica.function @scalarVariableGet {
     bmodelica.variable @x : !bmodelica.variable<!bmodelica.int, input>
 
     bmodelica.algorithm {
-        %0 = bmodelica.variable_get @x : !bmodelica.int
+        %0 = bmodelica.variable.get @x : !bmodelica.int
         bmodelica.print %0 : !bmodelica.int
     }
 }
@@ -50,7 +50,7 @@ bmodelica.function @staticArrayGet {
     bmodelica.variable @x : !bmodelica.variable<3x2x!bmodelica.int, input>
 
     bmodelica.algorithm {
-        %0 = bmodelica.variable_get @x : tensor<3x2x!bmodelica.int>
+        %0 = bmodelica.variable.get @x : tensor<3x2x!bmodelica.int>
         %1 = arith.constant 0 : index
         %2 = bmodelica.tensor_extract %0[%1, %1] : tensor<3x2x!bmodelica.int>
         bmodelica.print %2 : !bmodelica.int
@@ -82,7 +82,7 @@ bmodelica.function @dynamicArrayGet {
     bmodelica.variable @x : !bmodelica.variable<3x?x!bmodelica.int, input>
 
     bmodelica.algorithm {
-        %0 = bmodelica.variable_get @x : tensor<3x?x!bmodelica.int>
+        %0 = bmodelica.variable.get @x : tensor<3x?x!bmodelica.int>
         %1 = arith.constant 0 : index
         %2 = bmodelica.tensor_extract %0[%1, %1] : tensor<3x?x!bmodelica.int>
         bmodelica.print %2 : !bmodelica.int

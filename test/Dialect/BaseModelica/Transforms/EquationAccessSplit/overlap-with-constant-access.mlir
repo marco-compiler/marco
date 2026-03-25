@@ -7,7 +7,7 @@ bmodelica.model @Test {
 
     // x[i0,i1] = 2 * x[2,2] - 4
     %t0 = bmodelica.equation_template inductions = [%i0, %i1] attributes {id = "t0"} {
-        %0 = bmodelica.variable_get @x : tensor<7x8x!bmodelica.real>
+        %0 = bmodelica.variable.get @x : tensor<7x8x!bmodelica.real>
         %1 = bmodelica.tensor_extract %0[%i0, %i1] : tensor<7x8x!bmodelica.real>
         %2 = bmodelica.constant 2 : index
         %3 = bmodelica.tensor_extract %0[%2, %2] : tensor<7x8x!bmodelica.real>

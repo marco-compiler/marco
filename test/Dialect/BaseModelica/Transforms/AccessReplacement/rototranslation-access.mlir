@@ -8,8 +8,8 @@ bmodelica.model @Test {
     bmodelica.variable @z : !bmodelica.variable<50x50x50x!bmodelica.real>
 
     // CHECK:       %[[t0:.*]] = bmodelica.equation_template inductions = [%[[i0:.*]], %[[i1:.*]], %[[i2:.*]]] attributes {id = "t0"} {
-    // CHECK-DAG:       %[[x:.*]] = bmodelica.variable_get @x : tensor<50x50x50x!bmodelica.real>
-    // CHECK-DAG:       %[[z:.*]] = bmodelica.variable_get @z : tensor<50x50x50x!bmodelica.real>
+    // CHECK-DAG:       %[[x:.*]] = bmodelica.variable.get @x : tensor<50x50x50x!bmodelica.real>
+    // CHECK-DAG:       %[[z:.*]] = bmodelica.variable.get @z : tensor<50x50x50x!bmodelica.real>
     // CHECK-DAG:       %[[four:.*]] = bmodelica.constant 4 : index
     // CHECK-DAG:       %[[eight:.*]] = bmodelica.constant 8 : index
     // CHECK-DAG:       %[[minus_three:.*]] = bmodelica.constant -3 : index
@@ -25,8 +25,8 @@ bmodelica.model @Test {
 
     // x[i][j][z] = y[j - 7][z + 5][i + 3]
     %t0 = bmodelica.equation_template inductions = [%i0, %i1, %i2] attributes {id = "t0"} {
-        %0 = bmodelica.variable_get @x : tensor<50x50x50x!bmodelica.real>
-        %1 = bmodelica.variable_get @y : tensor<50x50x50x!bmodelica.real>
+        %0 = bmodelica.variable.get @x : tensor<50x50x50x!bmodelica.real>
+        %1 = bmodelica.variable.get @y : tensor<50x50x50x!bmodelica.real>
         %2 = bmodelica.constant 7 : index
         %3 = bmodelica.constant 5 : index
         %4 = bmodelica.constant 3 : index
@@ -42,8 +42,8 @@ bmodelica.model @Test {
 
     // y[z - 4][i + 1][j - 5] = z[i][j][z]
     %t1 = bmodelica.equation_template inductions = [%i0, %i1, %i2] attributes {id = "t1"} {
-        %0 = bmodelica.variable_get @y : tensor<50x50x50x!bmodelica.real>
-        %1 = bmodelica.variable_get @z : tensor<50x50x50x!bmodelica.real>
+        %0 = bmodelica.variable.get @y : tensor<50x50x50x!bmodelica.real>
+        %1 = bmodelica.variable.get @z : tensor<50x50x50x!bmodelica.real>
         %2 = bmodelica.constant 4 : index
         %3 = bmodelica.constant 1 : index
         %4 = bmodelica.constant 5 : index

@@ -27,7 +27,7 @@ bmodelica.model @Test {
 
     // COM: y = 0
     %t0 = bmodelica.equation_template inductions = [] {
-        %0 = bmodelica.variable_get @y : !bmodelica.int
+        %0 = bmodelica.variable.get @y : !bmodelica.int
         %1 = bmodelica.constant #bmodelica<int 0>
         %2 = bmodelica.equation_side %0 : tuple<!bmodelica.int>
         %3 = bmodelica.equation_side %1 : tuple<!bmodelica.int>
@@ -36,8 +36,8 @@ bmodelica.model @Test {
 
     // COM: x = y
     %t1 = bmodelica.equation_template inductions = [] {
-        %0 = bmodelica.variable_get @x : !bmodelica.int
-        %1 = bmodelica.variable_get @y : !bmodelica.int
+        %0 = bmodelica.variable.get @x : !bmodelica.int
+        %1 = bmodelica.variable.get @y : !bmodelica.int
         %2 = bmodelica.equation_side %0 : tuple<!bmodelica.int>
         %3 = bmodelica.equation_side %1 : tuple<!bmodelica.int>
         bmodelica.equation_sides %2, %3 : tuple<!bmodelica.int>, tuple<!bmodelica.int>

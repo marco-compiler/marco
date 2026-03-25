@@ -1220,7 +1220,7 @@ def BaseModelica_VariableOp : BaseModelica_Op<"variable", [
     }];
 }
 
-def BaseModelica_VariableGetOp : BaseModelica_Op<"variable_get",
+def BaseModelica_VariableGetOp : BaseModelica_Op<"variable.get",
     [DeclareOpInterfaceMethods<SymbolUserOpInterface>,
     NoMemoryEffect]>
 {
@@ -1233,15 +1233,15 @@ def BaseModelica_VariableGetOp : BaseModelica_Op<"variable_get",
         Example with scalar variable:
 
         ```mlir
-        modelica.variable @x : !modelica.variable<!modelica.real, parameter>
-        %0 = modelica.variable_get @x : !modelica.real
+        bmodelica.variable @x : !bmodelica.variable<!bmodelica.real, parameter>
+        %0 = bmodelica.variable.get @x : !bmodelica.real
         ```
 
         Example with array variable:
 
         ```mlir
-        modelica.variable @x : !modelica.variable<2x3x!modelica.real, parameter>
-        %0 = modelica.variable_get @x : !modelica.array<2x3x!modelica.real>
+        bmodelica.variable @x : !bmodelica.variable<2x3x!bmodelica.real, parameter>
+        %0 = bmodelica.variable.get @x : !bmodelica.array<2x3x!bmodelica.real>
         ```
     }];
 

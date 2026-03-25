@@ -7,7 +7,7 @@ bmodelica.model @Backward {
 
     // x[i] = x[i - 1]
     %t0 = bmodelica.equation_template inductions = [%i0] attributes {id = "t0"} {
-        %0 = bmodelica.variable_get @x : tensor<10x!bmodelica.real>
+        %0 = bmodelica.variable.get @x : tensor<10x!bmodelica.real>
         %1 = bmodelica.tensor_extract %0[%i0] : tensor<10x!bmodelica.real>
         %2 = bmodelica.constant 1 : index
         %3 = bmodelica.sub %i0, %2 : (index, index) -> index
@@ -21,7 +21,7 @@ bmodelica.model @Backward {
 
     // x[0] = 0
     %t1 = bmodelica.equation_template inductions = [] attributes {id = "t1"} {
-        %0 = bmodelica.variable_get @x : tensor<10x!bmodelica.real>
+        %0 = bmodelica.variable.get @x : tensor<10x!bmodelica.real>
         %1 = bmodelica.constant 0 : index
         %2 = bmodelica.tensor_extract %0[%1] : tensor<10x!bmodelica.real>
         %3 = bmodelica.constant #bmodelica<real 0.0>
@@ -51,7 +51,7 @@ bmodelica.model @Forward {
 
     // x[i] = x[i + 1]
     %t0 = bmodelica.equation_template inductions = [%i0] attributes {id = "t0"} {
-        %0 = bmodelica.variable_get @x : tensor<10x!bmodelica.real>
+        %0 = bmodelica.variable.get @x : tensor<10x!bmodelica.real>
         %1 = bmodelica.tensor_extract %0[%i0] : tensor<10x!bmodelica.real>
         %2 = bmodelica.constant 1 : index
         %3 = bmodelica.add %i0, %2 : (index, index) -> index
@@ -65,7 +65,7 @@ bmodelica.model @Forward {
 
     // x[9] = 0
     %t1 = bmodelica.equation_template inductions = [] attributes {id = "t1"} {
-        %0 = bmodelica.variable_get @x : tensor<10x!bmodelica.real>
+        %0 = bmodelica.variable.get @x : tensor<10x!bmodelica.real>
         %1 = bmodelica.constant 9 : index
         %2 = bmodelica.tensor_extract %0[%1] : tensor<10x!bmodelica.real>
         %3 = bmodelica.constant #bmodelica<real 0.0>

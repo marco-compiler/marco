@@ -13,7 +13,7 @@ bmodelica.model @scalarFixedStart {
     } {each = false, fixed = true}
 
     // CHECK:       %[[t0:.*]] = bmodelica.equation_template inductions = []
-    // CHECK-DAG:       %[[x:.*]] = bmodelica.variable_get @x
+    // CHECK-DAG:       %[[x:.*]] = bmodelica.variable.get @x
     // CHECK-DAG:       %[[value:.*]] = bmodelica.constant #bmodelica<int 0>
     // CHECK-DAG:       %[[lhs:.*]] = bmodelica.equation_side %[[x]]
     // CHECK-DAG:       %[[rhs:.*]] = bmodelica.equation_side %[[value]]
@@ -38,7 +38,7 @@ bmodelica.model @arrayFixedScalarStart {
     } {each = true, fixed = true}
 
     // CHECK:       %[[t0:.*]] = bmodelica.equation_template inductions = [%[[i0:.*]]]
-    // CHECK-DAG:       %[[x:.*]] = bmodelica.variable_get @x
+    // CHECK-DAG:       %[[x:.*]] = bmodelica.variable.get @x
     // CHECK-DAG:       %[[x_extract:.*]] = bmodelica.tensor_extract %[[x]][%[[i0]]]
     // CHECK-DAG:       %[[value:.*]] = bmodelica.constant #bmodelica<int 0>
     // CHECK-DAG:       %[[lhs:.*]] = bmodelica.equation_side %[[x_extract]]
@@ -68,7 +68,7 @@ bmodelica.model @arrayFixedArrayStart {
     } {each = false, fixed = true}
 
     // CHECK:       %[[t0:.*]] = bmodelica.equation_template inductions = [%[[i0:.*]]]
-    // CHECK-DAG:       %[[x:.*]] = bmodelica.variable_get @x
+    // CHECK-DAG:       %[[x:.*]] = bmodelica.variable.get @x
     // CHECK-DAG:       %[[value_0:.*]] = bmodelica.constant #bmodelica<int 0>
     // CHECK-DAG:       %[[value_1:.*]] = bmodelica.constant #bmodelica<int 1>
     // CHECK-DAG:       %[[value_2:.*]] = bmodelica.constant #bmodelica<int 2>

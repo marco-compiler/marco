@@ -2,7 +2,7 @@
 
 // CHECK-LABEL: @arrayArgument
 // CHECK:   bmodelica.algorithm {
-// CHECK:       %[[x:.*]] = bmodelica.variable_get @x
+// CHECK:       %[[x:.*]] = bmodelica.variable.get @x
 // CHECK:       %[[call:.*]] = bmodelica.external_call @foo(%[[x]]) : (tensor<10x!bmodelica.int>) -> !bmodelica.int
 // CHECK:       bmodelica.variable_set @y, %[[call]]
 // CHECK:   }

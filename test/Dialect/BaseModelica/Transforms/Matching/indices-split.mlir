@@ -13,9 +13,9 @@ bmodelica.model @Test {
     %t0 = bmodelica.equation_template inductions = [%i0] attributes {id = "t0"} {
         %0 = bmodelica.constant 1 : index
         %1 = bmodelica.sub %i0, %0 : (index, index) -> index
-        %2 = bmodelica.variable_get @x : tensor<2x!bmodelica.int>
+        %2 = bmodelica.variable.get @x : tensor<2x!bmodelica.int>
         %3 = bmodelica.tensor_extract %2[%1] : tensor<2x!bmodelica.int>
-        %4 = bmodelica.variable_get @y : tensor<2x!bmodelica.int>
+        %4 = bmodelica.variable.get @y : tensor<2x!bmodelica.int>
         %5 = bmodelica.tensor_extract %4[%1] : tensor<2x!bmodelica.int>
         %6 = bmodelica.equation_side %3 : tuple<!bmodelica.int>
         %7 = bmodelica.equation_side %5 : tuple<!bmodelica.int>
@@ -26,7 +26,7 @@ bmodelica.model @Test {
 
     // COM: x[1] = 3
     %t1 = bmodelica.equation_template inductions = [] attributes {id = "t1"} {
-        %0 = bmodelica.variable_get @x : tensor<2x!bmodelica.int>
+        %0 = bmodelica.variable.get @x : tensor<2x!bmodelica.int>
         %1 = bmodelica.constant 1 : index
         %2 = bmodelica.tensor_extract %0[%1] : tensor<2x!bmodelica.int>
         %3 = bmodelica.constant #bmodelica<int 3>
@@ -39,7 +39,7 @@ bmodelica.model @Test {
 
     // COM: y[0] = 1
     %t2 = bmodelica.equation_template inductions = [] attributes {id = "t2"} {
-        %0 = bmodelica.variable_get @y : tensor<2x!bmodelica.int>
+        %0 = bmodelica.variable.get @y : tensor<2x!bmodelica.int>
         %1 = bmodelica.constant 0 : index
         %2 = bmodelica.tensor_extract %0[%1] : tensor<2x!bmodelica.int>
         %3 = bmodelica.constant #bmodelica<int 1>

@@ -11,7 +11,7 @@ bmodelica.model @Test {
 
     // x[j + 1, i - 2] = x[j, i - 1]
     %t0 = bmodelica.equation_template inductions = [%i0, %i1] attributes {id = "t0"} {
-        %0 = bmodelica.variable_get @x : tensor<20x20x!bmodelica.int>
+        %0 = bmodelica.variable.get @x : tensor<20x20x!bmodelica.int>
         %1 = bmodelica.constant 1 : index
         %2 = bmodelica.add %i1, %1 : (index, index) -> index
         %3 = bmodelica.constant 2 : index
