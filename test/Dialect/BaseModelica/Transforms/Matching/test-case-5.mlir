@@ -15,7 +15,7 @@ bmodelica.model @Test {
 
     // COM: x[i] = 10
     %t0 = bmodelica.equation_template inductions = [%i0] attributes {id = "t0"} {
-        %0 = bmodelica.variable_get @x : tensor<5x!bmodelica.real>
+        %0 = bmodelica.variable.get @x : tensor<5x!bmodelica.real>
         %1 = bmodelica.tensor_extract %0[%i0] : tensor<5x!bmodelica.real>
         %2 = bmodelica.constant #bmodelica<real 10.0>
         %3 = bmodelica.equation_side %1 : tuple<!bmodelica.real>
@@ -27,8 +27,8 @@ bmodelica.model @Test {
 
     // COM: y[i] = x[i + 1]
     %t1 = bmodelica.equation_template inductions = [%i0] attributes {id = "t1"} {
-        %0 = bmodelica.variable_get @y : tensor<4x!bmodelica.real>
-        %1 = bmodelica.variable_get @x : tensor<5x!bmodelica.real>
+        %0 = bmodelica.variable.get @y : tensor<4x!bmodelica.real>
+        %1 = bmodelica.variable.get @x : tensor<5x!bmodelica.real>
         %2 = bmodelica.tensor_extract %0[%i0] : tensor<4x!bmodelica.real>
         %3 = bmodelica.constant 1 : index
         %4 = bmodelica.add %i0, %3 : (index, index) -> index
@@ -42,9 +42,9 @@ bmodelica.model @Test {
 
     // COM: z[i] = x[i] + y[i]
     %t2 = bmodelica.equation_template inductions = [%i0] attributes {id = "t2"} {
-        %0 = bmodelica.variable_get @z : tensor<5x!bmodelica.real>
-        %1 = bmodelica.variable_get @x : tensor<5x!bmodelica.real>
-        %2 = bmodelica.variable_get @y : tensor<4x!bmodelica.real>
+        %0 = bmodelica.variable.get @z : tensor<5x!bmodelica.real>
+        %1 = bmodelica.variable.get @x : tensor<5x!bmodelica.real>
+        %2 = bmodelica.variable.get @y : tensor<4x!bmodelica.real>
         %3 = bmodelica.tensor_extract %0[%i0] : tensor<5x!bmodelica.real>
         %4 = bmodelica.tensor_extract %1[%i0] : tensor<5x!bmodelica.real>
         %5 = bmodelica.tensor_extract %2[%i0] : tensor<4x!bmodelica.real>
@@ -58,8 +58,8 @@ bmodelica.model @Test {
 
     // COM: z[4] = x[4]
     %t3 = bmodelica.equation_template inductions = [] attributes {id = "t3"} {
-        %0 = bmodelica.variable_get @z : tensor<5x!bmodelica.real>
-        %1 = bmodelica.variable_get @x : tensor<5x!bmodelica.real>
+        %0 = bmodelica.variable.get @z : tensor<5x!bmodelica.real>
+        %1 = bmodelica.variable.get @x : tensor<5x!bmodelica.real>
         %2 = bmodelica.constant 4 : index
         %3 = bmodelica.tensor_extract %0[%2] : tensor<5x!bmodelica.real>
         %4 = bmodelica.tensor_extract %1[%2] : tensor<5x!bmodelica.real>

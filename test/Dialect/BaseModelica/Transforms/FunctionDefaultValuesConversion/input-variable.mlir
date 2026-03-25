@@ -9,7 +9,7 @@ bmodelica.function @foo {
     }
 
     bmodelica.algorithm {
-        %0 = bmodelica.variable_get @x : !bmodelica.int
+        %0 = bmodelica.variable.get @x : !bmodelica.int
         bmodelica.print %0 : !bmodelica.int
     }
 }
@@ -36,7 +36,7 @@ bmodelica.function @foo {
     }
 
     bmodelica.algorithm {
-        %0 = bmodelica.variable_get @x : tensor<3x!bmodelica.int>
+        %0 = bmodelica.variable.get @x : tensor<3x!bmodelica.int>
         bmodelica.print %0 : tensor<3x!bmodelica.int>
     }
 }
@@ -70,9 +70,9 @@ bmodelica.function @foo {
     }
 
     bmodelica.algorithm {
-        %0 = bmodelica.variable_get @x : !bmodelica.int
-        %1 = bmodelica.variable_get @y : !bmodelica.int
-        %2 = bmodelica.variable_get @z : !bmodelica.int
+        %0 = bmodelica.variable.get @x : !bmodelica.int
+        %1 = bmodelica.variable.get @y : !bmodelica.int
+        %2 = bmodelica.variable.get @z : !bmodelica.int
         bmodelica.print %0 : !bmodelica.int
         bmodelica.print %1 : !bmodelica.int
         bmodelica.print %2 : !bmodelica.int
@@ -101,23 +101,23 @@ bmodelica.function @foo {
     bmodelica.variable @z : !bmodelica.variable<!bmodelica.int, input>
 
     bmodelica.default @y {
-        %0 = bmodelica.variable_get @z : !bmodelica.int
+        %0 = bmodelica.variable.get @z : !bmodelica.int
         %1 = bmodelica.constant #bmodelica<int 3>
         %2 = bmodelica.mul %0, %1 : (!bmodelica.int, !bmodelica.int) -> !bmodelica.int
         bmodelica.yield %2 : !bmodelica.int
     }
 
     bmodelica.default @z {
-        %0 = bmodelica.variable_get @x : !bmodelica.int
+        %0 = bmodelica.variable.get @x : !bmodelica.int
         %1 = bmodelica.constant #bmodelica<int 2>
         %2 = bmodelica.mul %0, %1 : (!bmodelica.int, !bmodelica.int) -> !bmodelica.int
         bmodelica.yield %2 : !bmodelica.int
     }
 
     bmodelica.algorithm {
-        %0 = bmodelica.variable_get @x : !bmodelica.int
-        %1 = bmodelica.variable_get @y : !bmodelica.int
-        %2 = bmodelica.variable_get @z : !bmodelica.int
+        %0 = bmodelica.variable.get @x : !bmodelica.int
+        %1 = bmodelica.variable.get @y : !bmodelica.int
+        %2 = bmodelica.variable.get @z : !bmodelica.int
         bmodelica.print %0 : !bmodelica.int
         bmodelica.print %1 : !bmodelica.int
         bmodelica.print %2 : !bmodelica.int

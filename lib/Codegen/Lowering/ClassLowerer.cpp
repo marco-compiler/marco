@@ -69,7 +69,7 @@ bool ClassLowerer::declare(const ast::bmodelica::Member &variable) {
     return false;
   }
 
-  llvm::SmallVector<llvm::StringRef> dimensionsConstraints;
+  llvm::SmallVector<DimensionConstraint> dimensionConstraints;
 
   if (auto shapedType =
           mlir::dyn_cast<mlir::ShapedType>(variableType->unwrap())) {
@@ -79,20 +79,15 @@ bool ClassLowerer::declare(const ast::bmodelica::Member &variable) {
           (*variable.getType())[dim];
 
       if (dimension->isDynamic()) {
-        if (dimension->hasExpression()) {
-          dimensionsConstraints.push_back(
-              VariableOp::kDimensionConstraintFixed);
-        } else {
-          dimensionsConstraints.push_back(
-              VariableOp::kDimensionConstraintUnbounded);
-        }
+        dimensionConstraints.push_back(dimension->hasExpression()
+                                           ? DimensionConstraint::Fixed
+                                           : DimensionConstraint::Free);
       }
     }
   }
 
   auto variableOp = builder().create<VariableOp>(
-      location, variable.getName(), *variableType,
-      builder().getStrArrayAttr(dimensionsConstraints));
+      location, variable.getName(), *variableType, dimensionConstraints);
 
   mlir::SymbolTable &symbolTable = getSymbolTables().getSymbolTable(
       variableOp->getParentOfType<ClassInterface>());

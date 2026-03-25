@@ -20,8 +20,8 @@ bmodelica.function @callee {
     bmodelica.variable @y : !bmodelica.variable<!bmodelica.real, output>
 
     bmodelica.algorithm {
-        %0 = bmodelica.variable_get @x : !bmodelica.real
-        bmodelica.variable_set @y, %0 : !bmodelica.real
+        %0 = bmodelica.variable.get @x : !bmodelica.real
+        bmodelica.variable.set @y, %0 : !bmodelica.real
     }
 }
 

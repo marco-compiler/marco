@@ -215,7 +215,7 @@ bool ModelLowerer::lowerVariableAttributes(
   }
 
   VariableOp lastVariableOp = components.back();
-  VariableType variableType = lastVariableOp.getVariableType();
+  VariableType variableType = lastVariableOp.getType();
   mlir::Type elementType = variableType.getElementType();
 
   if (auto recordType = mlir::dyn_cast<RecordType>(elementType)) {

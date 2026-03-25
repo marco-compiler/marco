@@ -12,7 +12,7 @@ bmodelica.model @Test {
 
     bmodelica.dynamic {
         bmodelica.equation {
-            %0 = bmodelica.variable_get @r : tensor<5x!bmodelica<record @R>>
+            %0 = bmodelica.variable.get @r : tensor<5x!bmodelica<record @R>>
             %1 = bmodelica.component_get %0, @x : tensor<5x!bmodelica<record @R>> -> tensor<5x3x!bmodelica.real>
             %2 = bmodelica.component_get %0, @y : tensor<5x!bmodelica<record @R>> -> tensor<5x3x!bmodelica.real>
             %3 = bmodelica.equation_side %1 : tuple<tensor<5x3x!bmodelica.real>>
@@ -21,8 +21,8 @@ bmodelica.model @Test {
         }
 
         // CHECK:       bmodelica.equation
-        // CHECK-DAG:   %[[x:.*]] = bmodelica.variable_get @r.x : tensor<5x3x!bmodelica.real>
-        // CHECK-DAG:   %[[y:.*]] = bmodelica.variable_get @r.y : tensor<5x3x!bmodelica.real>
+        // CHECK-DAG:   %[[x:.*]] = bmodelica.variable.get @r.x : tensor<5x3x!bmodelica.real>
+        // CHECK-DAG:   %[[y:.*]] = bmodelica.variable.get @r.y : tensor<5x3x!bmodelica.real>
         // CHECK-DAG:   %[[lhs:.*]] = bmodelica.equation_side %[[x]]
         // CHECK-DAG:   %[[rhs:.*]] = bmodelica.equation_side %[[y]]
         // CHECK:       bmodelica.equation_sides %[[lhs]], %[[rhs]]

@@ -349,11 +349,11 @@ mlir::func::FuncOp createEquationSideFunction(
   for (auto accessedVar : llvm::enumerate(accessedVariables)) {
     VariableOp variableOp = accessedVar.value();
 
-    auto memRefType = mlir::MemRefType::get(
-        variableOp.getVariableType().getShape(), builder.getF64Type());
+    auto memRefType = mlir::MemRefType::get(variableOp.getType().getShape(),
+                                            builder.getF64Type());
 
     auto tensorType = mlir::RankedTensorType::get(
-        variableOp.getVariableType().getShape(), builder.getF64Type());
+        variableOp.getType().getShape(), builder.getF64Type());
 
     auto stridesAndOffset = memRefType.getStridesAndOffset();
 
@@ -568,7 +568,7 @@ bool setVariableValues(
 
     regexStr += llvm::Regex::escape(baseVarName);
 
-    if (!variableOp.getVariableType().isScalar()) {
+    if (!variableOp.getType().isScalar()) {
       regexStr += "\\[([0-9]+(,[0-9]+)*)\\]";
     }
 
@@ -594,8 +594,8 @@ bool setVariableValues(
           indices.push_back(std::stoi(index) - 1);
         }
 
-        flatIndex = getVariableFlatIndex(
-            variableOp.getVariableType().getShape(), indices);
+        flatIndex =
+            getVariableFlatIndex(variableOp.getType().getShape(), indices);
       }
 
       data[flatIndex] = variable.second;

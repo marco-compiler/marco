@@ -18,9 +18,9 @@ bmodelica.model @array3d {
 
     bmodelica.dynamic {
         bmodelica.equation {
-            %0 = bmodelica.variable_get @x : tensor<3x4x5x!bmodelica.int>
+            %0 = bmodelica.variable.get @x : tensor<3x4x5x!bmodelica.int>
             %1 = bmodelica.call @foo(%0) : (tensor<3x4x5x!bmodelica.int>) -> tensor<3x?x5x!bmodelica.int>
-            %2 = bmodelica.variable_get @y : tensor<3x4x5x!bmodelica.int>
+            %2 = bmodelica.variable.get @y : tensor<3x4x5x!bmodelica.int>
             %3 = bmodelica.call @bar(%2) : (tensor<3x4x5x!bmodelica.int>) -> tensor<3x4x?x!bmodelica.int>
             %4 = bmodelica.equation_side %1 : tuple<tensor<3x?x5x!bmodelica.int>>
             %5 = bmodelica.equation_side %3 : tuple<tensor<3x4x?x!bmodelica.int>>
@@ -30,8 +30,8 @@ bmodelica.model @array3d {
         // CHECK:       bmodelica.for_equation %[[i0:.*]] = 0 to 2
         // CHECK-NEXT:      bmodelica.for_equation %[[i1:.*]] = 0 to 3
         // CHECK-NEXT:          bmodelica.for_equation %[[i2:.*]] = 0 to 4
-        // CHECK-DAG:               %[[x:.*]] = bmodelica.variable_get @x
-        // CHECK-DAG:               %[[y:.*]] = bmodelica.variable_get @y
+        // CHECK-DAG:               %[[x:.*]] = bmodelica.variable.get @x
+        // CHECK-DAG:               %[[y:.*]] = bmodelica.variable.get @y
         // CHECK-DAG:               %[[call_foo:.*]] = bmodelica.call @foo(%[[x]])
         // CHECK-DAG:               %[[call_bar:.*]] = bmodelica.call @bar(%[[y]])
         // CHECK-DAG:               %[[lhs_extract:.*]] = bmodelica.tensor_extract %[[call_foo]][%[[i0]], %[[i1]], %[[i2]]]

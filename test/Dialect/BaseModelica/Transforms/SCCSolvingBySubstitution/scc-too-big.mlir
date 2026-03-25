@@ -22,8 +22,8 @@ bmodelica.model @Test {
 
     // x1 = x2
     %t0 = bmodelica.equation_template inductions = [] attributes {id = "t0"} {
-        %0 = bmodelica.variable_get @x1 : !bmodelica.int
-        %1 = bmodelica.variable_get @x2 : !bmodelica.int
+        %0 = bmodelica.variable.get @x1 : !bmodelica.int
+        %1 = bmodelica.variable.get @x2 : !bmodelica.int
         %2 = bmodelica.equation_side %0 : tuple<!bmodelica.int>
         %3 = bmodelica.equation_side %1 : tuple<!bmodelica.int>
         bmodelica.equation_sides %2, %3 : tuple<!bmodelica.int>, tuple<!bmodelica.int>
@@ -31,8 +31,8 @@ bmodelica.model @Test {
 
     // x2 = x3
     %t1 = bmodelica.equation_template inductions = [] attributes {id = "t1"} {
-        %0 = bmodelica.variable_get @x2 : !bmodelica.int
-        %1 = bmodelica.variable_get @x3 : !bmodelica.int
+        %0 = bmodelica.variable.get @x2 : !bmodelica.int
+        %1 = bmodelica.variable.get @x3 : !bmodelica.int
         %2 = bmodelica.equation_side %0 : tuple<!bmodelica.int>
         %3 = bmodelica.equation_side %1 : tuple<!bmodelica.int>
         bmodelica.equation_sides %2, %3 : tuple<!bmodelica.int>, tuple<!bmodelica.int>
@@ -40,8 +40,8 @@ bmodelica.model @Test {
 
     // x3 = x4
     %t2 = bmodelica.equation_template inductions = [] attributes {id = "t2"} {
-        %0 = bmodelica.variable_get @x3 : !bmodelica.int
-        %1 = bmodelica.variable_get @x4 : !bmodelica.int
+        %0 = bmodelica.variable.get @x3 : !bmodelica.int
+        %1 = bmodelica.variable.get @x4 : !bmodelica.int
         %2 = bmodelica.equation_side %0 : tuple<!bmodelica.int>
         %3 = bmodelica.equation_side %1 : tuple<!bmodelica.int>
         bmodelica.equation_sides %2, %3 : tuple<!bmodelica.int>, tuple<!bmodelica.int>
@@ -49,8 +49,8 @@ bmodelica.model @Test {
 
     // x4 = 1 - x1
     %t3 = bmodelica.equation_template inductions = [] attributes {id = "t3"} {
-        %0 = bmodelica.variable_get @x4 : !bmodelica.int
-        %1 = bmodelica.variable_get @x1 : !bmodelica.int
+        %0 = bmodelica.variable.get @x4 : !bmodelica.int
+        %1 = bmodelica.variable.get @x1 : !bmodelica.int
         %2 = bmodelica.constant #bmodelica<int 1> : !bmodelica.int
         %3 = bmodelica.sub %2, %1 : (!bmodelica.int, !bmodelica.int) -> !bmodelica.int
         %4 = bmodelica.equation_side %0 : tuple<!bmodelica.int>

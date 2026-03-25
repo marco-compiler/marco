@@ -209,7 +209,7 @@ bool StandardFunctionLowerer::lower(
     assert(resultVariables.size() == 1);
 
     mlir::Value record = builder().create<RecordCreateOp>(
-        location, resultVariables[0].getVariableType().unwrap(), args);
+        location, resultVariables[0].getType().unwrap(), args);
 
     builder().create<VariableSetOp>(location, resultVariables[0], record);
     builder().setInsertionPointAfter(algorithmOp);
@@ -313,7 +313,7 @@ bool StandardFunctionLowerer::lowerExternalFunctionCall(
         return false;
       }
 
-      if (!variableOp.isInput() && variableOp.getVariableType().isScalar()) {
+      if (!variableOp.isInput() && variableOp.getType().isScalar()) {
         // Extract the previous value and store it into temporary memory.
         auto loweredArg = lower(*arg->cast<ast::bmodelica::Expression>());
 

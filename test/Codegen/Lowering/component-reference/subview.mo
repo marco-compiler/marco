@@ -5,9 +5,9 @@
 // CHECK-DAG:       %[[one:.*]] = bmodelica.constant #bmodelica<int 1>
 // CHECK-DAG:       %[[minus_one:.*]] = bmodelica.constant -1 : index
 // CHECK-DAG:       %[[subscript:.*]] = bmodelica.add %[[one]], %[[minus_one]]
-// CHECK-DAG:       %[[x:.*]] = bmodelica.variable_get @x : tensor<2x3x4x!bmodelica.real>
+// CHECK-DAG:       %[[x:.*]] = bmodelica.variable.get @x : tensor<2x3x4x!bmodelica.real>
 // CHECK:           %[[view:.*]] = bmodelica.tensor_view %[[x]][%[[subscript]]]
-// CHECK-NEXT:      bmodelica.variable_set @y, %[[view]]
+// CHECK-NEXT:      bmodelica.variable.set @y, %[[view]]
 // CHECK-NEXT:  }
 
 function Foo

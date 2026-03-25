@@ -15,7 +15,7 @@ bmodelica.function @scalarVariableGet {
     bmodelica.variable @x : !bmodelica.variable<i64>
 
     bmodelica.algorithm {
-        %0 = bmodelica.variable_get @x : i64
+        %0 = bmodelica.variable.get @x : i64
         bmodelica.print %0 : i64
     }
 }
@@ -38,7 +38,7 @@ bmodelica.function @scalarVariableSet {
 
     bmodelica.algorithm {
         %0 = arith.constant 0 : i64
-        bmodelica.variable_set @x, %0 : i64
+        bmodelica.variable.set @x, %0 : i64
     }
 }
 
@@ -59,7 +59,7 @@ bmodelica.function @staticArrayGet {
     bmodelica.variable @x : !bmodelica.variable<3x2xi64>
 
     bmodelica.algorithm {
-        %0 = bmodelica.variable_get @x : tensor<3x2xi64>
+        %0 = bmodelica.variable.get @x : tensor<3x2xi64>
         bmodelica.print %0 : tensor<3x2xi64>
     }
 }
@@ -82,7 +82,7 @@ bmodelica.function @staticArraySet {
 
     bmodelica.algorithm {
         %0 = tensor.empty() : tensor<3x2xi64>
-        bmodelica.variable_set @x, %0 : tensor<3x2xi64>
+        bmodelica.variable.set @x, %0 : tensor<3x2xi64>
     }
 }
 
@@ -103,7 +103,7 @@ bmodelica.function @dynamicArrayGet {
     bmodelica.variable @x : !bmodelica.variable<3x?xi64>
 
     bmodelica.algorithm {
-        %0 = bmodelica.variable_get @x : tensor<3x?xi64>
+        %0 = bmodelica.variable.get @x : tensor<3x?xi64>
         bmodelica.print %0: tensor<3x?xi64>
     }
 }
@@ -127,6 +127,6 @@ bmodelica.function @dynamicArraySet {
 
     bmodelica.algorithm {
         %0 = tensor.empty() : tensor<3x2xi64>
-        bmodelica.variable_set @x, %0 : tensor<3x2xi64>
+        bmodelica.variable.set @x, %0 : tensor<3x2xi64>
     }
 }

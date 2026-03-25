@@ -142,6 +142,55 @@ void printEquationCallIndices(mlir::OpAsmPrinter &printer, mlir::Operation *op,
                               const IndexSet &prop) {
   ::mlir::modeling::print(printer, prop);
 }
+
+mlir::ParseResult
+parseVariableDimensionConstraints(mlir::OpAsmParser &parser,
+                                  mlir::ArrayAttr &dimensionConstraints) {
+  if (mlir::failed(parser.parseOptionalLSquare())) {
+    dimensionConstraints = mlir::ArrayAttr::get(parser.getContext(), {});
+    return mlir::success();
+  }
+
+  if (mlir::failed(parser.parseOptionalRSquare())) {
+    llvm::SmallVector<mlir::Attribute> constraints;
+
+    do {
+      if (mlir::succeeded(parser.parseOptionalKeyword("free"))) {
+        constraints.push_back(DimensionConstraintAttr::get(
+            parser.getContext(), DimensionConstraint::Free));
+      } else if (mlir::succeeded(parser.parseOptionalKeyword("fixed"))) {
+        constraints.push_back(DimensionConstraintAttr::get(
+            parser.getContext(), DimensionConstraint::Fixed));
+      } else {
+        return mlir::failure();
+      }
+    } while (mlir::succeeded(parser.parseOptionalComma()));
+
+    dimensionConstraints = parser.getBuilder().getArrayAttr(constraints);
+
+    if (mlir::failed(parser.parseRSquare())) {
+      return mlir::failure();
+    }
+  }
+
+  return mlir::success();
+}
+
+void printVariableDimensionConstraints(mlir::OpAsmPrinter &printer,
+                                       mlir::Operation *op,
+                                       mlir::ArrayAttr dimensionConstraints) {
+  if (!dimensionConstraints.empty()) {
+    printer << "[";
+
+    llvm::interleaveComma(
+        dimensionConstraints, printer, [&](mlir::Attribute constraint) {
+          printer << stringifyEnum(
+              mlir::cast<DimensionConstraintAttr>(constraint).getValue());
+        });
+
+    printer << "]";
+  }
+}
 } // namespace
 
 #define GET_OP_CLASSES
@@ -1325,115 +1374,25 @@ void ArrayCopyOp::getEffects(
 
 namespace mlir::bmodelica {
 void VariableOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
-                       llvm::StringRef name, VariableType variableType) {
-  llvm::SmallVector<mlir::Attribute, 3> constraints(
-      variableType.getNumDynamicDims(),
-      builder.getStringAttr(kDimensionConstraintUnbounded));
+                       llvm::StringRef name, VariableType type) {
+  llvm::SmallVector<DimensionConstraint, 3> constraints(
+      type.getNumDynamicDims(), DimensionConstraint::Free);
 
-  build(builder, state, name, variableType, builder.getArrayAttr(constraints));
+  build(builder, state, name, type, constraints);
 }
 
-mlir::ParseResult VariableOp::parse(mlir::OpAsmParser &parser,
-                                    mlir::OperationState &result) {
-  auto &builder = parser.getBuilder();
+void VariableOp::build(
+    mlir::OpBuilder &builder, mlir::OperationState &state, llvm::StringRef name,
+    VariableType type,
+    llvm::ArrayRef<DimensionConstraint> dimensionConstraints) {
+  auto constraintAttrs = llvm::to_vector<3>(llvm::map_range(
+      dimensionConstraints,
+      [&](DimensionConstraint constraint) -> mlir::Attribute {
+        return DimensionConstraintAttr::get(builder.getContext(), constraint);
+      }));
 
-  // Variable name.
-  mlir::StringAttr nameAttr;
-
-  if (parser.parseSymbolName(nameAttr, mlir::SymbolTable::getSymbolAttrName(),
-                             result.attributes)) {
-    return mlir::failure();
-  }
-
-  // Attributes.
-  if (parser.parseOptionalAttrDict(result.attributes)) {
-    return mlir::failure();
-  }
-
-  // Variable type.
-  mlir::Type type;
-
-  if (parser.parseColonType(type)) {
-    return mlir::failure();
-  }
-
-  result.attributes.append(getTypeAttrName(result.name),
-                           mlir::TypeAttr::get(type));
-
-  // Dimensions constraints.
-  llvm::SmallVector<llvm::StringRef> dimensionsConstraints;
-
-  if (mlir::succeeded(parser.parseOptionalLSquare())) {
-    do {
-      if (mlir::succeeded(
-              parser.parseOptionalKeyword(kDimensionConstraintUnbounded))) {
-        dimensionsConstraints.push_back(kDimensionConstraintUnbounded);
-      } else {
-        if (parser.parseKeyword(kDimensionConstraintFixed)) {
-          return mlir::failure();
-        }
-
-        dimensionsConstraints.push_back(kDimensionConstraintFixed);
-      }
-    } while (mlir::succeeded(parser.parseOptionalComma()));
-
-    if (parser.parseRSquare()) {
-      return mlir::failure();
-    }
-  }
-
-  result.attributes.append(getDimensionsConstraintsAttrName(result.name),
-                           builder.getStrArrayAttr(dimensionsConstraints));
-
-  // Region for the dimensions constraints.
-  mlir::Region *constraintsRegion = result.addRegion();
-
-  mlir::OptionalParseResult constraintsRegionParseResult =
-      parser.parseOptionalRegion(*constraintsRegion);
-
-  if (constraintsRegionParseResult.has_value() &&
-      failed(*constraintsRegionParseResult)) {
-    return mlir::failure();
-  }
-
-  return mlir::success();
-}
-
-void VariableOp::print(mlir::OpAsmPrinter &printer) {
-  printer << " ";
-  printer.printSymbolName(getSymName());
-
-  llvm::SmallVector<llvm::StringRef, 1> elidedAttrs;
-  elidedAttrs.push_back(mlir::SymbolTable::getSymbolAttrName());
-  elidedAttrs.push_back(getTypeAttrName());
-  elidedAttrs.push_back(getDimensionsConstraintsAttrName());
-
-  printer.printOptionalAttrDict(getOperation()->getAttrs(), elidedAttrs);
-
-  printer << " : " << getType();
-
-  auto dimConstraints =
-      getDimensionsConstraints().getAsRange<mlir::StringAttr>();
-
-  if (llvm::any_of(dimConstraints, [](mlir::StringAttr constraint) {
-        return constraint == kDimensionConstraintFixed;
-      })) {
-    printer << " [";
-
-    for (const auto &constraint : llvm::enumerate(dimConstraints)) {
-      if (constraint.index() != 0) {
-        printer << ", ";
-      }
-
-      printer << constraint.value().getValue();
-    }
-
-    printer << "] ";
-  }
-
-  if (mlir::Region &region = getConstraintsRegion(); !region.empty()) {
-    printer.printRegion(region);
-  }
+  build(builder, state, name, mlir::TypeAttr::get(type),
+        builder.getArrayAttr(constraintAttrs));
 }
 
 mlir::LogicalResult VariableOp::verify() {
@@ -1478,40 +1437,40 @@ mlir::LogicalResult VariableOp::verify() {
   return mlir::success();
 }
 
-VariableType VariableOp::getVariableType() {
-  return mlir::cast<VariableType>(getType());
+void VariableOp::setType(VariableType newType) {
+  setTypeAttr(mlir::TypeAttr::get(newType));
 }
 
-bool VariableOp::isInput() { return getVariableType().isInput(); }
+bool VariableOp::isInput() { return getType().isInput(); }
 
-bool VariableOp::isOutput() { return getVariableType().isOutput(); }
+bool VariableOp::isOutput() { return getType().isOutput(); }
 
-bool VariableOp::isDiscrete() { return getVariableType().isDiscrete(); }
+bool VariableOp::isDiscrete() { return getType().isDiscrete(); }
 
-bool VariableOp::isParameter() { return getVariableType().isParameter(); }
+bool VariableOp::isParameter() { return getType().isParameter(); }
 
-bool VariableOp::isConstant() { return getVariableType().isConstant(); }
+bool VariableOp::isConstant() { return getType().isConstant(); }
 
-bool VariableOp::isReadOnly() { return getVariableType().isReadOnly(); }
+bool VariableOp::isReadOnly() { return getType().isReadOnly(); }
 
-size_t VariableOp::getNumOfUnboundedDimensions() {
+size_t VariableOp::getNumOfFreeDimensions() {
   return llvm::count_if(
-      getDimensionsConstraints().getAsRange<mlir::StringAttr>(),
-      [](mlir::StringAttr dimensionConstraint) {
-        return dimensionConstraint.getValue() == kDimensionConstraintUnbounded;
+      getDimensionConstraints().getAsRange<DimensionConstraintAttr>(),
+      [](DimensionConstraintAttr constraint) {
+        return constraint.getValue() == DimensionConstraint::Free;
       });
 }
 
 size_t VariableOp::getNumOfFixedDimensions() {
   return llvm::count_if(
-      getDimensionsConstraints().getAsRange<mlir::StringAttr>(),
-      [](mlir::StringAttr dimensionConstraint) {
-        return dimensionConstraint.getValue() == kDimensionConstraintFixed;
+      getDimensionConstraints().getAsRange<DimensionConstraintAttr>(),
+      [](DimensionConstraintAttr constraint) {
+        return constraint.getValue() == DimensionConstraint::Fixed;
       });
 }
 
 IndexSet VariableOp::getIndices() {
-  VariableType variableType = getVariableType();
+  VariableType variableType = getType();
 
   if (variableType.isScalar()) {
     return {};
@@ -1533,7 +1492,7 @@ IndexSet VariableOp::getIndices() {
 namespace mlir::bmodelica {
 void VariableGetOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
                           VariableOp variableOp) {
-  auto variableType = variableOp.getVariableType();
+  auto variableType = variableOp.getType();
   auto variableName = variableOp.getSymName();
   build(builder, state, variableType.unwrap(), variableName);
 }
@@ -1559,7 +1518,7 @@ mlir::LogicalResult VariableGetOp::verifySymbolUses(
   }
 
   auto variableOp = mlir::cast<VariableOp>(symbol);
-  mlir::Type unwrappedType = variableOp.getVariableType().unwrap();
+  mlir::Type unwrappedType = variableOp.getType().unwrap();
 
   if (unwrappedType != getResult().getType()) {
     return emitOpError() << "result type does not match the variable type";
@@ -1863,7 +1822,7 @@ mlir::LogicalResult ComponentGetOp::verifySymbolUses(
     expectedResultShape.append(componentShape.begin(), componentShape.end());
   }
 
-  mlir::Type expectedResultType = componentVariable.getVariableType().unwrap();
+  mlir::Type expectedResultType = componentVariable.getType().unwrap();
 
   if (!expectedResultShape.empty()) {
     if (auto expectedResultShapedType =
@@ -1950,7 +1909,7 @@ namespace mlir::bmodelica {
 void QualifiedVariableGetOp::build(mlir::OpBuilder &builder,
                                    mlir::OperationState &state,
                                    VariableOp variableOp) {
-  auto variableType = variableOp.getVariableType();
+  auto variableType = variableOp.getType();
   auto qualifiedRef = getSymbolRefFromRoot(variableOp);
   build(builder, state, variableType.unwrap(), qualifiedRef);
 }
@@ -10375,7 +10334,7 @@ llvm::SmallVector<mlir::Type> FunctionOp::getArgumentTypes() {
   llvm::SmallVector<mlir::Type> types;
 
   for (VariableOp variableOp : getVariables()) {
-    VariableType variableType = variableOp.getVariableType();
+    VariableType variableType = variableOp.getType();
 
     if (variableType.isInput()) {
       types.push_back(variableType.unwrap());
@@ -10389,7 +10348,7 @@ llvm::SmallVector<mlir::Type> FunctionOp::getResultTypes() {
   llvm::SmallVector<mlir::Type> types;
 
   for (VariableOp variableOp : getVariables()) {
-    VariableType variableType = variableOp.getVariableType();
+    VariableType variableType = variableOp.getType();
 
     if (variableType.isOutput()) {
       types.push_back(variableType.unwrap());
@@ -10404,7 +10363,7 @@ mlir::FunctionType FunctionOp::getFunctionType() {
   llvm::SmallVector<mlir::Type> resultTypes;
 
   for (VariableOp variableOp : getVariables()) {
-    VariableType variableType = variableOp.getVariableType();
+    VariableType variableType = variableOp.getType();
 
     if (variableType.isInput()) {
       argTypes.push_back(variableType.unwrap());
@@ -10660,97 +10619,6 @@ mlir::LogicalResult RawReturnOp::verify() {
 // RawVariableOp
 
 namespace mlir::bmodelica {
-/*
-mlir::ParseResult RawVariableOp::parse(
-    mlir::OpAsmParser& parser, mlir::OperationState& result)
-{
-  auto& builder = parser.getBuilder();
-
-  llvm::SmallVector<mlir::OpAsmParser::UnresolvedOperand> dynamicSizes;
-  mlir::Type variableType;
-
-  if (parser.parseOperandList(dynamicSizes) ||
-      parser.resolveOperands(
-          dynamicSizes, builder.getIndexType(), result.operands)) {
-    return mlir::failure();
-  }
-
-  // Dimensions constraints.
-  llvm::SmallVector<llvm::StringRef> dimensionsConstraints;
-
-  if (mlir::succeeded(parser.parseOptionalLSquare())) {
-    do {
-      if (mlir::succeeded(
-              parser.parseOptionalKeyword(kDimensionConstraintUnbounded))) {
-        dimensionsConstraints.push_back(kDimensionConstraintUnbounded);
-      } else {
-        if (parser.parseKeyword(kDimensionConstraintFixed)) {
-          return mlir::failure();
-        }
-
-        dimensionsConstraints.push_back(kDimensionConstraintFixed);
-      }
-    } while (mlir::succeeded(parser.parseOptionalComma()));
-
-    if (parser.parseRSquare()) {
-      return mlir::failure();
-    }
-  }
-
-  result.attributes.append(
-      getDimensionsConstraintsAttrName(result.name),
-      builder.getStrArrayAttr(dimensionsConstraints));
-
-  // Attributes.
-  if (parser.parseOptionalAttrDict(result.attributes)) {
-    return mlir::failure();
-  }
-
-  // Variable type.
-  if (parser.parseColon() ||
-      parser.parseType(variableType)) {
-    return mlir::failure();
-  }
-
-  result.addTypes(variableType);
-
-  return mlir::success();
-}
-
-void RawVariableOp::print(mlir::OpAsmPrinter& printer)
-{
-  if (auto dynamicSizes = getDynamicSizes(); !dynamicSizes.empty()) {
-    printer << " " << dynamicSizes;
-  }
-
-  auto dimConstraints =
-      getDimensionsConstraints().getAsRange<mlir::StringAttr>();
-
-  if (llvm::any_of(dimConstraints, [](mlir::StringAttr constraint) {
-        return constraint == kDimensionConstraintFixed;
-      })) {
-    printer << " [";
-
-    for (const auto& constraint : llvm::enumerate(dimConstraints)) {
-      if (constraint.index() != 0) {
-        printer << ", ";
-      }
-
-      printer << constraint.value().getValue();
-    }
-
-    printer << "] ";
-  }
-
-  llvm::SmallVector<llvm::StringRef, 1> elidedAttrs;
-  elidedAttrs.push_back(getDimensionsConstraintsAttrName());
-
-  printer.printOptionalAttrDict(getOperation()->getAttrs(), elidedAttrs);
-
-  printer << " : " << getVariable().getType();
-}
-*/
-
 void RawVariableOp::getEffects(
     mlir::SmallVectorImpl<
         mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>
@@ -10770,29 +10638,6 @@ void RawVariableOp::getEffects(
     }
   }
 }
-
-/*
-VariableType RawVariableOp::getVariableType()
-{
-  mlir::Type variableType = getVariable().getType();
-
-  VariabilityProperty variabilityProperty = VariabilityProperty::none;
-  IOProperty ioProperty = IOProperty::none;
-
-  if (getOutput()) {
-    ioProperty = IOProperty::output;
-  }
-
-  if (auto shapedType = mlir::dyn_cast<mlir::ShapedType>(variableType)) {
-    return VariableType::get(
-        shapedType.getShape(), shapedType.getElementType(),
-        variabilityProperty, ioProperty);
-  }
-
-  return VariableType::get(
-      std::nullopt, variableType, variabilityProperty, ioProperty);
-}
- */
 
 bool RawVariableOp::isScalarVariable(mlir::Type variableType) {
   auto variableShapedType = mlir::cast<mlir::ShapedType>(variableType);

@@ -12,7 +12,7 @@ bmodelica.model @Test {
 
     // COM: x[0] = 0
     %t0 = bmodelica.equation_template inductions = [] attributes {id = "t0"} {
-        %0 = bmodelica.variable_get @x : tensor<2x!bmodelica.real>
+        %0 = bmodelica.variable.get @x : tensor<2x!bmodelica.real>
         %1 = bmodelica.constant 0 : index
         %2 = bmodelica.tensor_extract %0[%1] : tensor<2x!bmodelica.real>
         %3 = bmodelica.constant #bmodelica<real 0.0>
@@ -25,8 +25,8 @@ bmodelica.model @Test {
 
     // COM: x[1] + y = 0
     %t1 = bmodelica.equation_template inductions = [] attributes {id = "t1"} {
-        %0 = bmodelica.variable_get @x : tensor<2x!bmodelica.real>
-        %1 = bmodelica.variable_get @y : !bmodelica.real
+        %0 = bmodelica.variable.get @x : tensor<2x!bmodelica.real>
+        %1 = bmodelica.variable.get @y : !bmodelica.real
         %2 = bmodelica.constant 1 : index
         %3 = bmodelica.tensor_extract %0[%2] : tensor<2x!bmodelica.real>
         %4 = bmodelica.add %3, %1 : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
@@ -40,8 +40,8 @@ bmodelica.model @Test {
 
     // COM: y + z = 0
     %t2 = bmodelica.equation_template inductions = [] attributes {id = "t2"} {
-        %0 = bmodelica.variable_get @y : !bmodelica.real
-        %1 = bmodelica.variable_get @z : !bmodelica.real
+        %0 = bmodelica.variable.get @y : !bmodelica.real
+        %1 = bmodelica.variable.get @z : !bmodelica.real
         %2 = bmodelica.add %0, %1 : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
         %3 = bmodelica.constant #bmodelica<real 0.0>
         %4 = bmodelica.equation_side %2 : tuple<!bmodelica.real>

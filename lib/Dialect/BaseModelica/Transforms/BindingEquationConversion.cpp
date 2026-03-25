@@ -59,7 +59,7 @@ struct BindingEquationOpToEquationOpPattern : public BindingEquationOpPattern {
       return rewriter.notifyMatchFailure(op, "Read-only variable");
     }
 
-    int64_t variableRank = variableOp.getVariableType().getRank();
+    int64_t variableRank = variableOp.getType().getRank();
 
     // Create the equation template.
     auto templateOp = rewriter.create<EquationTemplateOp>(loc);

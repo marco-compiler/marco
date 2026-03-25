@@ -11,7 +11,7 @@ bmodelica.model @arrayDependency {
 
     // COM: x[i] = 0
     %t0 = bmodelica.equation_template inductions = [%i] attributes {id = "t0"} {
-        %0 = bmodelica.variable_get @x : tensor<5x!bmodelica.real>
+        %0 = bmodelica.variable.get @x : tensor<5x!bmodelica.real>
         %1 = bmodelica.tensor_extract %0[%i] : tensor<5x!bmodelica.real>
         %2 = bmodelica.constant #bmodelica<real 0.0>
         %3 = bmodelica.equation_side %1 : tuple<!bmodelica.real>
@@ -23,8 +23,8 @@ bmodelica.model @arrayDependency {
 
     // COM: y = x[0]
     %t1 = bmodelica.equation_template inductions = [] attributes {id = "t1"} {
-        %0 = bmodelica.variable_get @y : !bmodelica.real
-        %1 = bmodelica.variable_get @x : tensor<5x!bmodelica.real>
+        %0 = bmodelica.variable.get @y : !bmodelica.real
+        %1 = bmodelica.variable.get @x : tensor<5x!bmodelica.real>
         %2 = bmodelica.constant 0 : index
         %3 = bmodelica.tensor_extract %1[%2] : tensor<5x!bmodelica.real>
         %4 = bmodelica.equation_side %0 : tuple<!bmodelica.real>

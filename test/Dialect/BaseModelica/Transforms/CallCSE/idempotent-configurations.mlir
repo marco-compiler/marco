@@ -11,14 +11,14 @@ module @SingleCall {
         bmodelica.variable @x : !bmodelica.variable<f64>
 
         // CHECK:      %[[T:.*]] = bmodelica.equation_template
-        // CHECK-NEXT:     %[[R0:.*]] = bmodelica.variable_get @x
+        // CHECK-NEXT:     %[[R0:.*]] = bmodelica.variable.get @x
         // CHECK-NEXT:     %[[LHS:.*]] = bmodelica.equation_side %[[R0]]
         // CHECK-NEXT:     %[[R1:.*]] = bmodelica.constant 1
         // CHECK-NEXT:     %[[R2:.*]] = bmodelica.call @foo(%[[R1]])
         // CHECK-NEXT:     %[[RHS:.*]] = bmodelica.equation_side %[[R2]]
         // CHECK-NEXT:     bmodelica.equation_sides %[[LHS]], %[[RHS]]
         %t0 = bmodelica.equation_template inductions = [] {
-            %0 = bmodelica.variable_get @x : f64
+            %0 = bmodelica.variable.get @x : f64
             %lhs = bmodelica.equation_side %0 : tuple<f64>
             %1 = bmodelica.constant 1.0 : f64
             %2 = bmodelica.call @foo(%1) : (f64) -> f64
@@ -48,14 +48,14 @@ module @ArrayResult {
         bmodelica.variable @y : !bmodelica.variable<1xf64>
 
         // CHECK:      %[[T0:.*]] = bmodelica.equation_template
-        // CHECK-NEXT:     %[[R0:.*]] = bmodelica.variable_get @x
+        // CHECK-NEXT:     %[[R0:.*]] = bmodelica.variable.get @x
         // CHECK-NEXT:     %[[LHS:.*]] = bmodelica.equation_side %[[R0]]
         // CHECK-NEXT:     %[[R1:.*]] = bmodelica.constant 1
         // CHECK-NEXT:     %[[R2:.*]] = bmodelica.call @FuncWithArrayResult(%[[R1]])
         // CHECK-NEXT:     %[[RHS:.*]] = bmodelica.equation_side %[[R2]]
         // CHECK-NEXT:     bmodelica.equation_sides %[[LHS]], %[[RHS]]
         %t0 = bmodelica.equation_template inductions = [] {
-            %0 = bmodelica.variable_get @x : tensor<1xf64>
+            %0 = bmodelica.variable.get @x : tensor<1xf64>
             %1 = bmodelica.equation_side %0 : tuple<tensor<1xf64>>
             %2 = bmodelica.constant 1.0 : f64
             %3 = bmodelica.call @FuncWithArrayResult(%2) : (f64) -> tensor<1xf64>
@@ -64,14 +64,14 @@ module @ArrayResult {
         }
 
         // CHECK:      %[[T1:.*]] = bmodelica.equation_template
-        // CHECK-NEXT:     %[[R0:.*]] = bmodelica.variable_get @y
+        // CHECK-NEXT:     %[[R0:.*]] = bmodelica.variable.get @y
         // CHECK-NEXT:     %[[LHS:.*]] = bmodelica.equation_side %[[R0]]
         // CHECK-NEXT:     %[[R1:.*]] = bmodelica.constant 1
         // CHECK-NEXT:     %[[R2:.*]] = bmodelica.call @FuncWithArrayResult(%[[R1]])
         // CHECK-NEXT:     %[[RHS:.*]] = bmodelica.equation_side %[[R2]]
         // CHECK-NEXT:     bmodelica.equation_sides %[[LHS]], %[[RHS]]
         %t1 = bmodelica.equation_template inductions = [] {
-            %0 = bmodelica.variable_get @y : tensor<1xf64>
+            %0 = bmodelica.variable.get @y : tensor<1xf64>
             %1 = bmodelica.equation_side %0 : tuple<tensor<1xf64>>
             %2 = bmodelica.constant 1.0 : f64
             %3 = bmodelica.call @FuncWithArrayResult(%2) : (f64) -> tensor<1xf64>
@@ -112,7 +112,7 @@ module @ConflictingIndices {
         // CHECK-NEXT:     %[[OFFSET:.*]] = bmodelica.constant -1
         // CHECK-NEXT:     %[[INDEX0:.*]] = bmodelica.add %[[IDX0]], %[[OFFSET]]
         // CHECK-NEXT:     %[[INDEX1:.*]] = bmodelica.add %[[IDX1]], %[[OFFSET]]
-        // CHECK-NEXT:     %[[ARR:.*]] = bmodelica.variable_get @a
+        // CHECK-NEXT:     %[[ARR:.*]] = bmodelica.variable.get @a
         // CHECK-NEXT:     %[[REF:.*]] = bmodelica.tensor_extract %[[ARR]][%[[INDEX0]], %[[INDEX1]]]
         // CHECK-NEXT:     %[[LHS:.*]] = bmodelica.equation_side %[[REF]]
         // CHECK-NEXT:     %[[CALL_RES:.*]] = bmodelica.call @f(%[[IDX0]], %[[IDX1]])
@@ -122,7 +122,7 @@ module @ConflictingIndices {
             %4 = bmodelica.constant -1 : index
             %5 = bmodelica.add %arg0, %4 : (index, index) -> index
             %6 = bmodelica.add %arg1, %4 : (index, index) -> index
-            %7 = bmodelica.variable_get @a : tensor<4x5xi32>
+            %7 = bmodelica.variable.get @a : tensor<4x5xi32>
             %8 = bmodelica.tensor_extract %7[%5, %6] : tensor<4x5xi32>
             %9 = bmodelica.equation_side %8 : tuple<i32>
             %10 = bmodelica.call @f(%arg0, %arg1) : (index, index) -> i32
@@ -135,7 +135,7 @@ module @ConflictingIndices {
             %4 = bmodelica.constant -1 : index
             %5 = bmodelica.add %arg0, %4 : (index, index) -> index
             %6 = bmodelica.add %arg1, %4 : (index, index) -> index
-            %7 = bmodelica.variable_get @b : tensor<4x5xi32>
+            %7 = bmodelica.variable.get @b : tensor<4x5xi32>
             %8 = bmodelica.tensor_extract %7[%5, %6] : tensor<4x5xi32>
             %9 = bmodelica.equation_side %8 : tuple<i32>
             %10 = bmodelica.call @f(%arg0, %arg1) : (index, index) -> i32

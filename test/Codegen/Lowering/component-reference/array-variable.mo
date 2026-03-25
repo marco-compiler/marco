@@ -2,8 +2,8 @@
 
 // CHECK-LABEL: @Foo
 // CHECK:       bmodelica.algorithm {
-// CHECK-NEXT:      %[[x:.*]] = bmodelica.variable_get @x : tensor<2x!bmodelica.real>
-// CHECK-NEXT:      bmodelica.variable_set @y, %[[x]]
+// CHECK-NEXT:      %[[x:.*]] = bmodelica.variable.get @x : tensor<2x!bmodelica.real>
+// CHECK-NEXT:      bmodelica.variable.set @y, %[[x]]
 // CHECK-NEXT:  }
 
 function Foo

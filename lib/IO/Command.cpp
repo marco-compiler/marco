@@ -77,16 +77,6 @@ int Command::exec() const {
     redirects.push_back(std::nullopt);
   }
 
-  /*
-  llvm::outs() << "Running command\n";
-
-  for (const auto& arg : argsRef) {
-    llvm::outs() << arg << " ";
-  }
-
-  llvm::outs() << "\n";
-  */
-
   return llvm::sys::ExecuteAndWait(programPath, argsRef, std::nullopt,
                                    redirects);
 }

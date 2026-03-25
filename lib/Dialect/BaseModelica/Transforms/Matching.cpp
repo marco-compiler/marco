@@ -181,7 +181,7 @@ mlir::LogicalResult MatchingPass::processModelOp(ModelOp modelOp) {
 
       if (auto derivedIndices =
               derivativesMap.getDerivedIndices(variableName)) {
-        if (variable.getVariableType().isScalar()) {
+        if (variable.getType().isScalar()) {
           return std::nullopt;
         }
 

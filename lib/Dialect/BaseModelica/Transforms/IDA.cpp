@@ -389,7 +389,7 @@ IDAInstance::addVariablesToIDA(mlir::OpBuilder &builder, mlir::Location loc,
 
   // Algebraic variables.
   for (VariableOp variableOp : algebraicVariables) {
-    auto arrayType = variableOp.getVariableType().toArrayType();
+    auto arrayType = variableOp.getType().toArrayType();
 
     std::vector<int64_t> dimensions = getDimensionsFn(arrayType);
     auto getter = createGetterFn(variableOp);
@@ -408,7 +408,7 @@ IDAInstance::addVariablesToIDA(mlir::OpBuilder &builder, mlir::Location loc,
 
   // State variables.
   for (VariableOp variableOp : stateVariables) {
-    auto arrayType = variableOp.getVariableType().toArrayType();
+    auto arrayType = variableOp.getType().toArrayType();
 
     std::optional<mlir::SymbolRefAttr> derivativeName =
         getDerivative(mlir::SymbolRefAttr::get(variableOp.getSymNameAttr()));
@@ -1319,7 +1319,7 @@ FunctionOp IDAInstance::createPartialDerTemplateFromEquation(
     }
 
     VariableType variableType =
-        variableOp.getVariableType().withIOProperty(IOProperty::input);
+        variableOp.getType().withIOProperty(IOProperty::input);
 
     auto clonedVariableOp = rewriter.create<VariableOp>(
         variableOp.getLoc(), variableOp.getSymName(), variableType);
@@ -1389,7 +1389,7 @@ FunctionOp IDAInstance::createPartialDerTemplateFromEquation(
   for (size_t i = 0, e = originalInductions.size(); i < e; ++i) {
     mlir::Value mappedInduction = rewriter.create<VariableGetOp>(
         inductionVariablesOps[i].getLoc(),
-        inductionVariablesOps[i].getVariableType().unwrap(),
+        inductionVariablesOps[i].getType().unwrap(),
         inductionVariablesOps[i].getSymName());
 
     mapping.map(originalInductions[i], mappedInduction);
@@ -1531,7 +1531,7 @@ FunctionOp IDAInstance::createPartialDerTemplateFromEquation(
     rewriter.setInsertionPoint(timeOp);
 
     mlir::Value time = rewriter.create<VariableGetOp>(
-        timeVariable.getLoc(), timeVariable.getVariableType().unwrap(),
+        timeVariable.getLoc(), timeVariable.getType().unwrap(),
         timeVariable.getSymName());
 
     rewriter.replaceOp(timeOp, time);
@@ -1570,8 +1570,7 @@ mlir::LogicalResult IDAInstance::createJacobianFunction(
 
   auto jacobianFunction = builder.create<mlir::ida::JacobianFunctionOp>(
       loc, jacobianFunctionName, numOfInductions,
-      independentVariable.getVariableType().getRank(),
-      independentVariables.size());
+      independentVariable.getType().getRank(), independentVariables.size());
 
   symbolTableCollection->getSymbolTable(moduleOp).insert(jacobianFunction);
 
@@ -1590,7 +1589,7 @@ mlir::LogicalResult IDAInstance::createJacobianFunction(
     }
 
     mlir::Value seed = builder.create<PoolVariableGetOp>(
-        loc, independentVariableOp.getVariableType().toArrayType(),
+        loc, independentVariableOp.getType().toArrayType(),
         jacobianFunction.getMemoryPool(), jacobianFunction.getADSeeds()[*pos]);
 
     varSeeds[*pos] = seed;

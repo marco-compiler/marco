@@ -97,7 +97,7 @@ void ExplicitInitialEquationsInsertionPass::createInitialEquationsFromStartOps(
     auto variable = symbolTableCollection.lookupSymbolIn<VariableOp>(
         modelOp, startOp.getVariableAttr());
 
-    VariableType variableType = variable.getVariableType();
+    VariableType variableType = variable.getType();
     int64_t expressionRank = 0;
 
     auto yieldOp =
