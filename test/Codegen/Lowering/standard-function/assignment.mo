@@ -8,7 +8,7 @@
 // CHECK-DAG:       %[[minus_one:.*]] = bmodelica.constant -1 : index
 // CHECK-DAG:       %[[index:.*]] = bmodelica.add %[[one]], %[[minus_one]]
 // CHECK-DAG:       %[[x:.*]] = bmodelica.variable.get @x : !bmodelica.int
-// CHECK-NEXT:      bmodelica.variable.set @y[%[[index]]], %[[x]]
+// CHECK-NEXT:      bmodelica.variable.set @y[%[[index]] : index], %[[x]]
 // CHECK-NEXT:  }
 
 function variableCopy

@@ -1255,28 +1255,44 @@ def BaseModelica_VariableGetOp : BaseModelica_Op<"variable.get", [
     ];
 }
 
-def Modelica_VariableSetOp : BaseModelica_Op<"variable.set",
-    [DeclareOpInterfaceMethods<SymbolUserOpInterface>]>
+def Modelica_VariableSetOp : BaseModelica_Op<"variable.set", [
+        DeclareOpInterfaceMethods<SymbolUserOpInterface>
+    ]>
 {
-    let summary = "Store data into a class variable.";
+    let summary = "Set the data held by a variable.";
 
     let description = [{
-        Store data into the variable of a class.
+        The operation allows to set the data held by a variable.
+        The value to be be written can be a scalar or an array. In the former
+        case, either the variable must also be of scalar type, or the operation
+        must also specify the indices of the element to be written. In the
+        latter case, the shape of the value must match the shape of the
+        variable.
 
         Example with scalar variable:
 
         ```mlir
-        bmodelica.variable @x : !bmodelica.variable<!bmodelica.real, parameter>
+        bmodelica.variable @x : !bmodelica.variable<!bmodelica.real>
         %0 = bmodelica.constant #bmodelica<real 0.0>
         bmodelica.variable.set @x, %0 : !bmodelica.real
         ```
 
-        Example with array variable:
+        Example of writing a scalar element to an array variable:
 
         ```mlir
-        modelica.variable @x : !modelica.variable<2x3x!modelica.real, parameter>
-        %0 = ... : !modelica.array<2x3x!modelica.real>
-        modelica.variable_store @x, %0 : !modelica.array<2x3x!modelica.real>
+        bmodelica.variable @x : !bmodelica.variable<2x3x!bmodelica.real>
+        %0 = ... : tensor<2x3x!bmodelica.real>
+        %idx0 = ... : index
+        %idx1 = ... : index
+        bmodelica.variable.set @x[%idx0, %idx1 : index, index], %0 : !bmodelica.real
+        ```
+
+        Example of writing an array value to an array variable:
+
+        ```mlir
+        bmodelica.variable @x : !bmodelica.variable<2x3x!bmodelica.real>
+        %0 = ... : tensor<2x3x!bmodelica.real>
+        bmodelica.variable.set @x, %0 : tensor<2x3x!bmodelica.real>
         ```
     }];
 
@@ -1286,7 +1302,7 @@ def Modelica_VariableSetOp : BaseModelica_Op<"variable.set",
         AnyType:$value);
 
     let results = (outs);
-    let hasCustomAssemblyFormat = 1;
+    let assemblyFormat = "$variable (`[` $indices^ `:` type($indices) `]`)? `,` $value `:` type($value) attr-dict";
 
     let builders = [
         OpBuilder<(ins "VariableOp":$variableOp, "mlir::Value":$value)>,
