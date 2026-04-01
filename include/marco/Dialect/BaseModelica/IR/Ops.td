@@ -1513,12 +1513,13 @@ def BaseModelica_PoolVariableGetOp : BaseModelica_Op<"pool_variable_get", [NoMem
 // Math operations
 //===---------------------------------------------------------------------===//
 
-def BaseModelica_ConstantOp : BaseModelica_Op<"constant",
-    [ConstantLike,
-    Pure,
-    AllTypesMatch<["value", "result"]>]>
+def BaseModelica_ConstantOp : BaseModelica_Op<"constant", [
+        ConstantLike,
+        Pure,
+        AllTypesMatch<["value", "result"]>
+    ]>
 {
-    let summary = "Constant.";
+    let summary = "Constant value.";
 
     let description = [{
         The operation turns a literal into an SSA value. The data is attached to the
@@ -1527,7 +1528,7 @@ def BaseModelica_ConstantOp : BaseModelica_Op<"constant",
         Example:
 
         ```mlir
-        %0 = modelica.constant #modelica<int 3>
+        %0 = bmodelica.constant #modelica<int 3>
         ```
     }];
 
