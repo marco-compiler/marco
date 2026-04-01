@@ -1220,28 +1220,29 @@ def BaseModelica_VariableOp : BaseModelica_Op<"variable", [
     }];
 }
 
-def BaseModelica_VariableGetOp : BaseModelica_Op<"variable.get",
-    [DeclareOpInterfaceMethods<SymbolUserOpInterface>,
-    NoMemoryEffect]>
+def BaseModelica_VariableGetOp : BaseModelica_Op<"variable.get", [
+        DeclareOpInterfaceMethods<SymbolUserOpInterface>,
+        NoMemoryEffect
+    ]>
 {
-    let summary = "Load the data held by a class variable.";
+    let summary = "Get the data held by a variable.";
 
     let description = [{
-        Load the data held by variable of a class.
-        Allows to shift from symbol semantics to SSA semantics.
+        Get the data held by a variable.
+        The operation allows to shift from symbol semantics to SSA semantics.
 
         Example with scalar variable:
 
         ```mlir
-        bmodelica.variable @x : !bmodelica.variable<!bmodelica.real, parameter>
+        bmodelica.variable @x : !bmodelica.variable<!bmodelica.real>
         %0 = bmodelica.variable.get @x : !bmodelica.real
         ```
 
         Example with array variable:
 
         ```mlir
-        bmodelica.variable @x : !bmodelica.variable<2x3x!bmodelica.real, parameter>
-        %0 = bmodelica.variable.get @x : !bmodelica.array<2x3x!bmodelica.real>
+        bmodelica.variable @x : !bmodelica.variable<2x3x!bmodelica.real>
+        %0 = bmodelica.variable.get @x : tensor<2x3x!bmodelica.real>
         ```
     }];
 
