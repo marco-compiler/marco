@@ -13,7 +13,7 @@
 // CHECK:   return %[[result]]
 
 func.func @staticTensors(%arg0 : tensor<3x4x5x6xi1>, %arg1 : tensor<3x4x5x6xi1>) -> tensor<3x4x5x6xi1> {
-    %0 = bmodelica.and %arg0, %arg1 : (tensor<3x4x5x6xi1>, tensor<3x4x5x6xi1>) -> tensor<3x4x5x6xi1>
+    %0 = bmodelica.and %arg0, %arg1 : tensor<3x4x5x6xi1>, tensor<3x4x5x6xi1> -> tensor<3x4x5x6xi1>
     func.return %0 : tensor<3x4x5x6xi1>
 }
 
@@ -30,6 +30,6 @@ func.func @staticTensors(%arg0 : tensor<3x4x5x6xi1>, %arg1 : tensor<3x4x5x6xi1>)
 // CHECK:   return %[[result]]
 
 func.func @dynamicTensors(%arg0 : tensor<3x?x5xi1>, %arg1 : tensor<3x?x5xi1>) -> tensor<3x?x5xi1> {
-    %0 = bmodelica.and %arg0, %arg1 : (tensor<3x?x5xi1>, tensor<3x?x5xi1>) -> tensor<3x?x5xi1>
+    %0 = bmodelica.and %arg0, %arg1 : tensor<3x?x5xi1>, tensor<3x?x5xi1> -> tensor<3x?x5xi1>
     func.return %0 : tensor<3x?x5xi1>
 }

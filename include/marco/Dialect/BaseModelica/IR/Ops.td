@@ -2062,37 +2062,21 @@ def BaseModelica_LteOp : BaseModelica_ComparisonOp<"lte",
 // Logic operations
 //===---------------------------------------------------------------------===//
 
-def BaseModelica_NotOp : BaseModelica_Op<"not",
-    [AlwaysSpeculatable,
-    DeclareOpInterfaceMethods<InferTypeOpInterface>,
-    NoMemoryEffect]>
+def BaseModelica_NotOp : BaseModelica_Op<"not", [
+        AlwaysSpeculatable,
+        DeclareOpInterfaceMethods<InferTypeOpInterface>,
+        NoMemoryEffect
+    ]>
 {
-    let summary = "Compute the logical NOT of a boolean value.";
+    let summary = "Logical NOT.";
 
     let description = [{
-        The operation computes the logical NOT of a boolean value.
-        It takes one operand and returns one result. The type of the operand must be a
-        BaseModelica boolean or an array composed by booleans. In case of array operand, its
-        size must be equal to the one of the result type. Runtime checks can also be
-        enabled to ensure shapes correctness when dynamic dimensions are present.
-
-        Example with scalar values:
-
-        ```mlir
-        %0 = ... : !modelica.bool
-        %1 = modelica.not %0 : !modelica.bool -> !modelica.bool
-        ```
-
-        Example with array values:
-
-        ```mlir
-        %0 = ... : !modelica.array<3x!modelica.bool>
-        %1 = modelica.not %0, %1 : !modelica.array<3x!modelica.bool> -> !modelica.array<3x!modelica.bool>
-        ```
+        The operation computes the logical NOT of a boolean value or of a
+        tensor thereof.
     }];
 
-    let arguments = (ins AnyType:$operand);
-    let results = (outs AnyType:$result);
+    let arguments = (ins BaseModelicaCompatibleScalarOrRankedTensor:$operand);
+    let results = (outs BaseModelicaCompatibleScalarOrRankedTensor:$result);
 
     let assemblyFormat = [{
         $operand attr-dict `:` type($operand) `->` type($result)
@@ -2106,43 +2090,28 @@ def BaseModelica_NotOp : BaseModelica_Op<"not",
     }];
 }
 
-def BaseModelica_AndOp : BaseModelica_Op<"and",
-    [AlwaysSpeculatable,
-    DeclareOpInterfaceMethods<InferTypeOpInterface>,
-    NoMemoryEffect]>
+def BaseModelica_AndOp : BaseModelica_Op<"and", [
+        AlwaysSpeculatable,
+        DeclareOpInterfaceMethods<InferTypeOpInterface>,
+        NoMemoryEffect
+    ]>
 {
-    let summary = "Compute the logical AND between two boolean values.";
+    let summary = "Logical AND.";
 
     let description = [{
-        The operation computes the logical AND between two boolean values.
-        It takes two operands and returns one result. The type of the operands must be
-        BaseModelica booleans or arrays composed by booleans. In case of array operands, their
-        size must be equal among themselves and also with respect to the result type.
-        Runtime checks can also be enabled to ensure shapes correctness when dynamic
-        dimensions are present.
-
-        Example with scalar values:
-
-        ```mlir
-        %0 = ... : !modelica.bool
-        %1 = ... : !modelica.bool
-        %2 modelica.and %0, %1 : (!modelica.bool, !modelica.bool) -> !modelica.bool
-        ```
-
-        Example with array values:
-
-        ```mlir
-        %0 = ... : !modelica.array<3x!modelica.bool>
-        %1 = ... : !modelica.array<3x!modelica.bool>
-        %2 = modelica.and %0, %1 : (!modelica.array<3x!modelica.bool>, !modelica.array<3x!modelica.bool>) -> !modelica.array<3x!modelica.bool>
-        ```
+        The operation computes the logical AND between two boolean values or
+        tensors thereof.
     }];
 
-    let arguments = (ins AnyType:$lhs, AnyType:$rhs);
-    let results = (outs AnyType:$result);
+    let arguments = (ins
+        BaseModelicaCompatibleScalarOrRankedTensor:$lhs,
+        BaseModelicaCompatibleScalarOrRankedTensor:$rhs
+    );
+
+    let results = (outs BaseModelicaCompatibleScalarOrRankedTensor:$result);
 
     let assemblyFormat = [{
-        $lhs `,` $rhs attr-dict `:` `(` type($lhs) `,` type($rhs) `)` `->` type($result)
+        $lhs `,` $rhs attr-dict `:` type($lhs) `,` type($rhs) `->` type($result)
     }];
 
     let hasFolder = 1;
@@ -2153,43 +2122,28 @@ def BaseModelica_AndOp : BaseModelica_Op<"and",
     }];
 }
 
-def BaseModelica_OrOp : BaseModelica_Op<"or",
-    [AlwaysSpeculatable,
-    DeclareOpInterfaceMethods<InferTypeOpInterface>,
-    NoMemoryEffect]>
+def BaseModelica_OrOp : BaseModelica_Op<"or", [
+        AlwaysSpeculatable,
+        DeclareOpInterfaceMethods<InferTypeOpInterface>,
+        NoMemoryEffect
+    ]>
 {
-    let summary = "Compute the logical OR between two boolean values.";
+    let summary = "Logical OR.";
 
     let description = [{
-        The operation computes the logical OR between two boolean values.
-        It takes two operands and returns one result. The type of the operands must be
-        BaseModelica booleans or arrays composed by booleans. In case of array operands, their
-        size must be equal among themselves and also with respect to the result type.
-        Runtime checks can also be enabled to ensure shapes correctness when dynamic
-        dimensions are present.
-
-        Example with scalar values:
-
-        ```mlir
-        %0 = ... : !modelica.bool
-        %1 = ... : !modelica.bool
-        %2 = modelica.or %0, %1 : (!modelica.bool, !modelica.bool) -> !modelica.bool
-        ```
-
-        Example with array values:
-
-        ```mlir
-        %0 = ... : !modelica.array<3x!modelica.bool>
-        %1 = ... : !modelica.array<3x!modelica.bool>
-        %2 = modelica.or %0, %1 : (!modelica.array<3x!modelica.bool>, !modelica.array<3x!modelica.bool>) -> !modelica.array<3x!modelica.bool>
-        ```
+        The operation computes the logical OR between two boolean values or tensors
+        thereof.
     }];
 
-    let arguments = (ins AnyType:$lhs, AnyType:$rhs);
-    let results = (outs AnyType:$result);
+    let arguments = (ins
+        BaseModelicaCompatibleScalarOrRankedTensor:$lhs,
+        BaseModelicaCompatibleScalarOrRankedTensor:$rhs
+    );
+
+    let results = (outs BaseModelicaCompatibleScalarOrRankedTensor:$result);
 
     let assemblyFormat = [{
-        $lhs `,` $rhs attr-dict `:` `(` type($lhs) `,` type($rhs) `)` `->` type($result)
+        $lhs `,` $rhs attr-dict `:` type($lhs) `,` type($rhs) `->` type($result)
     }];
 
     let hasFolder = 1;
@@ -2200,10 +2154,11 @@ def BaseModelica_OrOp : BaseModelica_Op<"or",
     }];
 }
 
-def BaseModelica_SelectOp : BaseModelica_Op<"select",
-    [DeclareOpInterfaceMethods<InferTypeOpInterface>,
-    SameVariadicOperandSize,
-    AlwaysSpeculatable]>
+def BaseModelica_SelectOp : BaseModelica_Op<"select", [
+        DeclareOpInterfaceMethods<InferTypeOpInterface>,
+        SameVariadicOperandSize,
+        AlwaysSpeculatable
+    ]>
 {
     let summary = "Ternary operator";
 
