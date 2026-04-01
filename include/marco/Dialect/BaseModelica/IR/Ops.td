@@ -7,6 +7,7 @@ include "marco/Dialect/BaseModelica/IR/Types.td"
 include "marco/Dialect/BaseModelica/IR/OpInterfaces.td"
 include "marco/Dialect/Modeling/IR/Properties.td"
 include "mlir/IR/BuiltinAttributeInterfaces.td"
+include "mlir/IR/CommonTypeConstraints.td"
 include "mlir/IR/RegionKindInterface.td"
 include "mlir/IR/SymbolInterfaces.td"
 include "mlir/Interfaces/CallInterfaces.td"
@@ -47,12 +48,25 @@ def BaseModelicaRecord :
          "record", "::mlir::bmodelica::RecordType">;
 
 // BaseModelica scalar type.
-def AnyBaseModelicaScalar :
+def BaseModelicaScalar :
     AnyTypeOf<[BaseModelicaBoolean, BaseModelicaInteger, BaseModelicaReal]>;
 
 // BaseModelica-compatible scalar type.
-def AnyBaseModelicaCompatibleScalar :
-    AnyTypeOf<[AnyBaseModelicaScalar, AnyInteger, AnyFloat, Index]>;
+def BaseModelicaCompatibleScalar :
+    AnyTypeOf<[BaseModelicaScalar, AnyInteger, AnyFloat, Index]>;
+
+class BaseModelicaCompatibleRankedTensorOfRank<list<int> ranks> :
+    RankedTensorOf<[BaseModelicaCompatibleScalar], [HasAnyRankOfPred<ranks>]>;
+
+def BaseModelicaCompatibleNonZeroRankedTensor :
+    Non0RankedTensorOf<[BaseModelicaCompatibleScalar]>;
+
+def AnyBaseModelicaCompatibleRankedTensor :
+    RankedTensorOf<[BaseModelicaCompatibleScalar]>;
+
+// BaseModelica-compatible scalar or tensor thereof type.
+def BaseModelicaCompatibleScalarOrRankedTensor :
+    AnyTypeOf<[BaseModelicaCompatibleScalar, AnyBaseModelicaCompatibleRankedTensor]>;
 
 // Whether a type is an ArrayType.
 def IsBaseModelicaArrayTypePred :
@@ -395,7 +409,7 @@ def Modelica_TensorViewOp : BaseModelica_Op<"tensor_view",
 {
     let arguments = (ins
         AnyTensor:$source,
-        Variadic<AnyTypeOf<[AnyBaseModelicaCompatibleScalar, BaseModelicaRange]>>:$subscriptions);
+        Variadic<AnyTypeOf<[BaseModelicaCompatibleScalar, BaseModelicaRange]>>:$subscriptions);
 
     let results = (outs AnyTensor:$result);
 
@@ -661,7 +675,7 @@ def Modelica_ArrayBroadcastOp : BaseModelica_Op<"array_broadcast",
     }];
 
     let arguments = (ins
-        AnyBaseModelicaCompatibleScalar:$value,
+        BaseModelicaCompatibleScalar:$value,
         Variadic<Index>:$dynamicDimensions);
 
     let results = (outs AnyBaseModelicaArray:$array);
@@ -899,7 +913,7 @@ def BaseModelica_SubscriptionOp : BaseModelica_Op<"subscription",
 
     let arguments = (ins
         AnyBaseModelicaArray:$source,
-        Variadic<AnyTypeOf<[AnyBaseModelicaCompatibleScalar, BaseModelicaRange]>>:$indices);
+        Variadic<AnyTypeOf<[BaseModelicaCompatibleScalar, BaseModelicaRange]>>:$indices);
 
     let results = (outs AnyType:$result);
 
@@ -957,7 +971,7 @@ def BaseModelica_ArrayFillOp : BaseModelica_Op<"array_fill",
         ```
     }];
 
-    let arguments = (ins AnyBaseModelicaArray:$array, AnyBaseModelicaCompatibleScalar:$value);
+    let arguments = (ins AnyBaseModelicaArray:$array, BaseModelicaCompatibleScalar:$value);
     let results = (outs);
 
     let assemblyFormat = [{
@@ -1877,10 +1891,10 @@ class BaseModelica_ComparisonOp<string mnemonic, list<Trait> traits = []> :
     BaseModelica_Op<mnemonic, traits>
 {
     let arguments = (ins
-        AnyBaseModelicaCompatibleScalar:$lhs,
-        AnyBaseModelicaCompatibleScalar:$rhs);
+        BaseModelicaCompatibleScalar:$lhs,
+        BaseModelicaCompatibleScalar:$rhs);
 
-    let results = (outs AnyBaseModelicaCompatibleScalar:$result);
+    let results = (outs BaseModelicaCompatibleScalar:$result);
 
     let assemblyFormat = [{
         $lhs `,` $rhs attr-dict `:` `(` type($lhs) `,` type($rhs) `)` `->` type($result)
@@ -2217,25 +2231,19 @@ def BaseModelica_SelectOp : BaseModelica_Op<"select",
 // Built-in operations
 //===---------------------------------------------------------------------===//
 
-def BaseModelica_AbsOp : BaseModelica_Op<"abs",
-    [AlwaysSpeculatable,
-    NoMemoryEffect]>
+def BaseModelica_AbsOp : BaseModelica_Op<"abs", [
+        AlwaysSpeculatable,
+        NoMemoryEffect
+    ]>
 {
-    let summary = "Compute the absolute value.";
+    let summary = "Absolute value function.";
 
     let description = [{
         The operation computes the absolute value of another one.
-
-        Example:
-
-        ```mlir
-        %0 = ... : !modelica.real
-        %1 = modelica.abs %0 : !modelica.real -> !modelica.real
-        ```
     }];
 
-    let arguments = (ins AnyType:$operand);
-    let results = (outs AnyType:$result);
+    let arguments = (ins BaseModelicaCompatibleScalarOrRankedTensor:$operand);
+    let results = (outs BaseModelicaCompatibleScalarOrRankedTensor:$result);
 
     let assemblyFormat = [{
         $operand attr-dict `:` type($operand) `->` type($result)
@@ -2244,24 +2252,18 @@ def BaseModelica_AbsOp : BaseModelica_Op<"abs",
     let hasFolder = 1;
 }
 
-def Modelica_AcosOp : BaseModelica_Op<"acos",
-    [NoMemoryEffect]>
+def Modelica_AcosOp : BaseModelica_Op<"acos", [
+        NoMemoryEffect
+    ]>
 {
     let summary = "Trigonometric inverse cosine function.";
 
     let description = [{
         The operation computes the inverse cosine of a value.
-
-        Example:
-
-        ```mlir
-        %0 = ... : !modelica.real
-        %1 = modelica.acos %0 : !modelica.real -> !modelica.real
-        ```
     }];
 
-    let arguments = (ins AnyType:$operand);
-    let results = (outs AnyType:$result);
+    let arguments = (ins BaseModelicaCompatibleScalarOrRankedTensor:$operand);
+    let results = (outs BaseModelicaCompatibleScalarOrRankedTensor:$result);
 
     let assemblyFormat = [{
         $operand attr-dict `:` type($operand) `->` type($result)
@@ -2270,24 +2272,18 @@ def Modelica_AcosOp : BaseModelica_Op<"acos",
     let hasFolder = 1;
 }
 
-def Modelica_AsinOp : BaseModelica_Op<"asin",
-    [NoMemoryEffect]>
+def Modelica_AsinOp : BaseModelica_Op<"asin", [
+        NoMemoryEffect
+    ]>
 {
     let summary = "Trigonometric inverse sine function";
 
     let description = [{
         The operation computes the inverse sine of a value.
-
-        Example:
-
-        ```mlir
-        %0 = ... : !modelica.real
-        %1 = modelica.asin %0 : !modelica.real -> !modelica.real
-        ```
     }];
 
-    let arguments = (ins AnyType:$operand);
-    let results = (outs AnyType:$result);
+    let arguments = (ins BaseModelicaCompatibleScalarOrRankedTensor:$operand);
+    let results = (outs BaseModelicaCompatibleScalarOrRankedTensor:$result);
 
     let assemblyFormat = [{
         $operand attr-dict `:` type($operand) `->` type($result)
@@ -2296,25 +2292,19 @@ def Modelica_AsinOp : BaseModelica_Op<"asin",
     let hasFolder = 1;
 }
 
-def BaseModelica_AtanOp : BaseModelica_Op<"atan",
-    [AlwaysSpeculatable,
-    NoMemoryEffect]>
+def BaseModelica_AtanOp : BaseModelica_Op<"atan", [
+        AlwaysSpeculatable,
+        NoMemoryEffect
+    ]>
 {
     let summary = "Trigonometric inverse tangent function.";
 
     let description = [{
         The operation computes the inverse tangent of a value.
-
-        Example:
-
-        ```mlir
-        %0 = ... : !modelica.real
-        %1 = modelica.atan %0 : !modelica.real -> !modelica.real
-        ```
     }];
 
-    let arguments = (ins AnyType:$operand);
-    let results = (outs AnyType:$result);
+    let arguments = (ins BaseModelicaCompatibleScalarOrRankedTensor:$operand);
+    let results = (outs BaseModelicaCompatibleScalarOrRankedTensor:$result);
 
     let assemblyFormat = [{
         $operand attr-dict `:` type($operand) `->` type($result)
@@ -2323,51 +2313,42 @@ def BaseModelica_AtanOp : BaseModelica_Op<"atan",
     let hasFolder = 1;
 }
 
-def Modelica_Atan2Op : BaseModelica_Op<"atan2",
-    [NoMemoryEffect]>
+def Modelica_Atan2Op : BaseModelica_Op<"atan2", [
+        NoMemoryEffect
+    ]>
 {
     let summary = "Four quadrant inverse tangent function.";
 
     let description = [{
-        The operation takes two values y and x and returns the inverse tangent of y/x
-        Usually y and x provided in such a form that if v = atan2(y, x), then y = sin(v) and x = cos(v).
-
-        Example:
-
-        ```mlir
-        %y = ... : !modelica.real
-        %x = ... : !modelica.real
-        %v = modelica.atan2 %y, %x : (!modelica.real, !modelica.real) -> !modelica.real
-        ```
+        The operation takes two values `y` and `x` and returns the inverse tangent of `y / x`
+        Usually `y` and `x` are such that if `v = atan2(y, x)`, then `y = sin(v)` and `x = cos(v)`.
     }];
 
-    let arguments = (ins AnyType:$y, AnyType:$x);
-    let results = (outs AnyType:$result);
+    let arguments = (ins
+        BaseModelicaCompatibleScalarOrRankedTensor:$y,
+        BaseModelicaCompatibleScalarOrRankedTensor:$x
+    );
+
+    let results = (outs BaseModelicaCompatibleScalarOrRankedTensor:$result);
 
     let assemblyFormat = [{
-        $y `,` $x attr-dict `:` `(` type($y) `,` type($x) `)` `->` type($result)
+        $y `,` $x attr-dict `:` type($y) `,` type($x) `->` type($result)
     }];
 }
 
-def BaseModelica_CeilOp : BaseModelica_Op<"ceil",
-    [AlwaysSpeculatable,
-    NoMemoryEffect]>
+def BaseModelica_CeilOp : BaseModelica_Op<"ceil", [
+        AlwaysSpeculatable,
+        NoMemoryEffect
+    ]>
 {
     let summary = "Ceil function.";
 
     let description = [{
-        The function takes an operand x and returns the smallest integer not less than x.
-
-        Example:
-
-        ```mlir
-        %x = ... : !modelica.real
-        %0 = modelica.ceil %x : !modelica.real -> !modelica.real
-        ```
+        The function takes an operand `x` and returns the smallest integer not less than `x`.
     }];
 
-    let arguments = (ins AnyType:$operand);
-    let results = (outs AnyType:$result);
+    let arguments = (ins BaseModelicaCompatibleScalarOrRankedTensor:$operand);
+    let results = (outs BaseModelicaCompatibleScalarOrRankedTensor:$result);
 
     let assemblyFormat = [{
         $operand attr-dict `:` type($operand) `->` type($result)
@@ -2376,25 +2357,19 @@ def BaseModelica_CeilOp : BaseModelica_Op<"ceil",
     let hasFolder = 1;
 }
 
-def BaseModelica_CosOp : BaseModelica_Op<"cos",
-    [AlwaysSpeculatable,
-    NoMemoryEffect]>
+def BaseModelica_CosOp : BaseModelica_Op<"cos", [
+        AlwaysSpeculatable,
+        NoMemoryEffect
+    ]>
 {
     let summary = "Trigonometric cosine function.";
 
     let description = [{
         The operation computes the cosine of a value.
-
-        Example:
-
-        ```mlir
-        %0 = ... : !modelica.real
-        %1 = modelica.cos %0 : !modelica.real -> !modelica.real
-        ```
     }];
 
-    let arguments = (ins AnyType:$operand);
-    let results = (outs AnyType:$result);
+    let arguments = (ins BaseModelicaCompatibleScalarOrRankedTensor:$operand);
+    let results = (outs BaseModelicaCompatibleScalarOrRankedTensor:$result);
 
     let assemblyFormat = [{
         $operand attr-dict `:` type($operand) `->` type($result)
@@ -2403,25 +2378,19 @@ def BaseModelica_CosOp : BaseModelica_Op<"cos",
     let hasFolder = 1;
 }
 
-def BaseModelica_CoshOp : BaseModelica_Op<"cosh",
-    [AlwaysSpeculatable,
-    NoMemoryEffect]>
+def BaseModelica_CoshOp : BaseModelica_Op<"cosh", [
+        AlwaysSpeculatable,
+        NoMemoryEffect
+    ]>
 {
     let summary = "Hyperbolic cosine function.";
 
     let description = [{
         The operation computes the hyperbolic cosine of a value.
-
-        Example:
-
-        ```mlir
-        %0 = ... : !modelica.real
-        %1 = modelica.cosh %0 : !modelica.real -> !modelica.real
-        ```
     }];
 
-    let arguments = (ins AnyType:$operand);
-    let results = (outs AnyType:$result);
+    let arguments = (ins BaseModelicaCompatibleScalarOrRankedTensor:$operand);
+    let results = (outs BaseModelicaCompatibleScalarOrRankedTensor:$result);
 
     let assemblyFormat = [{
         $operand attr-dict `:` type($operand) `->` type($result)
@@ -2430,26 +2399,27 @@ def BaseModelica_CoshOp : BaseModelica_Op<"cosh",
     let hasFolder = 1;
 }
 
-def BaseModelica_DiagonalOp : BaseModelica_Op<"diagonal",
-    [AlwaysSpeculatable,
-    NoMemoryEffect]>
+def BaseModelica_DiagonalOp : BaseModelica_Op<"diagonal", [
+        AlwaysSpeculatable,
+        NoMemoryEffect
+    ]>
 {
     let summary = "Get a diagonal matrix with the given values";
 
     let description = [{
-        Given an array of values, the operation returns a matrix
-        having those elements on the main diagonal.
+        Given a tensor, the operation returns a matrix having its elements on
+        the main diagonal.
 
         Example:
 
         ```mlir
-        $0 = ... : tensor<3x!modelica.real>
-        %1 = modelica.diagonal %0 : tensor<3x!modelica.real> -> tensor<3x3x!modelica.real>
+        $0 = ... : tensor<3x!bmodelica.real>
+        %1 = bmodelica.diagonal %0 : tensor<3x!bmodelica.real> -> tensor<3x3x!bmodelica.real>
         ```
     }];
 
-    let arguments = (ins AnyType:$values);
-    let results = (outs AnyTensor:$result);
+    let arguments = (ins BaseModelicaCompatibleRankedTensorOfRank<[1]>:$values);
+    let results = (outs BaseModelicaCompatibleRankedTensorOfRank<[2]>:$result);
 
     let assemblyFormat = [{
         $values attr-dict `:` type($values) `->` type($result)
@@ -2463,45 +2433,35 @@ def Modelica_DivTruncOp : BaseModelica_Op<"div_trunc">
     let description = [{
         The operation takes two arguments `x` and `y` and returns
         the algebraic quotient `x / y` with any fractional part discarded.
-
-        Example:
-
-        ```mlir
-        %0 = ... : !modelica.int
-        %1 = ... : !modelica.int
-        %2 = modelica.div_trunc %0, %1 : (!modelica.int, !modelica.int) -> !modelica.int
-        ```
     }];
 
-    let arguments = (ins AnyType:$x, AnyType:$y);
-    let results = (outs AnyType:$result);
+    let arguments = (ins
+        BaseModelicaCompatibleScalarOrRankedTensor:$x,
+        BaseModelicaCompatibleScalarOrRankedTensor:$y
+    );
+
+    let results = (outs BaseModelicaCompatibleScalarOrRankedTensor:$result);
 
     let assemblyFormat = [{
-        $x `,` $y attr-dict `:` `(` type($x) `,` type($y) `)` `->` type($result)
+        $x `,` $y attr-dict `:` type($x) `,` type($y) `->` type($result)
     }];
 
     let hasFolder = 1;
 }
 
-def BaseModelica_ExpOp : BaseModelica_Op<"exp",
-    [AlwaysSpeculatable,
-    NoMemoryEffect]>
+def BaseModelica_ExpOp : BaseModelica_Op<"exp", [
+        AlwaysSpeculatable,
+        NoMemoryEffect
+    ]>
 {
     let summary = "Base 'e' exponential function.";
 
     let description = [{
-        The function takes an operand x and returns the e^x value.
-
-        Example:
-
-        ```mlir
-        %exponent = ... : !modelica.real
-        %0 = modelica.exp %exponent : !modelica.real -> !modelica.real
-        ```
+        The function takes an operand `x` and returns the `e^x` value.
     }];
 
-    let arguments = (ins AnyType:$exponent);
-    let results = (outs AnyType:$result);
+    let arguments = (ins BaseModelicaCompatibleScalarOrRankedTensor:$exponent);
+    let results = (outs BaseModelicaCompatibleScalarOrRankedTensor:$result);
 
     let assemblyFormat = [{
         $exponent attr-dict `:` type($exponent) `->` type($result)
@@ -2510,48 +2470,37 @@ def BaseModelica_ExpOp : BaseModelica_Op<"exp",
     let hasFolder = 1;
 }
 
-def Modelica_FillOp : BaseModelica_Op<"fill", [NoMemoryEffect]>
+def Modelica_FillOp : BaseModelica_Op<"fill", [
+        NoMemoryEffect
+    ]>
 {
     let summary = "Create a tensor with a given value in all positions.";
 
     let description = [{
         Create a tensor with all the elements equal to a given one.
-
-        Example:
-
-        ```mlir
-        %0 = ... : !modelica.int
-        %1 = modelica.fill %0 : !modelica.int -> tensor<3x2x!modelica.real>
-        ```
     }];
 
-    let arguments = (ins AnyBaseModelicaCompatibleScalar:$value);
-    let results = (outs AnyTensor:$result);
+    let arguments = (ins BaseModelicaCompatibleScalar:$value);
+    let results = (outs BaseModelicaCompatibleNonZeroRankedTensor:$result);
 
     let assemblyFormat = [{
         $value attr-dict `:` type($value) `->` type($result)
     }];
 }
 
-def BaseModelica_FloorOp : BaseModelica_Op<"floor",
-   [AlwaysSpeculatable,
-   NoMemoryEffect]>
+def BaseModelica_FloorOp : BaseModelica_Op<"floor", [
+        AlwaysSpeculatable,
+        NoMemoryEffect
+    ]>
 {
     let summary = "Floor function.";
 
     let description = [{
-        The function takes an operand x and returns the largest integer not greater than x.
-
-        Example:
-
-        ```mlir
-        %x = ... : !modelica.real
-        %0 = modelica.floor %x : !modelica.real -> !modelica.real
-        ```
+        The function takes an operand `x` and returns the largest integer not greater than `x`.
     }];
 
-    let arguments = (ins AnyType:$operand);
-    let results = (outs AnyType:$result);
+    let arguments = (ins BaseModelicaCompatibleScalarOrRankedTensor:$operand);
+    let results = (outs BaseModelicaCompatibleScalarOrRankedTensor:$result);
 
     let assemblyFormat = [{
         $operand attr-dict `:` type($operand) `->` type($result)
@@ -2560,9 +2509,10 @@ def BaseModelica_FloorOp : BaseModelica_Op<"floor",
     let hasFolder = 1;
 }
 
-def BaseModelica_IdentityOp : BaseModelica_Op<"identity",
-    [AlwaysSpeculatable,
-    NoMemoryEffect]>
+def BaseModelica_IdentityOp : BaseModelica_Op<"identity", [
+        AlwaysSpeculatable,
+        NoMemoryEffect
+    ]>
 {
     let summary = "Returns an identity matrix with a given dimensions size.";
 
@@ -2574,37 +2524,31 @@ def BaseModelica_IdentityOp : BaseModelica_Op<"identity",
 
         ```mlir
         %dim = constant 3 : index
-        %identity = modelica.identity %dim : index -> tensor<?x?x!modelica.real>
+        %identity = bmodelica.identity %dim : index -> tensor<?x?x!bmodelica.real>
         ```
     }];
 
-    let arguments = (ins AnyType:$size);
-    let results = (outs AnyTensor:$result);
+    let arguments = (ins BaseModelicaCompatibleScalar:$size);
+    let results = (outs BaseModelicaCompatibleRankedTensorOfRank<[2]>:$result);
 
     let assemblyFormat = [{
         $size attr-dict `:` type($size) `->` type($result)
     }];
 }
 
-def BaseModelica_IntegerOp : BaseModelica_Op<"integer",
-    [AlwaysSpeculatable,
-    NoMemoryEffect]>
+def BaseModelica_IntegerOp : BaseModelica_Op<"integer", [
+        AlwaysSpeculatable,
+        NoMemoryEffect
+    ]>
 {
     let summary = "Integer function.";
 
     let description = [{
-        The function takes an operand x and returns the largest integer not greater than x.
-
-        Example:
-
-        ```mlir
-        %x = ... : !modelica.real
-        %0 = modelica.integer %x : !modelica.real -> !modelica.int
-        ```
+        The function takes an operand `x` and returns the largest integer not greater than `x`.
     }];
 
-    let arguments = (ins AnyType:$operand);
-    let results = (outs AnyType:$result);
+    let arguments = (ins BaseModelicaCompatibleScalarOrRankedTensor:$operand);
+    let results = (outs BaseModelicaCompatibleScalarOrRankedTensor:$result);
 
     let assemblyFormat = [{
         $operand attr-dict `:` type($operand) `->` type($result)
@@ -2613,45 +2557,44 @@ def BaseModelica_IntegerOp : BaseModelica_Op<"integer",
     let hasFolder = 1;
 }
 
-def Modelica_LinspaceOp : BaseModelica_Op<"linspace",
-    [NoMemoryEffect]>
+def Modelica_LinspaceOp : BaseModelica_Op<"linspace", [
+        NoMemoryEffect
+    ]>
 {
     let summary = "Get an array with equally spaced values.";
 
     let description = [{
         The operation creates a tensor with equally spaces values.
         It takes three operands representing the first value that will be present
-        in the array, the last value, and the number of elements that will populate
-        the tensor. All the elements of the resulting array will be equally spaced
-        according to the desired amount of values.
+        in the tensor, the last value, and the number of elements that will populate
+        the tensor.
     }];
 
-    let arguments = (ins AnyType:$begin, AnyType:$end, AnyType:$amount);
-    let results = (outs AnyTensor:$result);
+    let arguments = (ins
+        BaseModelicaCompatibleScalar:$begin,
+        BaseModelicaCompatibleScalar:$end,
+        BaseModelicaCompatibleScalar:$amount
+    );
+
+    let results = (outs BaseModelicaCompatibleRankedTensorOfRank<[1]>:$result);
 
     let assemblyFormat = [{
-        $begin `,` $end `,` $amount attr-dict `:` `(` type($begin) `,` type($end) `,` type($amount) `)` `->` type($result)
+        $begin `,` $end `,` $amount attr-dict `:` type($begin) `,` type($end) `,` type($amount) `->` type($result)
     }];
 }
 
-def Modelica_LogOp : BaseModelica_Op<"log",
-    [NoMemoryEffect]>
+def Modelica_LogOp : BaseModelica_Op<"log", [
+        NoMemoryEffect
+    ]>
 {
     let summary = "Natural (base e) logarithm function.";
 
     let description = [{
-        The operation computes the natural (base 'e') logarithm of a value.
-
-        Example:
-
-        ```mlir
-        %0 = ... : !modelica.real
-        %1 = modelica.log %0 : !modelica.real -> !modelica.real
-        ```
+        The operation computes the natural (base `e`) logarithm of a value.
     }];
 
-    let arguments = (ins AnyType:$operand);
-    let results = (outs AnyType:$result);
+    let arguments = (ins BaseModelicaCompatibleScalarOrRankedTensor:$operand);
+    let results = (outs BaseModelicaCompatibleScalarOrRankedTensor:$result);
 
     let assemblyFormat = [{
         $operand attr-dict `:` type($operand) `->` type($result)
@@ -2660,24 +2603,18 @@ def Modelica_LogOp : BaseModelica_Op<"log",
     let hasFolder = 1;
 }
 
-def Modelica_Log10Op : BaseModelica_Op<"log10",
-    [NoMemoryEffect]>
+def Modelica_Log10Op : BaseModelica_Op<"log10", [
+        NoMemoryEffect
+    ]>
 {
     let summary = "Base 10 logarithm function.";
 
     let description = [{
         The operation computes the base 10 logarithm of a value.
-
-        Example:
-
-        ```mlir
-        %0 = ... : !modelica.real
-        %1 = modelica.log10 %0 : !modelica.real -> !modelica.real
-        ```
     }];
 
-    let arguments = (ins AnyType:$operand);
-    let results = (outs AnyType:$result);
+    let arguments = (ins BaseModelicaCompatibleScalarOrRankedTensor:$operand);
+    let results = (outs BaseModelicaCompatibleScalarOrRankedTensor:$result);
 
     let assemblyFormat = [{
         $operand attr-dict `:` type($operand) `->` type($result)
@@ -2686,43 +2623,36 @@ def Modelica_Log10Op : BaseModelica_Op<"log10",
     let hasFolder = 1;
 }
 
-def BaseModelica_MaxOp : BaseModelica_Op<"max",
-    [DeclareOpInterfaceMethods<InferTypeOpInterface>,
-    AlwaysSpeculatable,
-    NoMemoryEffect]>
+def BaseModelica_MaxOp : BaseModelica_Op<"max", [
+        DeclareOpInterfaceMethods<InferTypeOpInterface>,
+        AlwaysSpeculatable,
+        NoMemoryEffect
+    ]>
 {
-    let summary = "Get the greatest value among an array or two scalar values.";
+    let summary = "Get the greatest value among a tensor or two scalar values.";
 
     let description = [{
-        Get the greatest value among an array or two scalar values.
-
-        Example with array value:
-
-        ```mlir
-        %0 = ... : !modelica.array<5x!modelica.int>
-        %1 = modelica.max %0 : !modelica.array<5x!modelica.int> -> !modelica.int
-        ```
-
-        Example with scalar values:
-
-        ```mlir
-        %0 = ... : !modelica.int
-        %1 = ... : !modelica.int
-        %2 = modelica.max %0, %1 : (!modelica.int, !modelica.int) -> !modelica.int
-        ```
+        Get the greatest value among a tensor or two scalar values.
     }];
 
-    let arguments = (ins AnyType:$first, Optional<AnyType>:$second);
-    let results = (outs AnyType:$result);
+    let arguments = (ins
+        BaseModelicaCompatibleScalarOrRankedTensor:$first,
+        Optional<BaseModelicaCompatibleScalar>:$second
+    );
+
+    let results = (outs BaseModelicaCompatibleScalar:$result);
 
     let builders = [
-        OpBuilder<(ins "Type":$result, "ValueRange":$values), [{
+        OpBuilder<(ins "mlir::Type":$result, "mlir::ValueRange":$values), [{
             $_state.addTypes(result);
             $_state.addOperands(values);
         }]>
     ];
 
-    let hasCustomAssemblyFormat = 1;
+    let assemblyFormat = [{
+        $first (`,` $second^)? attr-dict `:` type($first) (`,` type($second)^)? `->` type($result)
+    }];
+
     let hasFolder = 1;
 
     let extraClassDeclaration = [{
@@ -2731,43 +2661,36 @@ def BaseModelica_MaxOp : BaseModelica_Op<"max",
     }];
 }
 
-def BaseModelica_MinOp : BaseModelica_Op<"min",
-    [DeclareOpInterfaceMethods<InferTypeOpInterface>,
-    AlwaysSpeculatable,
-    NoMemoryEffect]>
+def BaseModelica_MinOp : BaseModelica_Op<"min", [
+        DeclareOpInterfaceMethods<InferTypeOpInterface>,
+        AlwaysSpeculatable,
+        NoMemoryEffect
+    ]>
 {
-    let summary = "Get the smallest value among an array or two scalar values.";
+    let summary = "Get the smallest value among a tensor or two scalar values.";
 
     let description = [{
-        Get the smallest value among an array or two scalar values.
-
-        Example with array value:
-
-        ```mlir
-        %0 = ... : !modelica.array<5x!modelica.int>
-        %1 = modelica.min %0 : tensor<5x!modelica.int> -> !modelica.int
-        ```
-
-        Example with scalar values:
-
-        ```mlir
-        %0 = ... : !modelica.int
-        %1 = ... : !modelica.int
-        %2 = modelica.min %0, %1 : (!modelica.int, !modelica.int) -> !modelica.int
-        ```
+        Get the smallest value among a tensor or two scalar values.
     }];
 
-    let arguments = (ins AnyType:$first, Optional<AnyType>:$second);
-    let results = (outs AnyType:$result);
+    let arguments = (ins
+        BaseModelicaCompatibleScalarOrRankedTensor:$first,
+        Optional<BaseModelicaCompatibleScalar>:$second
+    );
+
+    let results = (outs BaseModelicaCompatibleScalar:$result);
 
     let builders = [
-        OpBuilder<(ins "Type":$result, "ValueRange":$values), [{
+        OpBuilder<(ins "mlir::Type":$result, "mlir::ValueRange":$values), [{
             $_state.addTypes(result);
             $_state.addOperands(values);
         }]>
     ];
 
-    let hasCustomAssemblyFormat = 1;
+    let assemblyFormat = [{
+        $first (`,` $second^)? attr-dict `:` type($first) (`,` type($second)^)? `->` type($result)
+    }];
+
     let hasFolder = 1;
 
     let extraClassDeclaration = [{
@@ -2783,60 +2706,47 @@ def Modelica_ModOp : BaseModelica_Op<"mod">
     let description = [{
         The operation takes two arguments `x` and `y` and returns the integer
         modulus of `x / y`, i.e., `mod(x, y) = x - floor(x / y) * y`.
-
-        Example:
-
-        ```mlir
-        %0 = ... : !modelica.int
-        %1 = ... : !modelica.int
-        %2 = modelica.mod %0, %1 : (!modelica.int, !modelica.int) -> !modelica.int
-        ```
     }];
 
-    let arguments = (ins AnyType:$x, AnyType:$y);
-    let results = (outs AnyType:$result);
+    let arguments = (ins BaseModelicaCompatibleScalarOrRankedTensor:$x, BaseModelicaCompatibleScalarOrRankedTensor:$y);
+    let results = (outs BaseModelicaCompatibleScalarOrRankedTensor:$result);
 
     let assemblyFormat = [{
-        $x `,` $y attr-dict `:` `(` type($x) `,` type($y) `)` `->` type($result)
+        $x `,` $y attr-dict `:` type($x) `,` type($y) `->` type($result)
     }];
 
     let hasFolder = 1;
 }
 
-def Modelica_NDimsOp : BaseModelica_Op<"ndims", [Pure]>
+def Modelica_NDimsOp : BaseModelica_Op<"ndims", [
+        Pure
+    ]>
 {
-    let summary = "Get the number of dimensions of an array.";
+    let summary = "Get the number of dimensions of a tensor.";
 
     let description = [{
-        The operation takes an array as argument and returns
-        the number of its dimensions.
-
-        Example:
-
-        ```mlir
-        %0 = ... : tensor<4x?x5x!modelica.int>
-        %1 = modelica.ndims %0 : tensor<4x?x5x!modelica.int> -> !modelica.int
-        // %1 will have value 3.
-        ```
+        The operation takes a tensor as argument and returns the number of its
+        dimensions.
     }];
 
-    let arguments = (ins AnyTensor:$array);
-    let results = (outs AnyBaseModelicaCompatibleScalar:$result);
+    let arguments = (ins BaseModelicaCompatibleNonZeroRankedTensor:$array);
+    let results = (outs BaseModelicaCompatibleScalar:$result);
 
     let assemblyFormat = [{
         $array attr-dict `:` type($array) `->` type($result)
     }];
 }
 
-def BaseModelica_OnesOp : BaseModelica_Op<"ones",
-    [AlwaysSpeculatable,
-    NoMemoryEffect]>
+def BaseModelica_OnesOp : BaseModelica_Op<"ones", [
+        AlwaysSpeculatable,
+        NoMemoryEffect
+    ]>
 {
-    let summary = "Get an array with all the elements set to '1'";
+    let summary = "Get a tensor with all the elements set to `1`.";
 
     let description = [{
-        Returns an array with "1" elements.
-        The dimensions of the array are specified as input.
+        Returns a tensor with one-valued elements.
+        The actual dimensions of the tensor are specified as arguments of the operation.
 
         Example:
 
@@ -2845,40 +2755,34 @@ def BaseModelica_OnesOp : BaseModelica_Op<"ones",
         %1 = constant 3 : index
         %2 = constant 4 : index
 
-        %array = modelica.ones %0, %1, %2 : (index, index, index) -> tensor<?x?x?x!modelica.int>
+        %tensor = bmodelica.ones %0, %1, %2 : index, index, index -> tensor<?x?x?x!bmodelica.int>
         ```
     }];
 
-    let arguments = (ins Variadic<AnyType>:$sizes);
-    let results = (outs AnyTensor:$result);
+    let arguments = (ins Variadic<BaseModelicaCompatibleScalar>:$sizes);
+    let results = (outs BaseModelicaCompatibleNonZeroRankedTensor:$result);
 
     let assemblyFormat = [{
-        $sizes attr-dict `:` `(` type($sizes) `)` `->` type($result)
+        $sizes attr-dict `:` type($sizes) `->` type($result)
     }];
 }
 
-def BaseModelica_ProductOp : BaseModelica_Op<"product",
-    [AlwaysSpeculatable,
-    NoMemoryEffect]>
+def BaseModelica_ProductOp : BaseModelica_Op<"product", [
+        AlwaysSpeculatable,
+        NoMemoryEffect
+    ]>
 {
-    let summary = "Get the product of the values of an array.";
+    let summary = "Get the product of the values of a tensor.";
 
     let description = [{
-        The operation takes an array and computes the product of all its values.
-
-        Example:
-
-        ```mlir
-        %0 = ... : !modelica.array<?x?x!modelica.real>
-        %1 = modelica.product %0 : !modelica.array<?x?x!modelica.real> -> !modelica.real
-        ```
+        The operation takes a tensor and computes the product of all its values.
     }];
 
-    let arguments = (ins AnyType:$array);
-    let results = (outs AnyType:$result);
+    let arguments = (ins BaseModelicaCompatibleNonZeroRankedTensor:$tensor);
+    let results = (outs BaseModelicaCompatibleScalar:$result);
 
     let assemblyFormat = [{
-        $array attr-dict `:` type($array) `->` type($result)
+        $tensor attr-dict `:` type($tensor) `->` type($result)
     }];
 }
 
@@ -2889,46 +2793,32 @@ def Modelica_RemOp : BaseModelica_Op<"rem">
     let description = [{
         The operation takes two arguments `x` and `y` and returns the integer
         remainder of `x / y`, such that `div(x,y) * y + rem(x, y) = x`.
-
-        Example:
-
-        ```mlir
-        %0 = ... : !modelica.real
-        %1 = ... : !modelica.real
-        %2 = modelica.rem %0, %1 : (!modelica.real, !modelica.real) -> !modelica.real
-        ```
     }];
 
-    let arguments = (ins AnyType:$x, AnyType:$y);
-    let results = (outs AnyType:$result);
+    let arguments = (ins BaseModelicaCompatibleScalarOrRankedTensor:$x, BaseModelicaCompatibleScalarOrRankedTensor:$y);
+    let results = (outs BaseModelicaCompatibleScalarOrRankedTensor:$result);
 
     let assemblyFormat = [{
-        $x `,` $y attr-dict `:` `(` type($x) `,` type($y) `)` `->` type($result)
+        $x `,` $y attr-dict `:` type($x) `,` type($y) `->` type($result)
     }];
 
     let hasFolder = 1;
 }
 
-def BaseModelica_SignOp : BaseModelica_Op<"sign",
-    [AlwaysSpeculatable,
-    NoMemoryEffect]>
+def BaseModelica_SignOp : BaseModelica_Op<"sign", [
+        AlwaysSpeculatable,
+        NoMemoryEffect
+    ]>
 {
     let summary = "Get an integer representing the sign of a value.";
 
     let description = [{
         The operation takes an operand and returns 1 if its value is greater
         than zero, -1 if less than zero or 0 if equal to zero.
-
-        Example:
-
-        ```mlir
-        %0 = ... : !modelica.real
-        %1 = modelica.sign %0 : !modelica.real -> !modelica.int
-        ```
     }];
 
-    let arguments = (ins AnyType:$operand);
-    let results = (outs AnyType:$result);
+    let arguments = (ins BaseModelicaCompatibleScalarOrRankedTensor:$operand);
+    let results = (outs BaseModelicaCompatibleScalarOrRankedTensor:$result);
 
     let assemblyFormat = [{
         $operand attr-dict `:` type($operand) `->` type($result)
@@ -2937,21 +2827,19 @@ def BaseModelica_SignOp : BaseModelica_Op<"sign",
     let hasFolder = 1;
 }
 
-def BaseModelica_SinOp : BaseModelica_Op<"sin",
-    [AlwaysSpeculatable,
-    NoMemoryEffect]>
+def BaseModelica_SinOp : BaseModelica_Op<"sin", [
+        AlwaysSpeculatable,
+        NoMemoryEffect
+    ]>
 {
     let summary = "Trigonometric sine function.";
 
     let description = [{
         The operation computes the sine of a value.
-        It takes one operand and returns one result. If the operand is an array,
-        then the BaseModelica vectorization rules are applied and an array with the
-        same dimensions is returned.
     }];
 
-    let arguments = (ins AnyType:$operand);
-    let results = (outs AnyType:$result);
+    let arguments = (ins BaseModelicaCompatibleScalarOrRankedTensor:$operand);
+    let results = (outs BaseModelicaCompatibleScalarOrRankedTensor:$result);
 
     let assemblyFormat = [{
         $operand attr-dict `:` type($operand) `->` type($result)
@@ -2960,25 +2848,19 @@ def BaseModelica_SinOp : BaseModelica_Op<"sin",
     let hasFolder = 1;
 }
 
-def BaseModelica_SinhOp : BaseModelica_Op<"sinh",
-    [AlwaysSpeculatable,
-    NoMemoryEffect]>
+def BaseModelica_SinhOp : BaseModelica_Op<"sinh", [
+        AlwaysSpeculatable,
+        NoMemoryEffect
+    ]>
 {
     let summary = "Hyperbolic sine function.";
 
     let description = [{
         The operation computes the hyperbolic sine of a value.
-
-        Example:
-
-        ```mlir
-        %0 = ... : !modelica.real
-        %1 = modelica.sinh %0 : !modelica.real -> !modelica.real
-        ```
     }];
 
-    let arguments = (ins AnyType:$operand);
-    let results = (outs AnyType:$result);
+    let arguments = (ins BaseModelicaCompatibleScalarOrRankedTensor:$operand);
+    let results = (outs BaseModelicaCompatibleScalarOrRankedTensor:$result);
 
     let assemblyFormat = [{
         $operand attr-dict `:` type($operand) `->` type($result)
@@ -2987,40 +2869,47 @@ def BaseModelica_SinhOp : BaseModelica_Op<"sinh",
     let hasFolder = 1;
 }
 
-def BaseModelica_SizeOp : BaseModelica_Op<"size",
-    [AlwaysSpeculatable,
-    NoMemoryEffect]>
+def BaseModelica_SizeOp : BaseModelica_Op<"size", [
+        AlwaysSpeculatable,
+        NoMemoryEffect
+    ]>
 {
-    let summary = "Get the dimensions of an array.";
+    let summary = "Get the dimensions of a tensor.";
 
     let description = [{
         The operation can accept either one or two arguments.
 
-        In the first case the operand represents the array of interest and
-        the result consists in an array containing the size of its dimensions.
+        In the first case the operand represents the tensor of interest and
+        the result consists in a tensor containing the size of its dimensions.
 
         Example:
 
         ```mlir
-        %0 = ... : !modelica.array<?x?x!modelica.int>
-        %1 = modelica.size %0 : !modelica.array<?x?x!modelica.int> -> !modelica.array<2x!modelica.int>
+        %0 = ... : tensor<?x?x!bmodelica.int>
+        %1 = bmodelica.size %0 : tensor<?x?x!bmodelica.int> -> tensor<2x!bmodelica.int>
         ```
 
-        In the second case the second operand also specifies the (zero-based)
+        In the second case, the second operand also specifies the (zero-based)
         dimension of interest, and thus the operation returns just a scalar
         value corresponding to the size of that dimension.
 
         ```mlir
-        %0 = ... : !modelica.array<?x?x!modelica.int>
-        %1 = constant 1 : index
-        %2 = modelica.size %0, %1 : (!modelica.array<?x?x!modelica.int>, index) -> !modelica.int
+        %0 = ... : tensor<?x?x!bmodelica.int>
+        %1 = bmodelica.constant 1 : index
+        %2 = bmodelica.size %0, %1 : tensor<?x?x!bmodelica.int>, index -> tensor<1x!bmodelica.int>
         ```
     }];
 
-    let arguments = (ins AnyType:$array, Optional<AnyType>:$dimension);
-    let results = (outs AnyType:$result);
+    let arguments = (ins
+        BaseModelicaCompatibleNonZeroRankedTensor:$tensor,
+        Optional<BaseModelicaCompatibleScalar>:$dimension
+    );
 
-    let hasCustomAssemblyFormat = 1;
+    let results = (outs BaseModelicaCompatibleScalarOrRankedTensor:$result);
+
+    let assemblyFormat = [{
+        $tensor (`,` $dimension^)? attr-dict `:` type($tensor) (`,` type($dimension)^)? `->` type($result)
+    }];
 
     let extraClassDeclaration = [{
         bool hasDimension() {
@@ -3029,24 +2918,18 @@ def BaseModelica_SizeOp : BaseModelica_Op<"size",
     }];
 }
 
-def Modelica_SqrtOp : BaseModelica_Op<"sqrt",
-    [NoMemoryEffect]>
+def Modelica_SqrtOp : BaseModelica_Op<"sqrt", [
+        NoMemoryEffect
+    ]>
 {
     let summary = "Square root.";
 
     let description = [{
         The operation computes the square root of a value.
-
-        Example:
-
-        ```mlir
-        %0 = ... : !modelica.real
-        %1 = modelica.sqrt %0 : !modelica.real -> !modelica.real
-        ```
     }];
 
-    let arguments = (ins AnyType:$operand);
-    let results = (outs AnyType:$result);
+    let arguments = (ins BaseModelicaCompatibleScalarOrRankedTensor:$operand);
+    let results = (outs BaseModelicaCompatibleScalarOrRankedTensor:$result);
 
     let assemblyFormat = [{
         $operand attr-dict `:` type($operand) `->` type($result)
@@ -3055,34 +2938,29 @@ def Modelica_SqrtOp : BaseModelica_Op<"sqrt",
     let hasFolder = 1;
 }
 
-def BaseModelica_SumOp : BaseModelica_Op<"sum",
-    [AlwaysSpeculatable,
-    NoMemoryEffect]>
+def BaseModelica_SumOp : BaseModelica_Op<"sum", [
+        AlwaysSpeculatable,
+        NoMemoryEffect
+    ]>
 {
-    let summary = "Get the sum of the values of an array.";
+    let summary = "Get the sum of the values of a tensor.";
 
     let description = [{
-        The operation takes an array and computes the sum of all its values.
-
-        Example:
-
-        ```mlir
-        %0 = ... : !modelica.array<?x?x!modelica.real>
-        %1 = modelica.sum %0 : !modelica.array<?x?x!modelica.real> -> !modelica.real
-        ```
+        The operation takes a tensor and computes the sum of all its values.
     }];
 
-    let arguments = (ins AnyType:$array);
-    let results = (outs AnyType:$result);
+    let arguments = (ins BaseModelicaCompatibleNonZeroRankedTensor:$tensor);
+    let results = (outs BaseModelicaCompatibleScalar:$result);
 
     let assemblyFormat = [{
-        $array attr-dict `:` type($array) `->` type($result)
+        $tensor attr-dict `:` type($tensor) `->` type($result)
     }];
 }
 
-def BaseModelica_SymmetricOp : BaseModelica_Op<"symmetric",
-    [AlwaysSpeculatable,
-    NoMemoryEffect]>
+def BaseModelica_SymmetricOp : BaseModelica_Op<"symmetric", [
+        AlwaysSpeculatable,
+        NoMemoryEffect
+    ]>
 {
     let summary = "Get a symmetric matrix.";
 
@@ -3093,9 +2971,9 @@ def BaseModelica_SymmetricOp : BaseModelica_Op<"symmetric",
 
         Example:
 
-        ```
-        %0 = ... : !modelica.array<3x3x!modelica.int>
-        %1 = modelica.symmetric %0 : !modelica.array<3x3x!modelica.int> -> !modelica.array<3x3x!modelica.int>
+        ```mlir
+        %0 = ... : tensor<3x3x!bmodelica.int>
+        %1 = bmodelica.symmetric %0 : tensor<3x3x!bmodelica.int> -> tensor<3x3x!bmodelica.int>
 
         //      [ 1 2 3 ]           [ 1 2 3 ]
         // %0 = [ 4 5 6 ]  ->  %1 = [ 2 5 6 ]
@@ -3103,32 +2981,26 @@ def BaseModelica_SymmetricOp : BaseModelica_Op<"symmetric",
         ```
     }];
 
-    let arguments = (ins AnyTensor:$matrix);
-    let results = (outs AnyTensor:$result);
+    let arguments = (ins BaseModelicaCompatibleRankedTensorOfRank<[2]>:$matrix);
+    let results = (outs BaseModelicaCompatibleRankedTensorOfRank<[2]>:$result);
 
     let assemblyFormat = [{
         $matrix attr-dict `:` type($matrix) `->` type($result)
     }];
 }
 
-def Modelica_TanOp : BaseModelica_Op<"tan",
-    [NoMemoryEffect]>
+def Modelica_TanOp : BaseModelica_Op<"tan", [
+        NoMemoryEffect
+    ]>
 {
     let summary = "Trigonometric tangent function.";
 
     let description = [{
         The operation computes the tangent of a value.
-
-        Example:
-
-        ```mlir
-        %0 = ... : !modelica.real
-        %1 = modelica.tan %0 : !modelica.real -> !modelica.real
-        ```
     }];
 
-    let arguments = (ins AnyType:$operand);
-    let results = (outs AnyType:$result);
+    let arguments = (ins BaseModelicaCompatibleScalarOrRankedTensor:$operand);
+    let results = (outs BaseModelicaCompatibleScalarOrRankedTensor:$result);
 
     let assemblyFormat = [{
         $operand attr-dict `:` type($operand) `->` type($result)
@@ -3137,25 +3009,19 @@ def Modelica_TanOp : BaseModelica_Op<"tan",
     let hasFolder = 1;
 }
 
-def BaseModelica_TanhOp : BaseModelica_Op<"tanh",
-    [AlwaysSpeculatable,
-    NoMemoryEffect]>
+def BaseModelica_TanhOp : BaseModelica_Op<"tanh", [
+        AlwaysSpeculatable,
+        NoMemoryEffect
+    ]>
 {
     let summary = "Hyperbolic tangent function.";
 
     let description = [{
         The operation computes the hyperbolic tangent of a value.
-
-        Example:
-
-        ```mlir
-        %0 = ... : !modelica.real
-        %1 = modelica.tanh %0 : !modelica.real -> !modelica.real
-        ```
     }];
 
-    let arguments = (ins AnyType:$operand);
-    let results = (outs AnyType:$result);
+    let arguments = (ins BaseModelicaCompatibleScalarOrRankedTensor:$operand);
+    let results = (outs BaseModelicaCompatibleScalarOrRankedTensor:$result);
 
     let assemblyFormat = [{
         $operand attr-dict `:` type($operand) `->` type($result)
@@ -3164,10 +3030,11 @@ def BaseModelica_TanhOp : BaseModelica_Op<"tanh",
     let hasFolder = 1;
 }
 
-def Modelica_TransposeOp : BaseModelica_Op<"transpose",
-    [DeclareOpInterfaceMethods<InferTypeOpInterface>,
-    AlwaysSpeculatable,
-    NoMemoryEffect]>
+def Modelica_TransposeOp : BaseModelica_Op<"transpose", [
+        DeclareOpInterfaceMethods<InferTypeOpInterface>,
+        AlwaysSpeculatable,
+        NoMemoryEffect
+    ]>
 {
     let summary = "Matrix transposition.";
 
@@ -3177,8 +3044,8 @@ def Modelica_TransposeOp : BaseModelica_Op<"transpose",
         Example:
 
         ```mlir
-        %0 = ... : !modelica.array<3x2x!modelica.int>
-        %1 = modelica.transpose : !modelica.array<3x2x!modelica.int> -> !modelica.array<2x3x!modelica.int>
+        %0 = ... : tensor<3x2x!bmodelica.int>
+        %1 = bmodelica.transpose : tensor<3x2x!bmodelica.int> -> tensor<2x3x!bmodelica.int>
 
         //      [ 1 2 ]
         // %0 = [ 3 4 ]  ->  %1 = [ 1 3 5 ]
@@ -3186,8 +3053,8 @@ def Modelica_TransposeOp : BaseModelica_Op<"transpose",
         ```
     }];
 
-    let arguments = (ins AnyTensor:$matrix);
-    let results = (outs AnyTensor:$result);
+    let arguments = (ins BaseModelicaCompatibleRankedTensorOfRank<[2]>:$matrix);
+    let results = (outs BaseModelicaCompatibleRankedTensorOfRank<[2]>:$result);
 
     let assemblyFormat = [{
         $matrix attr-dict `:` type($matrix) `->` type($result)
@@ -3199,15 +3066,16 @@ def Modelica_TransposeOp : BaseModelica_Op<"transpose",
     }];
 }
 
-def BaseModelica_ZerosOp : BaseModelica_Op<"zeros",
-    [AlwaysSpeculatable,
-    NoMemoryEffect]>
+def BaseModelica_ZerosOp : BaseModelica_Op<"zeros", [
+        AlwaysSpeculatable,
+        NoMemoryEffect
+    ]>
 {
-    let summary = "Get an array with all the elements set to '0'";
+    let summary = "Get a tensor with all the elements set to `0`.";
 
     let description = [{
-        Returns an array with "0" elements.
-        The dimensions of the array are specified as input.
+        Returns a tensor with zero-valued elements.
+        The actual dimensions of the tensor are specified as arguments of the operation.
 
         Example:
 
@@ -3216,21 +3084,22 @@ def BaseModelica_ZerosOp : BaseModelica_Op<"zeros",
         %1 = constant 3 : index
         %2 = constant 4 : index
 
-        %array = modelica.zeros %0, %1, %2 : (index, index, index) -> !modelica.array<?x?x?x!modelica.int>
+        %tensor = bmodelica.zeros %0, %1, %2 : index, index, index -> tensor<?x?x?x!bmodelica.int>
         ```
     }];
 
-    let arguments = (ins Variadic<AnyType>:$sizes);
-    let results = (outs AnyTensor:$result);
+    let arguments = (ins Variadic<BaseModelicaCompatibleScalar>:$sizes);
+    let results = (outs BaseModelicaCompatibleNonZeroRankedTensor:$result);
 
     let assemblyFormat = [{
-        $sizes attr-dict `:` `(` type($sizes) `)` `->` type($result)
+        $sizes attr-dict `:` type($sizes) `->` type($result)
     }];
 }
 
-def BaseModelica_AssertOp : BaseModelica_Op<"assert",
-    [MemoryEffects<[MemWrite]>,
-    SingleBlock]>
+def BaseModelica_AssertOp : BaseModelica_Op<"assert", [
+        MemoryEffects<[MemWrite]>,
+        SingleBlock
+    ]>
 {
     let summary = "Assert truth of assertion argument";
 
@@ -3263,7 +3132,9 @@ def BaseModelica_AssertOp : BaseModelica_Op<"assert",
     let assemblyFormat = "attr-dict-with-keyword $conditionRegion";
 }
 
-def Modelica_ReductionOp : BaseModelica_Op<"reduction", [SingleBlock]>
+def Modelica_ReductionOp : BaseModelica_Op<"reduction", [
+        SingleBlock
+    ]>
 {
     let summary = "Iteration space reduction.";
 
@@ -3273,13 +3144,13 @@ def Modelica_ReductionOp : BaseModelica_Op<"reduction", [SingleBlock]>
         Example:
 
         ```mlir
-        %0 = ... : !modelica.range<index>
-        %1 = ... : !modelica.range<index>
+        %0 = ... : !bmodelica.range<index>
+        %1 = ... : !bmodelica.range<index>
 
-        %2 = modelica.reduction max iterables = [%0, %1] inductions = [%i: index, %j: index] {
-            %3 = ... : !modelica.real
-            modelica.yield %3 : !modelica.real
-        } : (!modelica.range<index>, !modelica.range<index>) -> !modelica.real
+        %2 = bmodelica.reduction max iterables = [%0, %1] inductions = [%i: index, %j: index] {
+            %3 = ... : !bmodelica.real
+            bmodelica.yield %3 : !bmodelica.real
+        } : (!bmodelica.range<index>, !bmodelica.range<index>) -> !bmodelica.real
         ```
     }];
 

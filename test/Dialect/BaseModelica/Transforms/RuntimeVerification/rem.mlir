@@ -9,6 +9,6 @@ func.func @Test(%arg0: f64, %arg1: f64) -> f64 {
     // CHECK: %[[condition:.*]] = bmodelica.neq %[[rhs]], %[[zero]]
     // CHECK: bmodelica.yield %[[condition]]
 
-    %0 = bmodelica.rem %arg0, %arg1 : (f64, f64) -> f64
+    %0 = bmodelica.rem %arg0, %arg1 : f64, f64 -> f64
     func.return %0 : f64
 }

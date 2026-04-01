@@ -5,7 +5,7 @@
 func.func @IntegerFirst() -> (!bmodelica.int) {
     %x = bmodelica.constant #bmodelica<int 3>
     %y = bmodelica.constant #bmodelica<int 2>
-    %result = bmodelica.max %x, %y : (!bmodelica.int, !bmodelica.int) -> !bmodelica.int
+    %result = bmodelica.max %x, %y : !bmodelica.int, !bmodelica.int -> !bmodelica.int
     return %result : !bmodelica.int
 
     // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<int 3>
@@ -19,7 +19,7 @@ func.func @IntegerFirst() -> (!bmodelica.int) {
 func.func @IntegerSecond() -> (!bmodelica.int) {
     %x = bmodelica.constant #bmodelica<int 2>
     %y = bmodelica.constant #bmodelica<int 3>
-    %result = bmodelica.max %x, %y : (!bmodelica.int, !bmodelica.int) -> !bmodelica.int
+    %result = bmodelica.max %x, %y : !bmodelica.int, !bmodelica.int -> !bmodelica.int
     return %result : !bmodelica.int
 
     // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<int 3>
@@ -33,7 +33,7 @@ func.func @IntegerSecond() -> (!bmodelica.int) {
 func.func @IntegerEqual() -> (!bmodelica.int) {
     %x = bmodelica.constant #bmodelica<int 3>
     %y = bmodelica.constant #bmodelica<int 3>
-    %result = bmodelica.max %x, %y : (!bmodelica.int, !bmodelica.int) -> !bmodelica.int
+    %result = bmodelica.max %x, %y : !bmodelica.int, !bmodelica.int -> !bmodelica.int
     return %result : !bmodelica.int
 
     // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<int 3>
@@ -47,7 +47,7 @@ func.func @IntegerEqual() -> (!bmodelica.int) {
 func.func @RealFirst() -> (!bmodelica.real) {
     %x = bmodelica.constant #bmodelica<real 3.0>
     %y = bmodelica.constant #bmodelica<real 2.0>
-    %result = bmodelica.max %x, %y : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
+    %result = bmodelica.max %x, %y : !bmodelica.real, !bmodelica.real -> !bmodelica.real
     return %result : !bmodelica.real
 
     // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<real 3.000000e+00>
@@ -61,7 +61,7 @@ func.func @RealFirst() -> (!bmodelica.real) {
 func.func @RealSecond() -> (!bmodelica.real) {
     %x = bmodelica.constant #bmodelica<real 2.0>
     %y = bmodelica.constant #bmodelica<real 3.0>
-    %result = bmodelica.max %x, %y : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
+    %result = bmodelica.max %x, %y : !bmodelica.real, !bmodelica.real -> !bmodelica.real
     return %result : !bmodelica.real
 
     // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<real 3.000000e+00>
@@ -75,7 +75,7 @@ func.func @RealSecond() -> (!bmodelica.real) {
 func.func @RealEqual() -> (!bmodelica.real) {
     %x = bmodelica.constant #bmodelica<real 3.0>
     %y = bmodelica.constant #bmodelica<real 3.0>
-    %result = bmodelica.max %x, %y : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
+    %result = bmodelica.max %x, %y : !bmodelica.real, !bmodelica.real -> !bmodelica.real
     return %result : !bmodelica.real
 
     // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<real 3.000000e+00>
@@ -89,7 +89,7 @@ func.func @RealEqual() -> (!bmodelica.real) {
 func.func @IntegerRealFirst() -> (!bmodelica.real) {
     %x = bmodelica.constant #bmodelica<int 3>
     %y = bmodelica.constant #bmodelica<real 2.0>
-    %result = bmodelica.max %x, %y : (!bmodelica.int, !bmodelica.real) -> !bmodelica.real
+    %result = bmodelica.max %x, %y : !bmodelica.int, !bmodelica.real -> !bmodelica.real
     return %result : !bmodelica.real
 
     // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<real 3.000000e+00>
@@ -103,7 +103,7 @@ func.func @IntegerRealFirst() -> (!bmodelica.real) {
 func.func @IntegerRealSecond() -> (!bmodelica.real) {
     %x = bmodelica.constant #bmodelica<int 2>
     %y = bmodelica.constant #bmodelica<real 3.0>
-    %result = bmodelica.max %x, %y : (!bmodelica.int, !bmodelica.real) -> !bmodelica.real
+    %result = bmodelica.max %x, %y : !bmodelica.int, !bmodelica.real -> !bmodelica.real
     return %result : !bmodelica.real
 
     // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<real 3.000000e+00>
@@ -117,7 +117,7 @@ func.func @IntegerRealSecond() -> (!bmodelica.real) {
 func.func @IntegerRealEqual() -> (!bmodelica.real) {
     %x = bmodelica.constant #bmodelica<int 3>
     %y = bmodelica.constant #bmodelica<real 3.0>
-    %result = bmodelica.max %x, %y : (!bmodelica.int, !bmodelica.real) -> !bmodelica.real
+    %result = bmodelica.max %x, %y : !bmodelica.int, !bmodelica.real -> !bmodelica.real
     return %result : !bmodelica.real
 
     // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<real 3.000000e+00>
@@ -131,7 +131,7 @@ func.func @IntegerRealEqual() -> (!bmodelica.real) {
 func.func @RealIntegerFirst() -> (!bmodelica.real) {
     %x = bmodelica.constant #bmodelica<real 3.0>
     %y = bmodelica.constant #bmodelica<int 2>
-    %result = bmodelica.max %x, %y : (!bmodelica.real, !bmodelica.int) -> !bmodelica.real
+    %result = bmodelica.max %x, %y : !bmodelica.real, !bmodelica.int -> !bmodelica.real
     return %result : !bmodelica.real
 
     // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<real 3.000000e+00>
@@ -145,7 +145,7 @@ func.func @RealIntegerFirst() -> (!bmodelica.real) {
 func.func @RealIntegerSecond() -> (!bmodelica.real) {
     %x = bmodelica.constant #bmodelica<real 2.0>
     %y = bmodelica.constant #bmodelica<int 3>
-    %result = bmodelica.max %x, %y : (!bmodelica.real, !bmodelica.int) -> !bmodelica.real
+    %result = bmodelica.max %x, %y : !bmodelica.real, !bmodelica.int -> !bmodelica.real
     return %result : !bmodelica.real
 
     // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<real 3.000000e+00>
@@ -159,7 +159,7 @@ func.func @RealIntegerSecond() -> (!bmodelica.real) {
 func.func @RealIntegerEqual() -> (!bmodelica.real) {
     %x = bmodelica.constant #bmodelica<real 3.0>
     %y = bmodelica.constant #bmodelica<int 3>
-    %result = bmodelica.max %x, %y : (!bmodelica.real, !bmodelica.int) -> !bmodelica.real
+    %result = bmodelica.max %x, %y : !bmodelica.real, !bmodelica.int -> !bmodelica.real
     return %result : !bmodelica.real
 
     // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<real 3.000000e+00>

@@ -400,7 +400,7 @@ struct SizeOpDimensionLowering : public mlir::OpConversionPattern<SizeOp> {
   matchAndRewrite(SizeOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
     mlir::Location loc = op.getLoc();
-    mlir::Value tensor = adaptor.getArray();
+    mlir::Value tensor = adaptor.getTensor();
 
     if (!op.hasDimension()) {
       return rewriter.notifyMatchFailure(op, "No index specified");
@@ -434,7 +434,7 @@ struct SizeOpArrayLowering : public mlir::OpConversionPattern<SizeOp> {
   matchAndRewrite(SizeOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
     mlir::Location loc = op.getLoc();
-    mlir::Value tensor = adaptor.getArray();
+    mlir::Value tensor = adaptor.getTensor();
 
     if (op.hasDimension()) {
       return rewriter.notifyMatchFailure(op, "Index specified");

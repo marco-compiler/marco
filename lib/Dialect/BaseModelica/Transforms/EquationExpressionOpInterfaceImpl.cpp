@@ -1783,7 +1783,7 @@ struct ProductOpInterface
     auto castedOp = mlir::cast<ProductOp>(op);
 
     os << "product(";
-    ::printExpression(os, castedOp.getArray(), inductions);
+    ::printExpression(os, castedOp.getTensor(), inductions);
     os << ")";
   }
 
@@ -1853,7 +1853,7 @@ struct SizeOpInterface
     auto castedOp = mlir::cast<SizeOp>(op);
 
     os << "size(";
-    ::printExpression(os, castedOp.getArray(), inductions);
+    ::printExpression(os, castedOp.getTensor(), inductions);
 
     if (mlir::Value dimension = castedOp.getDimension()) {
       os << ", ";

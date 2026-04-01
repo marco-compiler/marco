@@ -2,7 +2,7 @@
 
 // CHECK-LABEL: @foo
 // CHECK: bmodelica.rem
-// CHECK-SAME: (!bmodelica.int, !bmodelica.int) -> !bmodelica.int
+// CHECK-SAME: !bmodelica.int, !bmodelica.int -> !bmodelica.int
 
 function foo
     input Integer x;

@@ -12,6 +12,6 @@
 // CHECK: return %[[to_tensor]]
 
 func.func @foo(%arg0: f64, %arg1: f64, %arg2: index) -> tensor<?xf64> {
-    %0 = bmodelica.linspace %arg0, %arg1, %arg2 : (f64, f64, index) -> tensor<?xf64>
+    %0 = bmodelica.linspace %arg0, %arg1, %arg2 : f64, f64, index -> tensor<?xf64>
     func.return %0 : tensor<?xf64>
 }

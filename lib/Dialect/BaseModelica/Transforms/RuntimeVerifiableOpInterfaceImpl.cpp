@@ -610,7 +610,7 @@ struct SizeOpRuntimeVerifier
           builder.create<GteOp>(loc, dimension, lowerBoundValue);
 
       auto shapedType =
-          mlir::cast<mlir::ShapedType>(castedOp.getArray().getType());
+          mlir::cast<mlir::ShapedType>(castedOp.getTensor().getType());
 
       mlir::Value upperBoundValue = builder.create<ConstantOp>(
           loc, builder.getIndexAttr(shapedType.getRank()));

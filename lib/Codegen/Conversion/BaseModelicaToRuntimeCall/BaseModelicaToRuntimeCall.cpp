@@ -1652,7 +1652,7 @@ struct ProductOpLowering : public RuntimeOpConversionPattern<ProductOp> {
   matchAndRewrite(ProductOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
     mlir::Location loc = op.getLoc();
-    mlir::Value array = adaptor.getArray();
+    mlir::Value array = adaptor.getTensor();
 
     // Collect the arguments for the function call.
     llvm::SmallVector<mlir::Value, 1> arguments;
@@ -1959,7 +1959,7 @@ struct SumOpLowering : public RuntimeOpConversionPattern<SumOp> {
   matchAndRewrite(SumOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
     mlir::Location loc = op.getLoc();
-    mlir::Value array = adaptor.getArray();
+    mlir::Value array = adaptor.getTensor();
 
     // Collect the arguments for the function call.
     llvm::SmallVector<mlir::Value, 1> arguments;

@@ -5,7 +5,7 @@
 func.func @IntegerZeroRemainder() -> (!bmodelica.int) {
     %x = bmodelica.constant #bmodelica<int 6>
     %y = bmodelica.constant #bmodelica<int 3>
-    %result = bmodelica.div_trunc %x, %y : (!bmodelica.int, !bmodelica.int) -> !bmodelica.int
+    %result = bmodelica.div_trunc %x, %y : !bmodelica.int, !bmodelica.int -> !bmodelica.int
     return %result : !bmodelica.int
     
     // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<int 2>
@@ -19,7 +19,7 @@ func.func @IntegerZeroRemainder() -> (!bmodelica.int) {
 func.func @IntegerNonZeroRemainder() -> (!bmodelica.int) {
     %x = bmodelica.constant #bmodelica<int 8>
     %y = bmodelica.constant #bmodelica<int 3>
-    %result = bmodelica.div_trunc %x, %y : (!bmodelica.int, !bmodelica.int) -> !bmodelica.int
+    %result = bmodelica.div_trunc %x, %y : !bmodelica.int, !bmodelica.int -> !bmodelica.int
     return %result : !bmodelica.int
 
     // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<int 2>
@@ -33,7 +33,7 @@ func.func @IntegerNonZeroRemainder() -> (!bmodelica.int) {
 func.func @IntegerNegativeDivisor() -> (!bmodelica.int) {
     %x = bmodelica.constant #bmodelica<int 10>
     %y = bmodelica.constant #bmodelica<int -3>
-    %result = bmodelica.div_trunc %x, %y : (!bmodelica.int, !bmodelica.int) -> !bmodelica.int
+    %result = bmodelica.div_trunc %x, %y : !bmodelica.int, !bmodelica.int -> !bmodelica.int
     return %result : !bmodelica.int
 
     // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<int -3>
@@ -47,7 +47,7 @@ func.func @IntegerNegativeDivisor() -> (!bmodelica.int) {
 func.func @IntegerNegativeDividend() -> (!bmodelica.int) {
     %x = bmodelica.constant #bmodelica<int -10>
     %y = bmodelica.constant #bmodelica<int 3>
-    %result = bmodelica.div_trunc %x, %y : (!bmodelica.int, !bmodelica.int) -> !bmodelica.int
+    %result = bmodelica.div_trunc %x, %y : !bmodelica.int, !bmodelica.int -> !bmodelica.int
     return %result : !bmodelica.int
 
     // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<int -3>
@@ -61,7 +61,7 @@ func.func @IntegerNegativeDividend() -> (!bmodelica.int) {
 func.func @RealZeroRemainder() -> (!bmodelica.real) {
     %x = bmodelica.constant #bmodelica<real 6.0>
     %y = bmodelica.constant #bmodelica<real 3.0>
-    %result = bmodelica.div_trunc %x, %y : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
+    %result = bmodelica.div_trunc %x, %y : !bmodelica.real, !bmodelica.real -> !bmodelica.real
     return %result : !bmodelica.real
 
     // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<real 2.000000e+00>
@@ -75,7 +75,7 @@ func.func @RealZeroRemainder() -> (!bmodelica.real) {
 func.func @RealNonHalfRemainder() -> (!bmodelica.real) {
     %x = bmodelica.constant #bmodelica<real 8.5>
     %y = bmodelica.constant #bmodelica<real 3.0>
-    %result = bmodelica.div_trunc %x, %y : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
+    %result = bmodelica.div_trunc %x, %y : !bmodelica.real, !bmodelica.real -> !bmodelica.real
     return %result : !bmodelica.real
 
     // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<real 2.000000e+00>
@@ -89,7 +89,7 @@ func.func @RealNonHalfRemainder() -> (!bmodelica.real) {
 func.func @RealLessThanHalfRemainder() -> (!bmodelica.real) {
     %x = bmodelica.constant #bmodelica<real 3.0>
     %y = bmodelica.constant #bmodelica<real 1.4>
-    %result = bmodelica.div_trunc %x, %y : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
+    %result = bmodelica.div_trunc %x, %y : !bmodelica.real, !bmodelica.real -> !bmodelica.real
     return %result : !bmodelica.real
 
     // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<real 2.000000e+00>
@@ -103,7 +103,7 @@ func.func @RealLessThanHalfRemainder() -> (!bmodelica.real) {
 func.func @RealNegativeDividend() -> (!bmodelica.real) {
     %x = bmodelica.constant #bmodelica<real -3.0>
     %y = bmodelica.constant #bmodelica<real 1.4>
-    %result = bmodelica.div_trunc %x, %y : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
+    %result = bmodelica.div_trunc %x, %y : !bmodelica.real, !bmodelica.real -> !bmodelica.real
     return %result : !bmodelica.real
 
     // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<real -2.000000e+00>
@@ -117,7 +117,7 @@ func.func @RealNegativeDividend() -> (!bmodelica.real) {
 func.func @RealNegativeDivisor() -> (!bmodelica.real) {
     %x = bmodelica.constant #bmodelica<real 3.0>
     %y = bmodelica.constant #bmodelica<real -1.4>
-    %result = bmodelica.div_trunc %x, %y : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
+    %result = bmodelica.div_trunc %x, %y : !bmodelica.real, !bmodelica.real -> !bmodelica.real
     return %result : !bmodelica.real
 
     // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<real -2.000000e+00>
@@ -131,7 +131,7 @@ func.func @RealNegativeDivisor() -> (!bmodelica.real) {
 func.func @RealInteger() -> (!bmodelica.real) {
     %x = bmodelica.constant #bmodelica<real 10.0>
     %y = bmodelica.constant #bmodelica<int 3>
-    %result = bmodelica.div_trunc %x, %y : (!bmodelica.real, !bmodelica.int) -> !bmodelica.real
+    %result = bmodelica.div_trunc %x, %y : !bmodelica.real, !bmodelica.int -> !bmodelica.real
     return %result : !bmodelica.real
 
     // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<real 3.000000e+00>
@@ -145,7 +145,7 @@ func.func @RealInteger() -> (!bmodelica.real) {
 func.func @IntegerReal() -> (!bmodelica.real) {
     %x = bmodelica.constant #bmodelica<int 10>
     %y = bmodelica.constant #bmodelica<real 3.0>
-    %result = bmodelica.div_trunc %x, %y : (!bmodelica.int, !bmodelica.real) -> !bmodelica.real
+    %result = bmodelica.div_trunc %x, %y : !bmodelica.int, !bmodelica.real -> !bmodelica.real
     return %result : !bmodelica.real
     
     // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<real 3.000000e+00>
