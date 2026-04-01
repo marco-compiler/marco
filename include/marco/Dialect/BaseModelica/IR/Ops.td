@@ -26,54 +26,15 @@ def BaseModelicaBoolean :
     Type<CPred<"mlir::isa<::mlir::bmodelica::BooleanType>($_self)">,
          "boolean", "::mlir::bmodelica::BooleanType">;
 
-// BaseModelica Boolean attribute.
-def BaseModelicaBooleanAttr
-    : Attr<CPred<"mlir::isa<::mlir::bmodelica::BoolAttr>($_self)">,
-           "boolean attribute">
-{
-    let storageType = [{ ::mlir::bmodelica::BoolAttr }];
-    let returnType = [{ bool }];
-    let valueType = BaseModelicaBoolean;
-
-    let constBuilderCall =
-        "::mlir::bmodelica::BooleanAttr::get($_builder.getContext(), $0)";
-}
-
 // BaseModelica Integer type.
 def BaseModelicaInteger :
     Type<CPred<"mlir::isa<::mlir::bmodelica::IntegerType>($_self)">,
          "integer", "::mlir::bmodelica::IntegerType">;
 
-// BaseModelica Integer attribute.
-def BaseModelicaIntegerAttr :
-    Attr<CPred<"mlir::isa<::mlir::bmodelica::IntegerAttr>($_self)">,
-         "integer attribute">
-{
-    let storageType = [{ ::mlir::bmodelica::IntegerAttr }];
-    let returnType = [{ int64_t }];
-    let valueType = BaseModelicaInteger;
-
-    let constBuilderCall =
-        "::mlir::bmodelica::IntegerAttr::get($_builder.getContext(), $0)";
-}
-
 // BaseModelica Real type.
 def BaseModelicaReal :
     Type<CPred<"mlir::isa<::mlir::bmodelica::RealType>($_self)">,
          "real", "::mlir::bmodelica::RealType">;
-
-// BaseModelica Real attribute.
-def BaseModelicaRealAttr :
-    Attr<CPred<"mlir::isa<::mlir::bmodelica::RealAttr>($_self)">,
-         "real attribute">
-{
-    let storageType = [{ ::mlir::bmodelica::RealAttr }];
-    let returnType = [{ double }];
-    let valueType = BaseModelicaReal;
-
-    let constBuilderCall =
-        "::mlir::bmodelica::RealAttr::get($_builder.getContext(), $0)";
-}
 
 // BaseModelica Array type.
 def BaseModelicaArray :
@@ -105,36 +66,10 @@ class BaseModelicaArrayOf<list<Type> allowedTypes> :
 
 def AnyBaseModelicaArray : BaseModelicaArrayOf<[AnyType]>;
 
-// Whether a type is a VariableType.
-def IsVariableTypePred : CPred<"mlir::isa<::mlir::bmodelica::VariableType>($_self)">;
-
-class VariableOf<list<Type> allowedTypes> :
-    ContainerType<AnyTypeOf<allowedTypes>,
-                  IsVariableTypePred,
-                  "mlir::cast<mlir::bmodelica::VariableType>($_self).getElementType()",
-                  "variable", "::mlir::bmodelica::VariableType">;
-
-def AnyVariable : VariableOf<[AnyType]>;
-
-// Equation type.
-def BaseModelicaEquation :
-    Type<CPred<"mlir::isa<::mlir::bmodelica::EquationType>($_self)">,
-         "equation", "::mlir::bmodelica::EquationType">;
-
 // Range type.
 def BaseModelicaRange :
     Type<CPred<"mlir::isa<::mlir::bmodelica::RangeType>($_self)">,
          "range", "::mlir::bmodelica::RangeType">;
-
-// MultidimensionalRange attribute.
-def MultidimensionalRangeAttr
-    : Attr<CPred<"mlir::isa<::mlir::bmodelica::MultidimensionalRangeAttr>($_self)">,
-                 "Multidimensional range attribute">
-{
-    let storageType = [{ ::mlir::bmodelica::MultidimensionalRangeAttr }];
-    let returnType = [{ ::mlir::bmodelica::MultidimensionalRangeAttr }];
-    let convertFromStorage = "$_self";
-}
 
 // Function derivative attribute.
 def FunctionDerivativeAttr
@@ -143,40 +78,6 @@ def FunctionDerivativeAttr
 {
     let storageType = [{ ::mlir::bmodelica::FunctionDerivativeAttr }];
     let returnType = [{ ::mlir::bmodelica::FunctionDerivativeAttr }];
-    let convertFromStorage = "$_self";
-}
-
-def VarDerivativeAttr
-    : Attr<CPred<"mlir::isa<::mlir::bmodelica::VarDerivativeAttr>($_self)">,
-           "Variable derivative attribute">;
-
-// Equation path attribute.
-def EquationPathAttr
-    : Attr<CPred<"mlir::isa<::mlir::bmodelica::EquationPathAttr>($_self)">,
-           "Equation path attribute">
-{
-    let storageType = [{ ::mlir::bmodelica::EquationPathAttr }];
-    let returnType = [{ ::mlir::bmodelica::EquationPathAttr }];
-    let convertFromStorage = "$_self";
-}
-
-// Equation view attribute.
-def EquationViewAttr
-    : Attr<CPred<"mlir::isa<::mlir::bmodelica::EquationViewAttr>($_self)">,
-                 "Equation view attribute">
-{
-    let storageType = [{ ::mlir::bmodelica::EquationViewAttr }];
-    let returnType = [{ ::mlir::bmodelica::EquationViewAttr }];
-    let convertFromStorage = "$_self";
-}
-
-// Equation match attribute.
-def EquationMatchAttr
-    : Attr<CPred<"mlir::isa<::mlir::bmodelica::EquationMatchAttr>($_self)">,
-                 "Equation view attribute">
-{
-    let storageType = [{ ::mlir::bmodelica::EquationMatchAttr }];
-    let returnType = [{ ::mlir::bmodelica::EquationMatchAttr }];
     let convertFromStorage = "$_self";
 }
 
