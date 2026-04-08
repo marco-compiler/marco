@@ -120,8 +120,8 @@ module @ConflictingIndices {
         // CHECK-NEXT:     bmodelica.equation_sides %[[LHS]], %[[RHS]]
         %0 = bmodelica.equation_template inductions = [%arg0, %arg1] {
             %4 = bmodelica.constant -1 : index
-            %5 = bmodelica.add %arg0, %4 : (index, index) -> index
-            %6 = bmodelica.add %arg1, %4 : (index, index) -> index
+            %5 = bmodelica.add %arg0, %4 : index, index -> index
+            %6 = bmodelica.add %arg1, %4 : index, index -> index
             %7 = bmodelica.variable.get @a : tensor<4x5xi32>
             %8 = bmodelica.tensor_extract %7[%5, %6] : tensor<4x5xi32>
             %9 = bmodelica.equation_side %8 : tuple<i32>
@@ -133,8 +133,8 @@ module @ConflictingIndices {
         // COM: This template would trigger the CSE if the conflicting template were not ignored.
         %1 = bmodelica.equation_template inductions = [%arg0, %arg1] {
             %4 = bmodelica.constant -1 : index
-            %5 = bmodelica.add %arg0, %4 : (index, index) -> index
-            %6 = bmodelica.add %arg1, %4 : (index, index) -> index
+            %5 = bmodelica.add %arg0, %4 : index, index -> index
+            %6 = bmodelica.add %arg1, %4 : index, index -> index
             %7 = bmodelica.variable.get @b : tensor<4x5xi32>
             %8 = bmodelica.tensor_extract %7[%5, %6] : tensor<4x5xi32>
             %9 = bmodelica.equation_side %8 : tuple<i32>

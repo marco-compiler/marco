@@ -13,11 +13,11 @@ bmodelica.model @Test {
     %t0 = bmodelica.equation_template inductions = [%i0, %i1] attributes {id = "t0"} {
         %0 = bmodelica.variable.get @x : tensor<20x20x!bmodelica.int>
         %1 = bmodelica.constant 1 : index
-        %2 = bmodelica.add %i1, %1 : (index, index) -> index
+        %2 = bmodelica.add %i1, %1 : index, index -> index
         %3 = bmodelica.constant 2 : index
-        %4 = bmodelica.sub %i0, %3 : (index, index) -> index
+        %4 = bmodelica.sub %i0, %3 : index, index -> index
         %5 = bmodelica.tensor_extract %0[%2, %4] : tensor<20x20x!bmodelica.int>
-        %6 = bmodelica.sub %i0, %1 : (index, index) -> index
+        %6 = bmodelica.sub %i0, %1 : index, index -> index
         %7 = bmodelica.tensor_extract %0[%i1, %6] : tensor<20x20x!bmodelica.int>
         %8 = bmodelica.equation_side %5 : tuple<!bmodelica.int>
         %9 = bmodelica.equation_side %7 : tuple<!bmodelica.int>

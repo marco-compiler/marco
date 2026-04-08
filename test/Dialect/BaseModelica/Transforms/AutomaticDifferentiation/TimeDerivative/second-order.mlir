@@ -32,7 +32,7 @@ bmodelica.function @add_der attributes {derivative = #bmodelica<func_der "add_de
     bmodelica.algorithm {
         %0 = bmodelica.variable.get @der_x : !bmodelica.real
         %1 = bmodelica.variable.get @der_y : !bmodelica.real
-        %2 = bmodelica.add %0, %1 : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
+        %2 = bmodelica.add %0, %1 : !bmodelica.real, !bmodelica.real -> !bmodelica.real
         bmodelica.variable.set @der_z, %2 : !bmodelica.real
     }
 }

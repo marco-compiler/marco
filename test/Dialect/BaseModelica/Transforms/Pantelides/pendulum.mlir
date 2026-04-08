@@ -85,7 +85,7 @@ module {
       %0 = bmodelica.variable.get @der_u : f64
       %1 = bmodelica.variable.get @lambda : f64
       %2 = bmodelica.variable.get @x : f64
-      %3 = bmodelica.mul %1, %2 : (f64, f64) -> f64
+      %3 = bmodelica.mul %1, %2 : f64, f64 -> f64
       %4 = bmodelica.equation_side %0 : tuple<f64>
       %5 = bmodelica.equation_side %3 : tuple<f64>
       bmodelica.equation_sides %4, %5 : tuple<f64>, tuple<f64>
@@ -107,8 +107,8 @@ module {
       %1 = bmodelica.variable.get @lambda : f64
       %2 = bmodelica.variable.get @y : f64
       %3 = bmodelica.variable.get @g : f64
-      %4 = bmodelica.mul %1, %2 : (f64, f64) -> f64
-      %5 = bmodelica.sub %4, %3 : (f64, f64) -> f64
+      %4 = bmodelica.mul %1, %2 : f64, f64 -> f64
+      %5 = bmodelica.sub %4, %3 : f64, f64 -> f64
       %6 = bmodelica.equation_side %0 : tuple<f64>
       %7 = bmodelica.equation_side %5 : tuple<f64>
       bmodelica.equation_sides %6, %7 : tuple<f64>, tuple<f64>
@@ -131,9 +131,9 @@ module {
       %0 = bmodelica.variable.get @x : f64
       %1 = bmodelica.variable.get @y : f64
       %2 = bmodelica.constant 2.0 : f64
-      %3 = bmodelica.pow %0, %2 : (f64, f64) -> f64
-      %4 = bmodelica.pow %1, %2 : (f64, f64) -> f64
-      %5 = bmodelica.add %3, %4 : (f64, f64) -> f64
+      %3 = bmodelica.pow %0, %2 : f64, f64 -> f64
+      %4 = bmodelica.pow %1, %2 : f64, f64 -> f64
+      %5 = bmodelica.add %3, %4 : f64, f64 -> f64
       %6 = bmodelica.variable.get @L : f64
       %7 = bmodelica.equation_side %5 : tuple<f64>
       %8 = bmodelica.equation_side %6 : tuple<f64>

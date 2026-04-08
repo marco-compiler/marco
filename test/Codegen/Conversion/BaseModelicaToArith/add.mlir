@@ -9,7 +9,7 @@
 // CHECK: return %[[result_casted]]
 
 func.func @Integer(%arg0 : !bmodelica.int, %arg1 : !bmodelica.int) -> !bmodelica.int {
-    %0 = bmodelica.add %arg0, %arg1 : (!bmodelica.int, !bmodelica.int) -> !bmodelica.int
+    %0 = bmodelica.add %arg0, %arg1 : !bmodelica.int, !bmodelica.int -> !bmodelica.int
     func.return %0 : !bmodelica.int
 }
 
@@ -24,7 +24,7 @@ func.func @Integer(%arg0 : !bmodelica.int, %arg1 : !bmodelica.int) -> !bmodelica
 // CHECK: return %[[result_casted]]
 
 func.func @Real(%arg0 : !bmodelica.real, %arg1 : !bmodelica.real) -> !bmodelica.real {
-    %0 = bmodelica.add %arg0, %arg1 : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
+    %0 = bmodelica.add %arg0, %arg1 : !bmodelica.real, !bmodelica.real -> !bmodelica.real
     func.return %0 : !bmodelica.real
 }
 
@@ -40,7 +40,7 @@ func.func @Real(%arg0 : !bmodelica.real, %arg1 : !bmodelica.real) -> !bmodelica.
 // CHECK: return %[[result_casted]]
 
 func.func @IntegerReal(%arg0 : !bmodelica.int, %arg1 : !bmodelica.real) -> !bmodelica.real {
-    %0 = bmodelica.add %arg0, %arg1 : (!bmodelica.int, !bmodelica.real) -> !bmodelica.real
+    %0 = bmodelica.add %arg0, %arg1 : !bmodelica.int, !bmodelica.real -> !bmodelica.real
     func.return %0 : !bmodelica.real
 }
 
@@ -56,7 +56,7 @@ func.func @IntegerReal(%arg0 : !bmodelica.int, %arg1 : !bmodelica.real) -> !bmod
 // CHECK: return %[[result_casted]]
 
 func.func @RealInteger(%arg0 : !bmodelica.real, %arg1 : !bmodelica.int) -> !bmodelica.real {
-    %0 = bmodelica.add %arg0, %arg1 : (!bmodelica.real, !bmodelica.int) -> !bmodelica.real
+    %0 = bmodelica.add %arg0, %arg1 : !bmodelica.real, !bmodelica.int -> !bmodelica.real
     func.return %0 : !bmodelica.real
 }
 
@@ -68,7 +68,7 @@ func.func @RealInteger(%arg0 : !bmodelica.real, %arg1 : !bmodelica.int) -> !bmod
 // CHECK: return %[[result]] : index
 
 func.func @mlirIndex(%arg0 : index, %arg1 : index) -> index {
-    %0 = bmodelica.add %arg0, %arg1 : (index, index) -> index
+    %0 = bmodelica.add %arg0, %arg1 : index, index -> index
     func.return %0 : index
 }
 
@@ -80,7 +80,7 @@ func.func @mlirIndex(%arg0 : index, %arg1 : index) -> index {
 // CHECK: return %[[result]] : i64
 
 func.func @mlirInteger(%arg0 : i64, %arg1 : i64) -> i64 {
-    %0 = bmodelica.add %arg0, %arg1 : (i64, i64) -> i64
+    %0 = bmodelica.add %arg0, %arg1 : i64, i64 -> i64
     func.return %0 : i64
 }
 
@@ -92,6 +92,6 @@ func.func @mlirInteger(%arg0 : i64, %arg1 : i64) -> i64 {
 // CHECK: return %[[result]] : f64
 
 func.func @mlirFloat(%arg0 : f64, %arg1 : f64) -> f64 {
-    %0 = bmodelica.add %arg0, %arg1 : (f64, f64) -> f64
+    %0 = bmodelica.add %arg0, %arg1 : f64, f64 -> f64
     func.return %0 : f64
 }

@@ -26,9 +26,9 @@ module @Test {
             %c1 = bmodelica.constant 1.0 : f64
             %c2 = bmodelica.constant 2.0 : f64
             %c3 = bmodelica.constant 3.0 : f64
-            %sub = bmodelica.sub %c2, %c1 : (f64, f64) -> f64
+            %sub = bmodelica.sub %c2, %c1 : f64, f64 -> f64
             %cos = bmodelica.cos %sub : f64 -> f64
-            %pow = bmodelica.pow %cos, %c3 : (f64, f64) -> f64
+            %pow = bmodelica.pow %cos, %c3 : f64, f64 -> f64
             // CHECK: %[[RES0:.*]] = bmodelica.variable.get @x
             // CHECK-NEXT: %[[LHS:.*]] = bmodelica.equation_side %[[RES0]]
 
@@ -46,9 +46,9 @@ module @Test {
             %c1 = bmodelica.constant 1.0 : f64
             %c2 = bmodelica.constant 2.0 : f64
             %c3 = bmodelica.constant 3.0 : f64
-            %sub = bmodelica.sub %c2, %c1 : (f64, f64) -> f64
+            %sub = bmodelica.sub %c2, %c1 : f64, f64 -> f64
             %cos = bmodelica.cos %sub : f64 -> f64
-            %pow = bmodelica.pow %cos, %c3 : (f64, f64) -> f64
+            %pow = bmodelica.pow %cos, %c3 : f64, f64 -> f64
             // CHECK: %[[RES0:.*]] = bmodelica.variable.get @y
             // CHECK-NEXT: %[[LHS:.*]] = bmodelica.equation_side %[[RES0]]
 

@@ -13,8 +13,8 @@ bmodelica.model @Test {
         %3 = bmodelica.tensor_extract %0[%2, %2] : tensor<7x8x!bmodelica.real>
         %4 = bmodelica.constant #bmodelica<int 2>
         %5 = bmodelica.constant #bmodelica<int 4>
-        %6 = bmodelica.mul %4, %3 : (!bmodelica.int, !bmodelica.real) -> !bmodelica.real
-        %7 = bmodelica.sub %6, %5 : (!bmodelica.real, !bmodelica.int) -> !bmodelica.real
+        %6 = bmodelica.mul %4, %3 : !bmodelica.int, !bmodelica.real -> !bmodelica.real
+        %7 = bmodelica.sub %6, %5 : !bmodelica.real, !bmodelica.int -> !bmodelica.real
         %8 = bmodelica.equation_side %1 : tuple<!bmodelica.real>
         %9 = bmodelica.equation_side %7 : tuple<!bmodelica.real>
         bmodelica.equation_sides %8, %9 : tuple<!bmodelica.real>, tuple<!bmodelica.real>

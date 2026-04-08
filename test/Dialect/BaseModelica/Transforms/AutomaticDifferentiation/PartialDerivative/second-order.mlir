@@ -22,20 +22,20 @@
 // CHECK-NEXT:      %[[y_dx_dy:.*]] = bmodelica.variable.get @pder_y_7 : !bmodelica.real
 // CHECK-NEXT:      %[[y_dx:.*]] = bmodelica.variable.get @pder_y_4 : !bmodelica.real
 // CHECK-NEXT:      %[[x_dy_dy:.*]] = bmodelica.variable.get @pder_pder_y_4_10 : !bmodelica.real
-// CHECK-NEXT:      %[[z_result:.*]] = bmodelica.mul %[[x]], %[[y]] : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
-// CHECK-NEXT:      %[[mul_x_dy_y:.*]] = bmodelica.mul %[[x_dy]], %[[y]] : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
-// CHECK-NEXT:      %[[mul_x_y_dx_dy:.*]] = bmodelica.mul %[[x]], %[[y_dx_dy]] : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
-// CHECK-NEXT:      %[[z_dy_result:.*]] = bmodelica.add %[[mul_x_dy_y]], %[[mul_x_y_dx_dy]] : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
-// CHECK-NEXT:      %[[mul_x_dx_y:.*]] = bmodelica.mul %[[x_dx]], %[[y]] : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
-// CHECK-NEXT:      %[[mul_x_dx_dy_y:.*]] = bmodelica.mul %[[x_dx_dy]], %[[y]] : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
-// CHECK-NEXT:      %[[mul_x_dx_y_dx_dy:.*]] = bmodelica.mul %[[x_dx]], %[[y_dx_dy]] : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
-// CHECK-NEXT:      %[[add_mul_x_dx_dy_y_mul_x_dx_y_dx_dy:.*]] = bmodelica.add %[[mul_x_dx_dy_y]], %[[mul_x_dx_y_dx_dy]] : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
-// CHECK-NEXT:      %[[mul_x_y_dx:.*]] = bmodelica.mul %[[x]], %[[y_dx]] : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
-// CHECK-NEXT:      %[[mul_x_dy_y_dx:.*]] = bmodelica.mul %[[x_dy]], %[[y_dx]] : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
-// CHECK-NEXT:      %[[mul_x_x_dy_dy:.*]] = bmodelica.mul %[[x]], %[[x_dy_dy]] : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
-// CHECK-NEXT:      %[[add_mul_x_dy_y_dx_mul_x_x_dy_dy:.*]] = bmodelica.add %[[mul_x_dy_y_dx]], %[[mul_x_x_dy_dy]] : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
-// CHECK-NEXT:      %[[z_dx_result:.*]] = bmodelica.add %[[mul_x_dx_y]], %[[mul_x_y_dx]] : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
-// CHECK-NEXT:      %[[z_dx_dy_result:.*]] = bmodelica.add %[[add_mul_x_dx_dy_y_mul_x_dx_y_dx_dy]], %[[add_mul_x_dy_y_dx_mul_x_x_dy_dy]] : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
+// CHECK-NEXT:      %[[z_result:.*]] = bmodelica.mul %[[x]], %[[y]] : !bmodelica.real, !bmodelica.real -> !bmodelica.real
+// CHECK-NEXT:      %[[mul_x_dy_y:.*]] = bmodelica.mul %[[x_dy]], %[[y]] : !bmodelica.real, !bmodelica.real -> !bmodelica.real
+// CHECK-NEXT:      %[[mul_x_y_dx_dy:.*]] = bmodelica.mul %[[x]], %[[y_dx_dy]] : !bmodelica.real, !bmodelica.real -> !bmodelica.real
+// CHECK-NEXT:      %[[z_dy_result:.*]] = bmodelica.add %[[mul_x_dy_y]], %[[mul_x_y_dx_dy]] : !bmodelica.real, !bmodelica.real -> !bmodelica.real
+// CHECK-NEXT:      %[[mul_x_dx_y:.*]] = bmodelica.mul %[[x_dx]], %[[y]] : !bmodelica.real, !bmodelica.real -> !bmodelica.real
+// CHECK-NEXT:      %[[mul_x_dx_dy_y:.*]] = bmodelica.mul %[[x_dx_dy]], %[[y]] : !bmodelica.real, !bmodelica.real -> !bmodelica.real
+// CHECK-NEXT:      %[[mul_x_dx_y_dx_dy:.*]] = bmodelica.mul %[[x_dx]], %[[y_dx_dy]] : !bmodelica.real, !bmodelica.real -> !bmodelica.real
+// CHECK-NEXT:      %[[add_mul_x_dx_dy_y_mul_x_dx_y_dx_dy:.*]] = bmodelica.add %[[mul_x_dx_dy_y]], %[[mul_x_dx_y_dx_dy]] : !bmodelica.real, !bmodelica.real -> !bmodelica.real
+// CHECK-NEXT:      %[[mul_x_y_dx:.*]] = bmodelica.mul %[[x]], %[[y_dx]] : !bmodelica.real, !bmodelica.real -> !bmodelica.real
+// CHECK-NEXT:      %[[mul_x_dy_y_dx:.*]] = bmodelica.mul %[[x_dy]], %[[y_dx]] : !bmodelica.real, !bmodelica.real -> !bmodelica.real
+// CHECK-NEXT:      %[[mul_x_x_dy_dy:.*]] = bmodelica.mul %[[x]], %[[x_dy_dy]] : !bmodelica.real, !bmodelica.real -> !bmodelica.real
+// CHECK-NEXT:      %[[add_mul_x_dy_y_dx_mul_x_x_dy_dy:.*]] = bmodelica.add %[[mul_x_dy_y_dx]], %[[mul_x_x_dy_dy]] : !bmodelica.real, !bmodelica.real -> !bmodelica.real
+// CHECK-NEXT:      %[[z_dx_result:.*]] = bmodelica.add %[[mul_x_dx_y]], %[[mul_x_y_dx]] : !bmodelica.real, !bmodelica.real -> !bmodelica.real
+// CHECK-NEXT:      %[[z_dx_dy_result:.*]] = bmodelica.add %[[add_mul_x_dx_dy_y_mul_x_dx_y_dx_dy]], %[[add_mul_x_dy_y_dx_mul_x_x_dy_dy]] : !bmodelica.real, !bmodelica.real -> !bmodelica.real
 // CHECK-NEXT:      bmodelica.variable.set @z, %[[z_result]] : !bmodelica.real
 // CHECK-NEXT:      bmodelica.variable.set @pder_z_8, %[[z_dy_result]] : !bmodelica.real
 // CHECK-NEXT:      bmodelica.variable.set @pder_z_5, %[[z_dx_result]] : !bmodelica.real
@@ -67,7 +67,7 @@ bmodelica.function @mulOfVars {
     bmodelica.algorithm {
         %0 = bmodelica.variable.get @x : !bmodelica.real
         %1 = bmodelica.variable.get @y : !bmodelica.real
-        %2 = bmodelica.mul %0, %1 : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
+        %2 = bmodelica.mul %0, %1 : !bmodelica.real, !bmodelica.real -> !bmodelica.real
         bmodelica.variable.set @z, %2: !bmodelica.real
     }
 }

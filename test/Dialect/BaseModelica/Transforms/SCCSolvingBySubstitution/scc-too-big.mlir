@@ -52,7 +52,7 @@ bmodelica.model @Test {
         %0 = bmodelica.variable.get @x4 : !bmodelica.int
         %1 = bmodelica.variable.get @x1 : !bmodelica.int
         %2 = bmodelica.constant #bmodelica<int 1> : !bmodelica.int
-        %3 = bmodelica.sub %2, %1 : (!bmodelica.int, !bmodelica.int) -> !bmodelica.int
+        %3 = bmodelica.sub %2, %1 : !bmodelica.int, !bmodelica.int -> !bmodelica.int
         %4 = bmodelica.equation_side %0 : tuple<!bmodelica.int>
         %5 = bmodelica.equation_side %3 : tuple<!bmodelica.int>
         bmodelica.equation_sides %4, %5 : tuple<!bmodelica.int>, tuple<!bmodelica.int>

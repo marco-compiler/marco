@@ -33,14 +33,14 @@ module @SubsetRepresentative {
         // CHECK-NEXT:     bmodelica.equation_sides %[[LHS]], %[[RHS]]
         %0 = bmodelica.equation_template inductions = [%arg0, %arg1] {
             %4 = bmodelica.constant -1 : index
-            %5 = bmodelica.add %arg0, %4 : (index, index) -> index
-            %6 = bmodelica.add %arg1, %4 : (index, index) -> index
+            %5 = bmodelica.add %arg0, %4 : index, index -> index
+            %6 = bmodelica.add %arg1, %4 : index, index -> index
             %7 = bmodelica.variable.get @a : tensor<4x5xi32>
             %8 = bmodelica.tensor_extract %7[%5, %6] : tensor<4x5xi32>
             %9 = bmodelica.equation_side %8 : tuple<i32>
 
             %10 = bmodelica.call @f(%arg1) : (index) -> i32
-            %11 = bmodelica.add %10, %arg0: (i32, index) -> index
+            %11 = bmodelica.add %10, %arg0: i32, index -> index
             %12 = bmodelica.equation_side %11 : tuple<index>
 
             bmodelica.equation_sides %9, %12 : tuple<i32>, tuple<index>
@@ -64,14 +64,14 @@ module @SubsetRepresentative {
         // CHECK-NEXT:     bmodelica.equation_sides %[[LHS]], %[[RHS]]
         %1 = bmodelica.equation_template inductions = [%arg0, %arg1] {
             %4 = bmodelica.constant -1 : index
-            %5 = bmodelica.add %arg0, %4 : (index, index) -> index
-            %6 = bmodelica.add %arg1, %4 : (index, index) -> index
+            %5 = bmodelica.add %arg0, %4 : index, index -> index
+            %6 = bmodelica.add %arg1, %4 : index, index -> index
             %7 = bmodelica.variable.get @b : tensor<4x5xi32>
             %8 = bmodelica.tensor_extract %7[%5, %6] : tensor<4x5xi32>
             %9 = bmodelica.equation_side %8 : tuple<i32>
 
             %10 = bmodelica.call @f(%arg1) : (index) -> i32
-            %11 = bmodelica.add %10, %arg0: (i32, index) -> index
+            %11 = bmodelica.add %10, %arg0: i32, index -> index
             %12 = bmodelica.equation_side %11 : tuple<index>
 
             bmodelica.equation_sides %9, %12 : tuple<i32>, tuple<index>
@@ -136,8 +136,8 @@ module @InvertedEqualInductionRanges {
         // CHECK-NEXT:     bmodelica.equation_sides %[[LHS]], %[[RHS]]
         %0 = bmodelica.equation_template inductions = [%arg0, %arg1] {
             %4 = bmodelica.constant -1 : index
-            %5 = bmodelica.add %arg0, %4 : (index, index) -> index
-            %6 = bmodelica.add %arg1, %4 : (index, index) -> index
+            %5 = bmodelica.add %arg0, %4 : index, index -> index
+            %6 = bmodelica.add %arg1, %4 : index, index -> index
             %7 = bmodelica.variable.get @a : tensor<5x5xi32>
             %8 = bmodelica.tensor_extract %7[%5, %6] : tensor<5x5xi32>
             %9 = bmodelica.equation_side %8 : tuple<i32>
@@ -168,8 +168,8 @@ module @InvertedEqualInductionRanges {
         // CHECK-NEXT:     bmodelica.equation_sides %[[LHS]], %[[RHS]]
         %1 = bmodelica.equation_template inductions = [%arg0, %arg1] {
             %4 = bmodelica.constant -1 : index
-            %5 = bmodelica.add %arg0, %4 : (index, index) -> index
-            %6 = bmodelica.add %arg1, %4 : (index, index) -> index
+            %5 = bmodelica.add %arg0, %4 : index, index -> index
+            %6 = bmodelica.add %arg1, %4 : index, index -> index
             %7 = bmodelica.variable.get @b : tensor<5x5xi32>
             %8 = bmodelica.tensor_extract %7[%5, %6] : tensor<5x5xi32>
             %9 = bmodelica.equation_side %8 : tuple<i32>
@@ -242,9 +242,9 @@ module @InductionRangeOffset {
         // CHECK-NEXT:     bmodelica.equation_sides %[[LHS]], %[[RHS]]
         %0 = bmodelica.equation_template inductions = [%arg0, %arg1] {
             %offset0 = bmodelica.constant 2 : index
-            %index0 = bmodelica.add %arg0, %offset0 : (index, index) -> index
+            %index0 = bmodelica.add %arg0, %offset0 : index, index -> index
             %offset1 = bmodelica.constant -3 : index
-            %index1 = bmodelica.add %arg1, %offset1 : (index, index) -> index
+            %index1 = bmodelica.add %arg1, %offset1 : index, index -> index
             %7 = bmodelica.variable.get @a : tensor<5x6xi32>
             %8 = bmodelica.tensor_extract %7[%index0, %index1] : tensor<5x6xi32>
             %9 = bmodelica.equation_side %8 : tuple<i32>
@@ -275,9 +275,9 @@ module @InductionRangeOffset {
         // CHECK-NEXT:     bmodelica.equation_sides %[[LHS]], %[[RHS]]
         %1 = bmodelica.equation_template inductions = [%arg0, %arg1] {
             %offset0 = bmodelica.constant -3 : index
-            %index0 = bmodelica.add %arg0, %offset0 : (index, index) -> index
+            %index0 = bmodelica.add %arg0, %offset0 : index, index -> index
             %offset1 = bmodelica.constant 2 : index
-            %index1 = bmodelica.add %arg1, %offset1 : (index, index) -> index
+            %index1 = bmodelica.add %arg1, %offset1 : index, index -> index
             %7 = bmodelica.variable.get @b : tensor<6x5xi32>
             %8 = bmodelica.tensor_extract %7[%index0, %index1] : tensor<6x5xi32>
             %9 = bmodelica.equation_side %8 : tuple<i32>

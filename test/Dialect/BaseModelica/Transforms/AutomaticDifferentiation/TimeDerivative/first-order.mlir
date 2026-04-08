@@ -77,7 +77,7 @@ bmodelica.function @add attributes {derivative = #bmodelica<func_der "add_der", 
     bmodelica.algorithm {
         %0 = bmodelica.variable.get @x : !bmodelica.real
         %1 = bmodelica.variable.get @y : !bmodelica.real
-        %2 = bmodelica.add %0, %1 : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
+        %2 = bmodelica.add %0, %1 : !bmodelica.real, !bmodelica.real -> !bmodelica.real
         bmodelica.variable.set @z, %2 : !bmodelica.real
     }
 }
@@ -110,7 +110,7 @@ bmodelica.function @sub attributes {derivative = #bmodelica<func_der "sub_der", 
     bmodelica.algorithm {
         %0 = bmodelica.variable.get @x : !bmodelica.real
         %1 = bmodelica.variable.get @y : !bmodelica.real
-        %2 = bmodelica.sub %0, %1 : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
+        %2 = bmodelica.sub %0, %1 : !bmodelica.real, !bmodelica.real -> !bmodelica.real
         bmodelica.variable.set @z, %2 : !bmodelica.real
     }
 }
@@ -145,7 +145,7 @@ bmodelica.function @mul attributes {derivative = #bmodelica<func_der "mul_der", 
     bmodelica.algorithm {
         %0 = bmodelica.variable.get @x : !bmodelica.real
         %1 = bmodelica.variable.get @y : !bmodelica.real
-        %2 = bmodelica.mul %0, %1 : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
+        %2 = bmodelica.mul %0, %1 : !bmodelica.real, !bmodelica.real -> !bmodelica.real
         bmodelica.variable.set @z, %2 : !bmodelica.real
     }
 }
@@ -183,7 +183,7 @@ bmodelica.function @div attributes {derivative = #bmodelica<func_der "div_der", 
     bmodelica.algorithm {
         %0 = bmodelica.variable.get @x : !bmodelica.real
         %1 = bmodelica.variable.get @y : !bmodelica.real
-        %2 = bmodelica.div %0, %1 : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
+        %2 = bmodelica.div %0, %1 : !bmodelica.real, !bmodelica.real -> !bmodelica.real
         bmodelica.variable.set @z, %2 : !bmodelica.real
     }
 }

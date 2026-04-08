@@ -21,7 +21,7 @@ bmodelica.model @Test {
         %1 = bmodelica.variable.get @f : tensor<6x!bmodelica.real>
         %2 = bmodelica.constant 0 : index
         %3 = bmodelica.tensor_extract %1[%2] : tensor<6x!bmodelica.real>
-        %4 = bmodelica.add %0, %3 : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
+        %4 = bmodelica.add %0, %3 : !bmodelica.real, !bmodelica.real -> !bmodelica.real
         %5 = bmodelica.constant #bmodelica<real 0.0>
         %6 = bmodelica.equation_side %4 : tuple<!bmodelica.real>
         %7 = bmodelica.equation_side %5 : tuple<!bmodelica.real>
@@ -50,10 +50,10 @@ bmodelica.model @Test {
         %2 = bmodelica.tensor_extract %0[%i0] : tensor<5x!bmodelica.real>
         %3 = bmodelica.tensor_extract %1[%i0] : tensor<6x!bmodelica.real>
         %4 = bmodelica.constant 1 : index
-        %5 = bmodelica.add %i0, %4 : (index, index) -> index
+        %5 = bmodelica.add %i0, %4 : index, index -> index
         %6 = bmodelica.tensor_extract %1[%5] : tensor<6x!bmodelica.real>
-        %7 = bmodelica.add %2, %3 : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
-        %8 = bmodelica.add %7, %6 : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
+        %7 = bmodelica.add %2, %3 : !bmodelica.real, !bmodelica.real -> !bmodelica.real
+        %8 = bmodelica.add %7, %6 : !bmodelica.real, !bmodelica.real -> !bmodelica.real
         %9 = bmodelica.constant #bmodelica<real 0.0>
         %10 = bmodelica.equation_side %8 : tuple<!bmodelica.real>
         %11 = bmodelica.equation_side %9 : tuple<!bmodelica.real>
@@ -80,7 +80,7 @@ bmodelica.model @Test {
         %1 = bmodelica.variable.get @f : tensor<6x!bmodelica.real>
         %2 = bmodelica.constant 5 : index
         %3 = bmodelica.tensor_extract %1[%2] : tensor<6x!bmodelica.real>
-        %4 = bmodelica.add %0, %3 : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
+        %4 = bmodelica.add %0, %3 : !bmodelica.real, !bmodelica.real -> !bmodelica.real
         %5 = bmodelica.constant #bmodelica<real 0.0>
         %6 = bmodelica.equation_side %4 : tuple<!bmodelica.real>
         %7 = bmodelica.equation_side %5 : tuple<!bmodelica.real>

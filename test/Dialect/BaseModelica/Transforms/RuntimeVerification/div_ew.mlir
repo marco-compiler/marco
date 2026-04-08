@@ -9,7 +9,7 @@ func.func @scalar(%arg0: f64, %arg1: f64) -> f64 {
     // CHECK: %[[condition:.*]] = bmodelica.neq %[[rhs]], %[[zero]]
     // CHECK: bmodelica.yield %[[condition]]
 
-    %0 = bmodelica.div_ew %arg0, %arg1 : (f64, f64) -> f64
+    %0 = bmodelica.div_ew %arg0, %arg1 : f64, f64 -> f64
     func.return %0 : f64
 }
 
@@ -33,6 +33,6 @@ func.func @tensor(%arg0: f64, %arg1: tensor<?x?xf64>) -> tensor<?x?xf64> {
     // CHECK:                   %[[condition:.*]] = bmodelica.neq %[[element]], %[[zero]]
     // CHECK:                   bmodelica.yield %[[condition]]
 
-    %0 = bmodelica.div_ew %arg0, %arg1 : (f64, tensor<?x?xf64>) -> tensor<?x?xf64>
+    %0 = bmodelica.div_ew %arg0, %arg1 : f64, tensor<?x?xf64> -> tensor<?x?xf64>
     func.return %0 : tensor<?x?xf64>
 }

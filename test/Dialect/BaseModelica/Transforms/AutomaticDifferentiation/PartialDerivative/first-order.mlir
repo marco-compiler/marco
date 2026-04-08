@@ -71,7 +71,7 @@ bmodelica.function @mulByScalar {
     bmodelica.algorithm {
         %0 = bmodelica.constant #bmodelica<real 23.0>
         %1 = bmodelica.variable.get @x : !bmodelica.real
-        %2 = bmodelica.mul %0, %1 : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
+        %2 = bmodelica.mul %0, %1 : !bmodelica.real, !bmodelica.real -> !bmodelica.real
         bmodelica.variable.set @y, %2: !bmodelica.real
     }
 }
@@ -119,7 +119,7 @@ bmodelica.function @sumOfVars {
     bmodelica.algorithm {
         %0 = bmodelica.variable.get @x : !bmodelica.real
         %1 = bmodelica.variable.get @y : !bmodelica.real
-        %2 = bmodelica.add %0, %1 : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
+        %2 = bmodelica.add %0, %1 : !bmodelica.real, !bmodelica.real -> !bmodelica.real
         bmodelica.variable.set @z, %2: !bmodelica.real
     }
 }
@@ -169,7 +169,7 @@ bmodelica.function @mulOfVars {
     bmodelica.algorithm {
         %0 = bmodelica.variable.get @x : !bmodelica.real
         %1 = bmodelica.variable.get @y : !bmodelica.real
-        %2 = bmodelica.mul %0, %1 : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
+        %2 = bmodelica.mul %0, %1 : !bmodelica.real, !bmodelica.real -> !bmodelica.real
         bmodelica.variable.set @z, %2: !bmodelica.real
     }
 }
@@ -233,7 +233,7 @@ bmodelica.function @scalarMul {
     bmodelica.algorithm {
         %0 = bmodelica.variable.get @x1 : !bmodelica.real
         %1 = bmodelica.constant #bmodelica<real 23.0>
-        %2 = bmodelica.mul %0, %1 : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
+        %2 = bmodelica.mul %0, %1 : !bmodelica.real, !bmodelica.real -> !bmodelica.real
         bmodelica.variable.set @y1, %2: !bmodelica.real
     }
 }
@@ -245,7 +245,7 @@ bmodelica.function @callOpDer {
     bmodelica.algorithm {
         %0 = bmodelica.constant #bmodelica<int 57>
         %1 = bmodelica.variable.get @x2 : !bmodelica.real
-        %2 = bmodelica.mul %0, %1 : (!bmodelica.int, !bmodelica.real) -> !bmodelica.real
+        %2 = bmodelica.mul %0, %1 : !bmodelica.int, !bmodelica.real -> !bmodelica.real
         %3 = bmodelica.call @scalarMul(%2) : (!bmodelica.real) -> (!bmodelica.real)
         bmodelica.variable.set @y2, %3: !bmodelica.real
     }

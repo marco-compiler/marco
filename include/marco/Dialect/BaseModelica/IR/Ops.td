@@ -1461,13 +1461,14 @@ def BaseModelica_ConstantOp : BaseModelica_Op<"constant", [
     ];
 }
 
-def BaseModelica_NegateOp : BaseModelica_Op<"neg",
-    [DeclareOpInterfaceMethods<InferTypeOpInterface>,
-    NoMemoryEffect,
-    DeclareOpInterfaceMethods<DistributableOpInterface>,
-    DeclareOpInterfaceMethods<NegateOpDistributionInterface>,
-    DeclareOpInterfaceMethods<MulOpDistributionInterface>,
-    DeclareOpInterfaceMethods<DivOpDistributionInterface>]>
+def BaseModelica_NegateOp : BaseModelica_Op<"neg", [
+        DeclareOpInterfaceMethods<InferTypeOpInterface>,
+        NoMemoryEffect,
+        DeclareOpInterfaceMethods<DistributableOpInterface>,
+        DeclareOpInterfaceMethods<NegateOpDistributionInterface>,
+        DeclareOpInterfaceMethods<MulOpDistributionInterface>,
+        DeclareOpInterfaceMethods<DivOpDistributionInterface>
+    ]>
 {
     let summary = "Negation operation.";
 
@@ -1476,8 +1477,8 @@ def BaseModelica_NegateOp : BaseModelica_Op<"neg",
         the opposite sign.
     }];
 
-    let arguments = (ins AnyType:$operand);
-    let results = (outs AnyType:$result);
+    let arguments = (ins BaseModelicaCompatibleScalarOrRankedTensor:$operand);
+    let results = (outs BaseModelicaCompatibleScalarOrRankedTensor:$result);
 
     let assemblyFormat = [{
         $operand attr-dict `:` type($operand) `->` type($result)
@@ -1491,36 +1492,31 @@ def BaseModelica_NegateOp : BaseModelica_Op<"neg",
     }];
 }
 
-def BaseModelica_AddOp : BaseModelica_Op<"add",
-    [Commutative,
-    DeclareOpInterfaceMethods<InferTypeOpInterface>,
-    NoMemoryEffect,
-    AlwaysSpeculatable,
-    DeclareOpInterfaceMethods<NegateOpDistributionInterface>,
-    DeclareOpInterfaceMethods<MulOpDistributionInterface>,
-    DeclareOpInterfaceMethods<DivOpDistributionInterface>]>
+def BaseModelica_AddOp : BaseModelica_Op<"add", [
+        Commutative,
+        DeclareOpInterfaceMethods<InferTypeOpInterface>,
+        NoMemoryEffect,
+        AlwaysSpeculatable,
+        DeclareOpInterfaceMethods<NegateOpDistributionInterface>,
+        DeclareOpInterfaceMethods<MulOpDistributionInterface>,
+        DeclareOpInterfaceMethods<DivOpDistributionInterface>
+    ]>
 {
     let summary = "Addition.";
 
     let description = [{
         The operation computes the sum of two values.
-        It takes two operands and returns one result. Array operands are also allowed,
-        but they must respect the BaseModelica specification.
-
-        Example:
-
-        ```mlir
-        %0 = ... : !modelica.int
-        %1 = ... : !modelica.real
-        %2 = modelica.add %0, %1 : (!modelica.int, !modelica.real) -> !modelica.real
-        ```
     }];
 
-    let arguments = (ins AnyType:$lhs, AnyType:$rhs);
-    let results = (outs AnyType:$result);
+    let arguments = (ins
+        AnyTypeOf<[BaseModelicaCompatibleScalarOrRankedTensor, BaseModelicaRange]>:$lhs,
+        AnyTypeOf<[BaseModelicaCompatibleScalarOrRankedTensor, BaseModelicaRange]>:$rhs
+    );
+
+    let results = (outs AnyTypeOf<[BaseModelicaCompatibleScalarOrRankedTensor, BaseModelicaRange]>:$result);
 
     let assemblyFormat = [{
-        $lhs `,` $rhs attr-dict `:` `(` type($lhs) `,` type($rhs) `)` `->` type($result)
+        $lhs `,` $rhs attr-dict `:` type($lhs) `,` type($rhs) `->` type($result)
     }];
 
     let hasFolder = 1;
@@ -1532,35 +1528,31 @@ def BaseModelica_AddOp : BaseModelica_Op<"add",
     }];
 }
 
-def BaseModelica_AddEWOp : BaseModelica_Op<"add_ew",
-    [Commutative,
-    DeclareOpInterfaceMethods<InferTypeOpInterface>,
-    NoMemoryEffect,
-    AlwaysSpeculatable,
-    DeclareOpInterfaceMethods<NegateOpDistributionInterface>,
-    DeclareOpInterfaceMethods<MulOpDistributionInterface>,
-    DeclareOpInterfaceMethods<DivOpDistributionInterface>]>
+def BaseModelica_AddEWOp : BaseModelica_Op<"add_ew", [
+        Commutative,
+        DeclareOpInterfaceMethods<InferTypeOpInterface>,
+        NoMemoryEffect,
+        AlwaysSpeculatable,
+        DeclareOpInterfaceMethods<NegateOpDistributionInterface>,
+        DeclareOpInterfaceMethods<MulOpDistributionInterface>,
+        DeclareOpInterfaceMethods<DivOpDistributionInterface>
+    ]>
 {
     let summary = "Element-wise addition.";
 
     let description = [{
         The operation computes the element-wise sum of two values.
-        It takes two operands and returns one result.
-
-        Example:
-
-        ```mlir
-        %0 = ... : !modelica.array<?x!modelica.int>
-        %1 = ... : !modelica.real
-        %2 = modelica.add_ew %0, %1 : (!modelica.array<?x!modelica.int>, !modelica.real) -> !modelica.array<?x!modelica.real>
-        ```
     }];
 
-    let arguments = (ins AnyType:$lhs, AnyType:$rhs);
-    let results = (outs AnyType:$result);
+    let arguments = (ins
+        BaseModelicaCompatibleScalarOrRankedTensor:$lhs,
+        BaseModelicaCompatibleScalarOrRankedTensor:$rhs
+    );
+
+    let results = (outs BaseModelicaCompatibleScalarOrRankedTensor:$result);
 
     let assemblyFormat = [{
-        $lhs `,` $rhs attr-dict `:` `(` type($lhs) `,` type($rhs) `)` `->` type($result)
+        $lhs `,` $rhs attr-dict `:` type($lhs) `,` type($rhs) `->` type($result)
     }];
 
     let hasFolder = 1;
@@ -1571,35 +1563,30 @@ def BaseModelica_AddEWOp : BaseModelica_Op<"add_ew",
     }];
 }
 
-def BaseModelica_SubOp : BaseModelica_Op<"sub",
-    [DeclareOpInterfaceMethods<InferTypeOpInterface>,
-    NoMemoryEffect,
-    AlwaysSpeculatable,
-    DeclareOpInterfaceMethods<NegateOpDistributionInterface>,
-    DeclareOpInterfaceMethods<MulOpDistributionInterface>,
-    DeclareOpInterfaceMethods<DivOpDistributionInterface>]>
+def BaseModelica_SubOp : BaseModelica_Op<"sub", [
+        DeclareOpInterfaceMethods<InferTypeOpInterface>,
+        NoMemoryEffect,
+        AlwaysSpeculatable,
+        DeclareOpInterfaceMethods<NegateOpDistributionInterface>,
+        DeclareOpInterfaceMethods<MulOpDistributionInterface>,
+        DeclareOpInterfaceMethods<DivOpDistributionInterface>
+    ]>
 {
     let summary = "Subtraction.";
 
     let description = [{
         The operation computes the difference between two values.
-        It takes two operands and returns one result. Array operands are also allowed,
-        but they must respect the BaseModelica specification.
-
-        Example:
-
-        ```mlir
-        %0 = ... : !modelica.int
-        %1 = ... : !modelica.real
-        %2 = modelica.sub %0, %1 : (!modelica.int, !modelica.real) -> !modelica.real
-        ```
     }];
 
-    let arguments = (ins AnyType:$lhs, AnyType:$rhs);
-    let results = (outs AnyType:$result);
+    let arguments = (ins
+        AnyTypeOf<[BaseModelicaCompatibleScalarOrRankedTensor, BaseModelicaRange]>:$lhs,
+        AnyTypeOf<[BaseModelicaCompatibleScalarOrRankedTensor, BaseModelicaRange]>:$rhs
+    );
+    
+    let results = (outs AnyTypeOf<[BaseModelicaCompatibleScalarOrRankedTensor, BaseModelicaRange]>:$result);
 
     let assemblyFormat = [{
-        $lhs `,` $rhs attr-dict `:` `(` type($lhs) `,` type($rhs) `)` `->` type($result)
+        $lhs `,` $rhs attr-dict `:` type($lhs) `,` type($rhs) `->` type($result)
     }];
 
     let hasFolder = 1;
@@ -1610,34 +1597,30 @@ def BaseModelica_SubOp : BaseModelica_Op<"sub",
     }];
 }
 
-def BaseModelica_SubEWOp : BaseModelica_Op<"sub_ew",
-    [DeclareOpInterfaceMethods<InferTypeOpInterface>,
-    NoMemoryEffect,
-    AlwaysSpeculatable,
-    DeclareOpInterfaceMethods<NegateOpDistributionInterface>,
-    DeclareOpInterfaceMethods<MulOpDistributionInterface>,
-    DeclareOpInterfaceMethods<DivOpDistributionInterface>]>
+def BaseModelica_SubEWOp : BaseModelica_Op<"sub_ew", [
+        DeclareOpInterfaceMethods<InferTypeOpInterface>,
+        NoMemoryEffect,
+        AlwaysSpeculatable,
+        DeclareOpInterfaceMethods<NegateOpDistributionInterface>,
+        DeclareOpInterfaceMethods<MulOpDistributionInterface>,
+        DeclareOpInterfaceMethods<DivOpDistributionInterface>
+    ]>
 {
     let summary = "Element-wise subtraction.";
 
     let description = [{
         The operation computes the element-wise difference of two values.
-        It takes two operands and returns one result.
-
-        Example:
-
-        ```mlir
-        %0 = ... : !modelica.array<?x!modelica.int>
-        %1 = ... : !modelica.real
-        %2 = modelica.sub_ew %0, %1 : (!modelica.array<?x!modelica.int>, !modelica.real) -> !modelica.array<?x!modelica.real>
-        ```
     }];
 
-    let arguments = (ins AnyType:$lhs, AnyType:$rhs);
-    let results = (outs AnyType:$result);
+    let arguments = (ins
+        BaseModelicaCompatibleScalarOrRankedTensor:$lhs,
+        BaseModelicaCompatibleScalarOrRankedTensor:$rhs
+    );
+    
+    let results = (outs BaseModelicaCompatibleScalarOrRankedTensor:$result);
 
     let assemblyFormat = [{
-        $lhs `,` $rhs attr-dict `:` `(` type($lhs) `,` type($rhs) `)` `->` type($result)
+        $lhs `,` $rhs attr-dict `:` type($lhs) `,` type($rhs) `->` type($result)
     }];
 
     let hasFolder = 1;
@@ -1648,37 +1631,32 @@ def BaseModelica_SubEWOp : BaseModelica_Op<"sub_ew",
     }];
 }
 
-def BaseModelica_MulOp : BaseModelica_Op<"mul",
-    [Commutative,
-    DeclareOpInterfaceMethods<InferTypeOpInterface>,
-    NoMemoryEffect,
-    AlwaysSpeculatable,
-    DeclareOpInterfaceMethods<DistributableOpInterface>,
-    DeclareOpInterfaceMethods<NegateOpDistributionInterface>,
-    DeclareOpInterfaceMethods<MulOpDistributionInterface>,
-    DeclareOpInterfaceMethods<DivOpDistributionInterface>]>
+def BaseModelica_MulOp : BaseModelica_Op<"mul", [
+        Commutative,
+        DeclareOpInterfaceMethods<InferTypeOpInterface>,
+        NoMemoryEffect,
+        AlwaysSpeculatable,
+        DeclareOpInterfaceMethods<DistributableOpInterface>,
+        DeclareOpInterfaceMethods<NegateOpDistributionInterface>,
+        DeclareOpInterfaceMethods<MulOpDistributionInterface>,
+        DeclareOpInterfaceMethods<DivOpDistributionInterface>
+    ]>
 {
     let summary = "Multiplication.";
 
     let description = [{
         The operation computes the product of two values.
-        It takes two operands and returns one result. Array operands are also allowed,
-        but they must respect the BaseModelica specification.
-
-        Example:
-
-        ```mlir
-        %0 = ... : !modelica.array<3x!modelica.int>
-        %1 = ... : !modelica.array<3x!modelica.int>
-        %2 = modelica.mul %0, %1 : (!modelica.array<3x!modelica.int>, !modelica.array<3x!modelica.int>) -> !modelica.int
-        ```
     }];
 
-    let arguments = (ins AnyType:$lhs, AnyType:$rhs);
-    let results = (outs AnyType:$result);
+    let arguments = (ins
+        BaseModelicaCompatibleScalarOrRankedTensor:$lhs,
+        BaseModelicaCompatibleScalarOrRankedTensor:$rhs
+    );
+    
+    let results = (outs BaseModelicaCompatibleScalarOrRankedTensor:$result);
 
     let assemblyFormat = [{
-        $lhs `,` $rhs attr-dict `:` `(` type($lhs) `,` type($rhs) `)` `->` type($result)
+        $lhs `,` $rhs attr-dict `:` type($lhs) `,` type($rhs) `->` type($result)
     }];
 
     let hasFolder = 1;
@@ -1696,35 +1674,31 @@ def BaseModelica_MulOp : BaseModelica_Op<"mul",
     }];
 }
 
-def BaseModelica_MulEWOp : BaseModelica_Op<"mul_ew",
-    [DeclareOpInterfaceMethods<InferTypeOpInterface>,
-    NoMemoryEffect,
-    AlwaysSpeculatable,
-    DeclareOpInterfaceMethods<DistributableOpInterface>,
-    DeclareOpInterfaceMethods<NegateOpDistributionInterface>,
-    DeclareOpInterfaceMethods<MulOpDistributionInterface>,
-    DeclareOpInterfaceMethods<DivOpDistributionInterface>]>
+def BaseModelica_MulEWOp : BaseModelica_Op<"mul_ew", [
+        DeclareOpInterfaceMethods<InferTypeOpInterface>,
+        NoMemoryEffect,
+        AlwaysSpeculatable,
+        DeclareOpInterfaceMethods<DistributableOpInterface>,
+        DeclareOpInterfaceMethods<NegateOpDistributionInterface>,
+        DeclareOpInterfaceMethods<MulOpDistributionInterface>,
+        DeclareOpInterfaceMethods<DivOpDistributionInterface>
+    ]>
 {
     let summary = "Element-wise multiplication.";
 
     let description = [{
         The operation computes the element-wise product of two values.
-        It takes two operands and returns one result.
-
-        Example:
-
-        ```mlir
-        %0 = ... : !modelica.array<?x!modelica.int>
-        %1 = ... : !modelica.int
-        %2 = modelica.mul_ew %0, %1 : (!modelica.array<?x!modelica.int>, !modelica.int) -> !modelica.array<?x!modelica.int>
-        ```
     }];
 
-    let arguments = (ins AnyType:$lhs, AnyType:$rhs);
-    let results = (outs AnyType:$result);
+    let arguments = (ins
+        BaseModelicaCompatibleScalarOrRankedTensor:$lhs,
+        BaseModelicaCompatibleScalarOrRankedTensor:$rhs
+    );
+    
+    let results = (outs BaseModelicaCompatibleScalarOrRankedTensor:$result);
 
     let assemblyFormat = [{
-        $lhs `,` $rhs attr-dict `:` `(` type($lhs) `,` type($rhs) `)` `->` type($result)
+        $lhs `,` $rhs attr-dict `:` type($lhs) `,` type($rhs) `->` type($result)
     }];
 
     let hasFolder = 1;
@@ -1735,35 +1709,30 @@ def BaseModelica_MulEWOp : BaseModelica_Op<"mul_ew",
     }];
 }
 
-def BaseModelica_DivOp : BaseModelica_Op<"div",
-    [DeclareOpInterfaceMethods<InferTypeOpInterface>,
-    NoMemoryEffect,
-    DeclareOpInterfaceMethods<DistributableOpInterface>,
-    DeclareOpInterfaceMethods<NegateOpDistributionInterface>,
-    DeclareOpInterfaceMethods<MulOpDistributionInterface>,
-    DeclareOpInterfaceMethods<DivOpDistributionInterface>]>
+def BaseModelica_DivOp : BaseModelica_Op<"div", [
+        DeclareOpInterfaceMethods<InferTypeOpInterface>,
+        NoMemoryEffect,
+        DeclareOpInterfaceMethods<DistributableOpInterface>,
+        DeclareOpInterfaceMethods<NegateOpDistributionInterface>,
+        DeclareOpInterfaceMethods<MulOpDistributionInterface>,
+        DeclareOpInterfaceMethods<DivOpDistributionInterface>
+    ]>
 {
     let summary = "Division.";
 
     let description = [{
         The operation computes the division between two values.
-        It takes two operands and returns one result. Array operands are also allowed,
-        but they must respect the BaseModelica specification.
-
-        Example:
-
-        ```mlir
-        %0 = ... : !modelica.int
-        %1 = ... : !modelica.real
-        %2 = modelica.div %0, %1 : (!modelica.int, !modelica.real) -> !modelica.real
-        ```
     }];
 
-    let arguments = (ins AnyType:$lhs, AnyType:$rhs);
-    let results = (outs AnyType:$result);
+    let arguments = (ins
+        BaseModelicaCompatibleScalarOrRankedTensor:$lhs,
+        BaseModelicaCompatibleScalar:$rhs
+    );
+    
+    let results = (outs BaseModelicaCompatibleScalarOrRankedTensor:$result);
 
     let assemblyFormat = [{
-        $lhs `,` $rhs attr-dict `:` `(` type($lhs) `,` type($rhs) `)` `->` type($result)
+        $lhs `,` $rhs attr-dict `:` type($lhs) `,` type($rhs) `->` type($result)
     }];
 
     let hasFolder = 1;
@@ -1774,34 +1743,30 @@ def BaseModelica_DivOp : BaseModelica_Op<"div",
     }];
 }
 
-def BaseModelica_DivEWOp : BaseModelica_Op<"div_ew",
-    [DeclareOpInterfaceMethods<InferTypeOpInterface>,
-    NoMemoryEffect,
-    DeclareOpInterfaceMethods<DistributableOpInterface>,
-    DeclareOpInterfaceMethods<NegateOpDistributionInterface>,
-    DeclareOpInterfaceMethods<MulOpDistributionInterface>,
-    DeclareOpInterfaceMethods<DivOpDistributionInterface>]>
+def BaseModelica_DivEWOp : BaseModelica_Op<"div_ew", [
+        DeclareOpInterfaceMethods<InferTypeOpInterface>,
+        NoMemoryEffect,
+        DeclareOpInterfaceMethods<DistributableOpInterface>,
+        DeclareOpInterfaceMethods<NegateOpDistributionInterface>,
+        DeclareOpInterfaceMethods<MulOpDistributionInterface>,
+        DeclareOpInterfaceMethods<DivOpDistributionInterface>
+    ]>
 {
     let summary = "Element-wise division.";
 
     let description = [{
         The operation computes the element-wise division of two values.
-        It takes two operands and returns one result.
-
-        Example:
-
-        ```mlir
-        %0 = ... : !modelica.array<?x!modelica.int>
-        %1 = ... : !modelica.int
-        %2 = modelica.div_ew %0, %1 : (!modelica.array<?x!modelica.int>, !modelica.int) -> !modelica.array<?x!modelica.int>
-        ```
     }];
 
-    let arguments = (ins AnyType:$lhs, AnyType:$rhs);
-    let results = (outs AnyType:$result);
+    let arguments = (ins
+        BaseModelicaCompatibleScalarOrRankedTensor:$lhs,
+        BaseModelicaCompatibleScalarOrRankedTensor:$rhs
+    );
+    
+    let results = (outs BaseModelicaCompatibleScalarOrRankedTensor:$result);
 
     let assemblyFormat = [{
-        $lhs `,` $rhs attr-dict `:` `(` type($lhs) `,` type($rhs) `)` `->` type($result)
+        $lhs `,` $rhs attr-dict `:` type($lhs) `,` type($rhs) `->` type($result)
     }];
 
     let hasFolder = 1;
@@ -1812,30 +1777,26 @@ def BaseModelica_DivEWOp : BaseModelica_Op<"div_ew",
     }];
 }
 
-def BaseModelica_PowOp : BaseModelica_Op<"pow",
-    [DeclareOpInterfaceMethods<InferTypeOpInterface>,
-    NoMemoryEffect]>
+def BaseModelica_PowOp : BaseModelica_Op<"pow", [
+        DeclareOpInterfaceMethods<InferTypeOpInterface>,
+        NoMemoryEffect
+    ]>
 {
     let summary = "Pow.";
 
     let description = [{
         The operation computes the power of a base to a given exponent.
-        It takes to operands (base and exponent) and returns one result.
-
-        Example:
-
-        ```mlir
-        %0 = ... : !modelica.real
-        %1 = ... : !modelica.real
-        %2 = modelica.pow %0, %1 : (!modelica.real, !modelica.real) -> !modelica.real
-        ```
     }];
 
-    let arguments = (ins AnyType:$base, AnyType:$exponent);
-    let results = (outs AnyType:$result);
+    let arguments = (ins
+        BaseModelicaCompatibleScalarOrRankedTensor:$base,
+        BaseModelicaCompatibleScalar:$exponent
+    );
+    
+    let results = (outs BaseModelicaCompatibleScalarOrRankedTensor:$result);
 
     let assemblyFormat = [{
-        $base `,` $exponent attr-dict `:` `(` type($base) `,` type($exponent) `)` `->` type($result)
+        $base `,` $exponent attr-dict `:` type($base) `,` type($exponent) `->` type($result)
     }];
 
     let hasFolder = 1;
@@ -1847,31 +1808,27 @@ def BaseModelica_PowOp : BaseModelica_Op<"pow",
     }];
 }
 
-def BaseModelica_PowEWOp : BaseModelica_Op<"pow_ew",
-    [DeclareOpInterfaceMethods<InferTypeOpInterface>,
-    NoMemoryEffect]>
+def BaseModelica_PowEWOp : BaseModelica_Op<"pow_ew", [
+        DeclareOpInterfaceMethods<InferTypeOpInterface>,
+        NoMemoryEffect
+    ]>
 {
     let summary = "Element-wise pow.";
 
     let description = [{
-        The operation computes the element-wise power of a (optionally array) base to a
-        given exponent.
-        It takes to operands (base and exponent) and returns one result.
-
-        Example:
-
-        ```mlir
-        %0 = ... : !modelica.array<?x!modelica.real>
-        %1 = ... : !modelica.real
-        %2 = modelica.pow %0, %1 : (!modelica.array<?x!modelica.real>, !modelica.real) -> !modelica.array<?x!modelica.real>
-        ```
+        The operation computes the element-wise power of a base to a given
+        exponent.
     }];
 
-    let arguments = (ins AnyType:$base, AnyType:$exponent);
-    let results = (outs AnyType:$result);
+    let arguments = (ins
+        BaseModelicaCompatibleScalarOrRankedTensor:$base,
+        BaseModelicaCompatibleScalarOrRankedTensor:$exponent
+    );
+    
+    let results = (outs BaseModelicaCompatibleScalarOrRankedTensor:$result);
 
     let assemblyFormat = [{
-        $base `,` $exponent attr-dict `:` `(` type($base) `,` type($exponent) `)` `->` type($result)
+        $base `,` $exponent attr-dict `:` type($base) `,` type($exponent) `->` type($result)
     }];
 
     let hasFolder = 1;

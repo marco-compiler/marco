@@ -12,9 +12,9 @@ bmodelica.model @Test {
         %0 = bmodelica.variable.get @x : tensor<3x!bmodelica.real>
         %1 = bmodelica.tensor_extract %0[%i0] : tensor<3x!bmodelica.real>
         %2 = bmodelica.constant 1 : index
-        %3 = bmodelica.add %i0, %2 : (index, index) -> index
+        %3 = bmodelica.add %i0, %2 : index, index -> index
         %4 = bmodelica.tensor_extract %0[%3] : tensor<3x!bmodelica.real>
-        %5 = bmodelica.add %1, %4 : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
+        %5 = bmodelica.add %1, %4 : !bmodelica.real, !bmodelica.real -> !bmodelica.real
         %6 = bmodelica.constant #bmodelica<real 0.0>
         %7 = bmodelica.equation_side %5 : tuple<!bmodelica.real>
         %8 = bmodelica.equation_side %6 : tuple<!bmodelica.real>

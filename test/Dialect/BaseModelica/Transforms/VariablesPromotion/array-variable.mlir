@@ -287,7 +287,7 @@ bmodelica.model @promotableSCCDependingOnPromotableVar {
         %3 = bmodelica.tensor_extract %2[%i0] : tensor<3x!bmodelica.int>
         %4 = bmodelica.variable.get @z : tensor<3x!bmodelica.int>
         %5 = bmodelica.tensor_extract %4[%i0] : tensor<3x!bmodelica.int>
-        %6 = bmodelica.add %3, %5 : (!bmodelica.int, !bmodelica.int) -> !bmodelica.int
+        %6 = bmodelica.add %3, %5 : !bmodelica.int, !bmodelica.int -> !bmodelica.int
         %7 = bmodelica.equation_side %1 : tuple<!bmodelica.int>
         %8 = bmodelica.equation_side %6 : tuple<!bmodelica.int>
         bmodelica.equation_sides %7, %8 : tuple<!bmodelica.int>, tuple<!bmodelica.int>
@@ -303,7 +303,7 @@ bmodelica.model @promotableSCCDependingOnPromotableVar {
         %3 = bmodelica.tensor_extract %2[%i0] : tensor<3x!bmodelica.int>
         %4 = bmodelica.variable.get @y : tensor<3x!bmodelica.int>
         %5 = bmodelica.tensor_extract %4[%i0] : tensor<3x!bmodelica.int>
-        %6 = bmodelica.add %3, %5 : (!bmodelica.int, !bmodelica.int) -> !bmodelica.int
+        %6 = bmodelica.add %3, %5 : !bmodelica.int, !bmodelica.int -> !bmodelica.int
         %7 = bmodelica.equation_side %1 : tuple<!bmodelica.int>
         %8 = bmodelica.equation_side %6 : tuple<!bmodelica.int>
         bmodelica.equation_sides %7, %8 : tuple<!bmodelica.int>, tuple<!bmodelica.int>

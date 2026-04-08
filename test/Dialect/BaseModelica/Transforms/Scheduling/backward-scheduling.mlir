@@ -16,7 +16,7 @@ bmodelica.model @Test {
         %1 = bmodelica.tensor_extract %0[%i0] : tensor<10x!bmodelica.int>
         %2 = bmodelica.variable.get @x : tensor<10x!bmodelica.int>
         %3 = bmodelica.constant 1 : index
-        %4 = bmodelica.add %i0, %3 : (index, index) -> index
+        %4 = bmodelica.add %i0, %3 : index, index -> index
         %5 = bmodelica.tensor_extract %2[%4] : tensor<10x!bmodelica.int>
         %6 = bmodelica.equation_side %1 : tuple<!bmodelica.int>
         %7 = bmodelica.equation_side %5 : tuple<!bmodelica.int>

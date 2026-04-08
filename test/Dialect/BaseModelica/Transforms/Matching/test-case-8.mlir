@@ -20,7 +20,7 @@ bmodelica.model @Test {
         %2 = bmodelica.tensor_extract %0[%i0] : tensor<9x!bmodelica.real>
         %3 = bmodelica.constant 0 : index
         %4 = bmodelica.tensor_extract %1[%3] : tensor<3x!bmodelica.real>
-        %5 = bmodelica.add %2, %4 : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
+        %5 = bmodelica.add %2, %4 : !bmodelica.real, !bmodelica.real -> !bmodelica.real
         %6 = bmodelica.constant #bmodelica<real 10.0>
         %7 = bmodelica.equation_side %5 : tuple<!bmodelica.real>
         %8 = bmodelica.equation_side %6 : tuple<!bmodelica.real>
@@ -36,7 +36,7 @@ bmodelica.model @Test {
         %2 = bmodelica.tensor_extract %0[%i0] : tensor<9x!bmodelica.real>
         %3 = bmodelica.constant 1 : index
         %4 = bmodelica.tensor_extract %1[%3] : tensor<3x!bmodelica.real>
-        %5 = bmodelica.add %2, %4 : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
+        %5 = bmodelica.add %2, %4 : !bmodelica.real, !bmodelica.real -> !bmodelica.real
         %6 = bmodelica.constant #bmodelica<real 10.0>
         %7 = bmodelica.equation_side %5 : tuple<!bmodelica.real>
         %8 = bmodelica.equation_side %6 : tuple<!bmodelica.real>
@@ -52,7 +52,7 @@ bmodelica.model @Test {
         %2 = bmodelica.tensor_extract %0[%i0] : tensor<9x!bmodelica.real>
         %3 = bmodelica.constant 2 : index
         %4 = bmodelica.tensor_extract %1[%3] : tensor<3x!bmodelica.real>
-        %5 = bmodelica.add %2, %4 : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
+        %5 = bmodelica.add %2, %4 : !bmodelica.real, !bmodelica.real -> !bmodelica.real
         %6 = bmodelica.constant #bmodelica<real 10.0>
         %7 = bmodelica.equation_side %5 : tuple<!bmodelica.real>
         %8 = bmodelica.equation_side %6 : tuple<!bmodelica.real>

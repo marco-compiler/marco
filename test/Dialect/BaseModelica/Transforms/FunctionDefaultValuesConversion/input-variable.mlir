@@ -103,14 +103,14 @@ bmodelica.function @foo {
     bmodelica.default @y {
         %0 = bmodelica.variable.get @z : !bmodelica.int
         %1 = bmodelica.constant #bmodelica<int 3>
-        %2 = bmodelica.mul %0, %1 : (!bmodelica.int, !bmodelica.int) -> !bmodelica.int
+        %2 = bmodelica.mul %0, %1 : !bmodelica.int, !bmodelica.int -> !bmodelica.int
         bmodelica.yield %2 : !bmodelica.int
     }
 
     bmodelica.default @z {
         %0 = bmodelica.variable.get @x : !bmodelica.int
         %1 = bmodelica.constant #bmodelica<int 2>
-        %2 = bmodelica.mul %0, %1 : (!bmodelica.int, !bmodelica.int) -> !bmodelica.int
+        %2 = bmodelica.mul %0, %1 : !bmodelica.int, !bmodelica.int -> !bmodelica.int
         bmodelica.yield %2 : !bmodelica.int
     }
 

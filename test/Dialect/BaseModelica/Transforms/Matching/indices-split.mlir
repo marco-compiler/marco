@@ -12,7 +12,7 @@ bmodelica.model @Test {
     // COM: x[i - 1] = y[i - 1]
     %t0 = bmodelica.equation_template inductions = [%i0] attributes {id = "t0"} {
         %0 = bmodelica.constant 1 : index
-        %1 = bmodelica.sub %i0, %0 : (index, index) -> index
+        %1 = bmodelica.sub %i0, %0 : index, index -> index
         %2 = bmodelica.variable.get @x : tensor<2x!bmodelica.int>
         %3 = bmodelica.tensor_extract %2[%1] : tensor<2x!bmodelica.int>
         %4 = bmodelica.variable.get @y : tensor<2x!bmodelica.int>

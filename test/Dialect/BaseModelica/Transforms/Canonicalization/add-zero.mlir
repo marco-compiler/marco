@@ -5,7 +5,7 @@
 
 func.func @Integer(%0: !bmodelica.int) -> (!bmodelica.int) {
     %cst = bmodelica.constant #bmodelica<int 0>
-    %result = bmodelica.add %0, %cst : (!bmodelica.int, !bmodelica.int) -> !bmodelica.int
+    %result = bmodelica.add %0, %cst : !bmodelica.int, !bmodelica.int -> !bmodelica.int
     return %result : !bmodelica.int
 
     // CHECK: return %[[arg]]
@@ -18,7 +18,7 @@ func.func @Integer(%0: !bmodelica.int) -> (!bmodelica.int) {
 
 func.func @Real(%0: !bmodelica.real) -> (!bmodelica.real) {
     %cst = bmodelica.constant #bmodelica<real 0.0>
-    %result = bmodelica.add %0, %cst : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
+    %result = bmodelica.add %0, %cst : !bmodelica.real, !bmodelica.real -> !bmodelica.real
     return %result : !bmodelica.real
 
     // CHECK: return %[[arg]]
@@ -31,7 +31,7 @@ func.func @Real(%0: !bmodelica.real) -> (!bmodelica.real) {
 
 func.func @IntegerReal(%0: !bmodelica.int) -> (!bmodelica.real) {
     %cst = bmodelica.constant #bmodelica<real 0.0>
-    %result = bmodelica.add %0, %cst : (!bmodelica.int, !bmodelica.real) -> !bmodelica.real
+    %result = bmodelica.add %0, %cst : !bmodelica.int, !bmodelica.real -> !bmodelica.real
     return %result : !bmodelica.real
 
     // CHECK: %[[result:.*]] = bmodelica.cast %[[arg]] : !bmodelica.int -> !bmodelica.real
@@ -45,7 +45,7 @@ func.func @IntegerReal(%0: !bmodelica.int) -> (!bmodelica.real) {
 
 func.func @RealInteger(%0: !bmodelica.real) -> (!bmodelica.real) {
     %cst = bmodelica.constant #bmodelica<int 0>
-    %result = bmodelica.add %0, %cst : (!bmodelica.real, !bmodelica.int) -> !bmodelica.real
+    %result = bmodelica.add %0, %cst : !bmodelica.real, !bmodelica.int -> !bmodelica.real
     return %result : !bmodelica.real
 
     // CHECK: return %[[arg]]

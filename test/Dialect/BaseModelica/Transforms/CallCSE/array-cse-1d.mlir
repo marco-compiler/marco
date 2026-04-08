@@ -36,7 +36,7 @@ module @Test {
         // CHECK-NEXT:     bmodelica.equation_sides %[[LHS]], %[[RHS]]
         %t0 = bmodelica.equation_template inductions = [%i] {
             %0 = bmodelica.constant -1 : index
-            %1 = bmodelica.add %i, %0 : (index, index) -> index
+            %1 = bmodelica.add %i, %0 : index, index -> index
             %2 = bmodelica.variable.get @a : tensor<4xi32>
             %3 = bmodelica.tensor_extract %2[%1] : tensor<4xi32>
             %4 = bmodelica.equation_side %3 : tuple<i32>
@@ -63,7 +63,7 @@ module @Test {
         // CHECK-NEXT:     bmodelica.equation_sides %[[LHS]], %[[RHS]]
         %t1 = bmodelica.equation_template inductions = [%i] {
             %0 = bmodelica.constant -1 : index
-            %1 = bmodelica.add %i, %0 : (index, index) -> index
+            %1 = bmodelica.add %i, %0 : index, index -> index
             %2 = bmodelica.variable.get @b : tensor<4xi32>
             %3 = bmodelica.tensor_extract %2[%1] : tensor<4xi32>
             %4 = bmodelica.equation_side %3 : tuple<i32>
