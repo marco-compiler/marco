@@ -1887,12 +1887,13 @@ def BaseModelica_PowEWOp : BaseModelica_Op<"pow_ew",
 //===---------------------------------------------------------------------===//
 
 // Base class for comparison operations.
-class BaseModelica_ComparisonOp<string mnemonic, list<Trait> traits = []> :
-    BaseModelica_Op<mnemonic, traits>
+class BaseModelica_ComparisonOp<string mnemonic, list<Trait> traits = []>
+    : BaseModelica_Op<mnemonic, traits>
 {
     let arguments = (ins
         BaseModelicaCompatibleScalar:$lhs,
-        BaseModelicaCompatibleScalar:$rhs);
+        BaseModelicaCompatibleScalar:$rhs
+    );
 
     let results = (outs BaseModelicaCompatibleScalar:$result);
 
@@ -1901,23 +1902,16 @@ class BaseModelica_ComparisonOp<string mnemonic, list<Trait> traits = []> :
     }];
 }
 
-def BaseModelica_EqOp : BaseModelica_ComparisonOp<"eq",
-    [Commutative,
-    Pure,
-    DeclareOpInterfaceMethods<InferTypeOpInterface>]>
+def BaseModelica_EqOp : BaseModelica_ComparisonOp<"eq", [
+        Commutative,
+        Pure,
+        DeclareOpInterfaceMethods<InferTypeOpInterface>
+    ]>
 {
-    let summary = "Check if two values are equal.";
+    let summary = "Equality operator.";
 
     let description = [{
         The operation checks whether two scalar values are equal.
-
-        Example:
-
-        ```mlir
-        %0 = ... : !modelica.int
-        %1 = ... : !modelica.real
-        %2 = modelica.eq %0, %1 : (!modelica.int, !modelica.real) -> !modelica.bool
-        ```
     }];
 
     let hasFolder = 1;
@@ -1928,23 +1922,16 @@ def BaseModelica_EqOp : BaseModelica_ComparisonOp<"eq",
     }];
 }
 
-def BaseModelica_NotEqOp : BaseModelica_ComparisonOp<"neq",
-    [Commutative,
-    Pure,
-    DeclareOpInterfaceMethods<InferTypeOpInterface>]>
+def BaseModelica_NotEqOp : BaseModelica_ComparisonOp<"neq", [
+        Commutative,
+        Pure,
+        DeclareOpInterfaceMethods<InferTypeOpInterface>
+    ]>
 {
-    let summary = "Check if two values are not equal.";
+    let summary = "Not equal operator.";
 
     let description = [{
         The operation checks whether two scalar values are not equal.
-
-        Example:
-
-        ```mlir
-        %0 = ... : !modelica.int
-        %1 = ... : !modelica.real
-        %2 = modelica.neq %0, %1 : (!modelica.int, !modelica.real) -> !modelica.bool
-        ```
     }];
 
     let hasFolder = 1;
@@ -1955,22 +1942,15 @@ def BaseModelica_NotEqOp : BaseModelica_ComparisonOp<"neq",
     }];
 }
 
-def BaseModelica_GtOp : BaseModelica_ComparisonOp<"gt",
-    [Pure,
-    DeclareOpInterfaceMethods<InferTypeOpInterface>]>
+def BaseModelica_GtOp : BaseModelica_ComparisonOp<"gt", [
+        Pure,
+        DeclareOpInterfaceMethods<InferTypeOpInterface>
+    ]>
 {
-    let summary = "Check if a value is greater than another one.";
+    let summary = "Greater than operator.";
 
     let description = [{
-        The  operation checks whether a scalar value is greater than another one.
-
-        Example:
-
-        ```mlir
-        %0 = ... : !modelica.int
-        %1 = ... : !modelica.real
-        %2 = modelica.gt %0, %1 : (!modelica.int, !modelica.real) -> !modelica.bool
-        ```
+        The operation checks whether a scalar value is greater than another one.
     }];
 
     let hasFolder = 1;
@@ -1981,22 +1961,15 @@ def BaseModelica_GtOp : BaseModelica_ComparisonOp<"gt",
     }];
 }
 
-def BaseModelica_GteOp : BaseModelica_ComparisonOp<"gte",
-    [Pure,
-    DeclareOpInterfaceMethods<InferTypeOpInterface>]>
+def BaseModelica_GteOp : BaseModelica_ComparisonOp<"gte", [
+        Pure,
+        DeclareOpInterfaceMethods<InferTypeOpInterface>
+    ]>
 {
-    let summary = "Check if a value is greater or equal than another one.";
+    let summary = "Greater or equal operator.";
 
     let description = [{
-        The  operation checks whether a scalar value is greater or equal to another one.
-
-        Example:
-
-        ```mlir
-        %0 = ... : !modelica.int
-        %1 = ... : !modelica.real
-        %2 = modelica.gte %0, %1 : (!modelica.int, !modelica.real) -> !modelica.bool
-        ```
+        The operation checks whether a scalar value is greater or equal than another one.
     }];
 
     let hasFolder = 1;
@@ -2007,22 +1980,15 @@ def BaseModelica_GteOp : BaseModelica_ComparisonOp<"gte",
     }];
 }
 
-def BaseModelica_LtOp : BaseModelica_ComparisonOp<"lt",
-    [Pure,
-    DeclareOpInterfaceMethods<InferTypeOpInterface>]>
+def BaseModelica_LtOp : BaseModelica_ComparisonOp<"lt", [
+        Pure,
+        DeclareOpInterfaceMethods<InferTypeOpInterface>
+    ]>
 {
-    let summary = "Check if a value is less than another one.";
+    let summary = "Less than operator.";
 
     let description = [{
         The operation checks whether a scalar value is less than another one.
-
-        Example:
-
-        ```mlir
-        %0 = ... : !modelica.int
-        %1 = ... : !modelica.real
-        %2 = modelica.lt %0, %1 : (!modelica.int, !modelica.real) -> !modelica.bool
-        ```
     }];
 
     let hasFolder = 1;
@@ -2033,21 +1999,15 @@ def BaseModelica_LtOp : BaseModelica_ComparisonOp<"lt",
     }];
 }
 
-def BaseModelica_LteOp : BaseModelica_ComparisonOp<"lte",
-    [Pure,
-    DeclareOpInterfaceMethods<InferTypeOpInterface>]>
+def BaseModelica_LteOp : BaseModelica_ComparisonOp<"lte", [
+        Pure,
+        DeclareOpInterfaceMethods<InferTypeOpInterface>
+    ]>
 {
-    let summary = "Check if a value is less or equal than another one.";
+    let summary = "Less or equal operator.";
 
     let description = [{
-        The operation checks whether a scalar value is less or equal to another one.
-
-        Example:
-        ```mlir
-        %0 = ... : !modelica.int
-        %1 = ... : !modelica.real
-        %2 = modelica.lte %0, %1 : (!modelica.int, !modelica.real) -> !modelica.bool
-        ```
+        The operation checks whether a scalar value is less or equal than another one.
     }];
 
     let hasFolder = 1;
