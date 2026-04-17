@@ -8,7 +8,7 @@
 
 module @BothStartAndEndTime {
   bmodelica.model @Test attributes {
-    experiment.startTime = 0.000000e+00 : f64, experiment.endTime = 1.000000e+00 : f64
+    experiment.start_time = 0.000000e+00 : f64, experiment.end_time = 1.000000e+00 : f64
   } {}
 }
 
@@ -22,7 +22,7 @@ module @BothStartAndEndTime {
 
 module @OnlyStartTime {
   bmodelica.model @Test attributes {
-    experiment.startTime = 5.000000e-01 : f64
+    experiment.start_time = 5.000000e-01 : f64
   } {}
 }
 
@@ -36,7 +36,7 @@ module @OnlyStartTime {
 
 module @OnlyEndTime {
   bmodelica.model @Test attributes {
-    experiment.endTime = 2.000000e+00 : f64
+    experiment.end_time = 2.000000e+00 : f64
   } {}
 }
 

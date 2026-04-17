@@ -14,7 +14,9 @@ void PackageLowerer::declare(const ast::bmodelica::Package &package) {
   auto packageOp = builder().create<PackageOp>(location, package.getName());
 
   mlir::OpBuilder::InsertionGuard guard(builder());
-  builder().setInsertionPointToStart(packageOp.bodyBlock());
+
+  builder().setInsertionPointToStart(
+      builder().createBlock(&packageOp.getBodyRegion()));
 
   // Declare the inner classes.
   for (const auto &innerClassNode : package.getInnerClasses()) {
@@ -29,7 +31,7 @@ bool PackageLowerer::declareVariables(const ast::bmodelica::Package &package) {
   // Get the operation.
   auto packageOp = mlir::cast<PackageOp>(getClass(package));
   pushLookupScope(packageOp);
-  builder().setInsertionPointToEnd(packageOp.bodyBlock());
+  builder().setInsertionPointToEnd(packageOp.getBody());
 
   // Declare the variables.
   for (const auto &variable : package.getVariables()) {
@@ -57,7 +59,7 @@ bool PackageLowerer::lower(const ast::bmodelica::Package &package) {
   // Get the operation.
   auto packageOp = mlir::cast<PackageOp>(getClass(package));
   pushLookupScope(packageOp);
-  builder().setInsertionPointToEnd(packageOp.bodyBlock());
+  builder().setInsertionPointToEnd(packageOp.getBody());
 
   // Map the variables.
   insertVariableBuiltIn("time",

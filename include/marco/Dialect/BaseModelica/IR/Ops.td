@@ -3049,56 +3049,84 @@ def Modelica_ReductionOp : BaseModelica_Op<"reduction", [
 }
 
 //===---------------------------------------------------------------------===//
-// Modeling operations
+// Class operations
 //===---------------------------------------------------------------------===//
 
-def BaseModelica_PackageOp : BaseModelica_Op<"package",
-    [IsolatedFromAbove,
-    NoRegionArguments,
-    Symbol,
-    SymbolTable,
-    NoTerminator]>
+class BaseModelica_Class<string name> : BaseModelica_Op<name, [
+        Symbol,
+        SymbolTable,
+        GraphRegionNoTerminator,
+        NoRegionArguments,
+        IsolatedFromAbove
+    ]>
 {
-    let summary = "Modelica package.";
-
-    let description = [{
-        The operation represents a BaseModelica package.
-    }];
-
-    let arguments = (ins SymbolNameAttr:$sym_name);
-
-    let results = (outs);
+    let arguments = (ins
+        SymbolNameAttr:$sym_name
+    );
 
     let regions = (region
         SizedRegion<1>:$bodyRegion
     );
 
-    // Ensure that the block inside the region exists.
-    let hasCustomAssemblyFormat = 1;
-    let skipDefaultBuilders = 1;
+    let assemblyFormat = "$sym_name attr-dict-with-keyword $bodyRegion";
 
-    let builders = [OpBuilder<(ins "::llvm::StringRef":$name)>];
+    code extraBaseClassDeclaration = [{
+        /// @name SymbolOpInterface methods
+        /// {
 
-    let extraClassDeclaration = [{
-        Block* bodyBlock();
+        bool isDeclaration()
+        {
+            return false;
+        }
+
+        /// }
 
         auto getVariables()
         {
             return getOps<VariableOp>();
         }
     }];
+
+    let extraClassDeclaration = extraBaseClassDeclaration;
 }
 
-def BaseModelica_ModelOp : BaseModelica_Op<"model",
-    [IsolatedFromAbove,
-    NoRegionArguments,
-    Symbol,
-    SymbolTable,
-    DeclareOpInterfaceMethods<RegionKindInterface>,
-    SingleBlock,
-    NoTerminator]>
+def BaseModelica_FunctionOp : BaseModelica_Class<"function">
 {
-    let summary = "Modelica model.";
+    let summary = "Modelica function.";
+
+    let description = [{
+        The operation represents a BaseModelica function.
+    }];
+
+    let arguments = (ins
+        SymbolNameAttr:$sym_name,
+        OptionalAttr<FunctionDerivativeAttr>:$derivative,
+        DefaultValuedAttr<I64Attr, "0">:$timeDerivativeOrder
+    );
+
+    let builders = [
+        OpBuilder<(ins "llvm::StringRef":$name), [{
+            build($_builder, $_state, name, nullptr);
+        }]>
+    ];
+
+    let extraClassDeclaration = extraBaseClassDeclaration # [{
+        auto getDefaultValues()
+        {
+            return getOps<DefaultOp>();
+        }
+
+        bool shouldBeInlined();
+
+        llvm::SmallVector<Type> getArgumentTypes();
+        llvm::SmallVector<Type> getResultTypes();
+        mlir::FunctionType getFunctionType();
+    }];
+}
+
+def BaseModelica_ModelOp : BaseModelica_Class<"model">
+{
+    let summary = "Model.";
 
     let description = [{
         The operation represents a BaseModelica model.
@@ -3110,34 +3138,25 @@ def BaseModelica_ModelOp : BaseModelica_Op<"model",
 
     let results = (outs);
 
-    let regions = (region
-        SizedRegion<1>:$bodyRegion
-    );
-
     let assemblyFormat = [{
         $sym_name custom<ModelDerivativesMap>($derivativesMap)
         attr-dict-with-keyword $bodyRegion
     }];
 
     let hasVerifier = 1;
-    let hasCanonicalizer = 1;
 
-    let extraClassDeclaration = [{
+    let extraClassDeclaration = extraBaseClassDeclaration # [{
         static constexpr llvm::StringLiteral getExperimentStartTimeAttrName() {
-            return llvm::StringLiteral("experiment.startTime");
+            return llvm::StringLiteral("experiment.start_time");
         }
+
         static constexpr llvm::StringLiteral getExperimentEndTimeAttrName() {
-            return llvm::StringLiteral("experiment.endTime");
+            return llvm::StringLiteral("experiment.end_time");
         }
 
         static void getCleaningPatterns(
             mlir::RewritePatternSet& patterns,
             mlir::MLIRContext* context);
-
-        auto getVariables()
-        {
-            return getOps<VariableOp>();
-        }
 
         /// Collect all the variables.
         void collectVariables(llvm::SmallVectorImpl<VariableOp>& variables);
@@ -3181,37 +3200,27 @@ def BaseModelica_ModelOp : BaseModelica_Op<"model",
     }];
 }
 
-def BaseModelica_RecordOp : BaseModelica_Op<"record",
-    [IsolatedFromAbove,
-    NoRegionArguments,
-    Symbol,
-    SymbolTable,
-    SingleBlock,
-    NoTerminator]>
+def BaseModelica_PackageOp : BaseModelica_Class<"package">
 {
-    let summary = "Modelica record.";
+    let summary = "Package.";
+
+    let description = [{
+        The operation represents a BaseModelica package.
+    }];
+}
+
+def BaseModelica_RecordOp : BaseModelica_Class<"record">
+{
+    let summary = "Record.";
 
     let description = [{
         The operation represents a BaseModelica record.
     }];
-
-    let arguments = (ins SymbolNameAttr:$sym_name);
-
-    let results = (outs);
-
-    let regions = (region
-        SizedRegion<1>:$bodyRegion
-    );
-
-    let assemblyFormat = "$sym_name attr-dict-with-keyword $bodyRegion";
-
-    let extraClassDeclaration = [{
-        auto getVariables()
-        {
-            return getOps<VariableOp>();
-        }
-    }];
 }
+
+//===---------------------------------------------------------------------===//
+// Modeling operations
+//===---------------------------------------------------------------------===//
 
 def BaseModelica_RecordCreateOp : BaseModelica_Op<"record_create", []>
 {
@@ -3229,12 +3238,13 @@ def BaseModelica_RecordCreateOp : BaseModelica_Op<"record_create", []>
     }];
 }
 
-def BaseModelica_OperatorRecordOp : BaseModelica_Op<"operator_record",
-    [IsolatedFromAbove,
-    NoRegionArguments,
-    Symbol,
-    SymbolTable,
-    NoTerminator]>
+def BaseModelica_OperatorRecordOp : BaseModelica_Op<"operator_record", [
+        IsolatedFromAbove,
+        NoRegionArguments,
+        Symbol,
+        SymbolTable,
+        NoTerminator
+    ]>
 {
     let summary = "Modelica operator record.";
 
@@ -4119,66 +4129,6 @@ def BaseModelica_AlgorithmOp : BaseModelica_Op<"algorithm",
     );
 
     let assemblyFormat = "attr-dict-with-keyword $bodyRegion";
-}
-
-def BaseModelica_FunctionOp : BaseModelica_Op<"function",
-    [IsolatedFromAbove,
-    NoRegionArguments,
-    AutomaticAllocationScope,
-    Symbol,
-    SymbolTable,
-    SingleBlock,
-    NoTerminator]>
-{
-    let summary = "Modelica function.";
-
-    let description = [{
-        The operation represents a BaseModelica function.
-    }];
-
-    let arguments = (ins
-        SymbolNameAttr:$sym_name,
-        OptionalAttr<FunctionDerivativeAttr>:$derivative,
-        DefaultValuedAttr<I64Attr, "0">:$timeDerivativeOrder);
-
-    let regions = (region AnyRegion:$bodyRegion);
-    let assemblyFormat = "$sym_name attr-dict-with-keyword $bodyRegion";
-
-    let builders = [
-        OpBuilder<(ins "llvm::StringRef":$name)>
-    ];
-
-    let extraClassDeclaration = [{
-        auto getVariables()
-        {
-            return getOps<VariableOp>();
-        }
-
-        auto getDefaultValues()
-        {
-            return getOps<DefaultOp>();
-        }
-
-        bool shouldBeInlined();
-
-        /// Returns the argument types of this function.
-        llvm::SmallVector<Type> getArgumentTypes();
-
-        /// Returns the result types of this function.
-        llvm::SmallVector<Type> getResultTypes();
-
-        mlir::FunctionType getFunctionType();
-
-        /// @name SymbolOpInterface Methods
-        /// {
-
-        bool isDeclaration()
-        {
-            return false;
-        }
-
-        /// }
-    }];
 }
 
 def BaseModelica_DerFunctionOp : BaseModelica_Op<"der_function",

@@ -16,8 +16,9 @@ void StandardFunctionLowerer::declare(
   auto functionOp = builder().create<FunctionOp>(location, function.getName());
 
   mlir::OpBuilder::InsertionGuard guard(builder());
-  builder().createBlock(&functionOp.getBodyRegion());
-  builder().setInsertionPointToStart(functionOp.getBody());
+
+  builder().setInsertionPointToStart(
+      builder().createBlock(&functionOp.getBodyRegion()));
 
   // Declare the inner classes.
   for (const auto &innerClassNode : function.getInnerClasses()) {

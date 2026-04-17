@@ -7279,61 +7279,6 @@ mlir::Block *ReductionOp::createExpressionBlock(mlir::OpBuilder &builder) {
 //===---------------------------------------------------------------------===//
 
 //===---------------------------------------------------------------------===//
-// PackageOp
-
-namespace mlir::bmodelica {
-void PackageOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
-                      llvm::StringRef name) {
-  state.addRegion()->emplaceBlock();
-
-  state.attributes.push_back(builder.getNamedAttr(
-      mlir::SymbolTable::getSymbolAttrName(), builder.getStringAttr(name)));
-}
-
-mlir::ParseResult PackageOp::parse(mlir::OpAsmParser &parser,
-                                   mlir::OperationState &result) {
-  mlir::StringAttr nameAttr;
-
-  if (parser.parseSymbolName(nameAttr, mlir::SymbolTable::getSymbolAttrName(),
-                             result.attributes) ||
-      parser.parseOptionalAttrDictWithKeyword(result.attributes)) {
-    return mlir::failure();
-  }
-
-  mlir::Region *bodyRegion = result.addRegion();
-
-  if (parser.parseRegion(*bodyRegion)) {
-    return mlir::failure();
-  }
-
-  if (bodyRegion->empty()) {
-    bodyRegion->emplaceBlock();
-  }
-
-  return mlir::success();
-}
-
-void PackageOp::print(mlir::OpAsmPrinter &printer) {
-  printer << " ";
-  printer.printSymbolName(getSymName());
-  printer << " ";
-
-  llvm::SmallVector<llvm::StringRef, 1> elidedAttrs;
-  elidedAttrs.push_back(mlir::SymbolTable::getSymbolAttrName());
-
-  printer.printOptionalAttrDictWithKeyword(getOperation()->getAttrs(),
-                                           elidedAttrs);
-
-  printer.printRegion(getBodyRegion());
-}
-
-mlir::Block *PackageOp::bodyBlock() {
-  assert(getBodyRegion().hasOneBlock());
-  return &getBodyRegion().front();
-}
-} // namespace mlir::bmodelica
-
-//===---------------------------------------------------------------------===//
 // ModelOp
 
 namespace mlir::bmodelica {
@@ -7371,13 +7316,6 @@ mlir::LogicalResult ModelOp::verify() {
   }
 
   return mlir::success();
-}
-
-void ModelOp::getCanonicalizationPatterns(mlir::RewritePatternSet &patterns,
-                                          mlir::MLIRContext *context) {}
-
-mlir::RegionKind ModelOp::getRegionKind(unsigned index) {
-  return mlir::RegionKind::Graph;
 }
 
 void ModelOp::getCleaningPatterns(mlir::RewritePatternSet &patterns,
@@ -10022,11 +9960,6 @@ mlir::LogicalResult EquationSidesOp::verify() {
 // FunctionOp
 
 namespace mlir::bmodelica {
-void FunctionOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
-                       llvm::StringRef name) {
-  build(builder, state, name, nullptr);
-}
-
 llvm::SmallVector<mlir::Type> FunctionOp::getArgumentTypes() {
   llvm::SmallVector<mlir::Type> types;
 

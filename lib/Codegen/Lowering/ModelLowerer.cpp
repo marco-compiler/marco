@@ -14,8 +14,9 @@ void ModelLowerer::declare(const ast::bmodelica::Model &model) {
   auto modelOp = builder().create<ModelOp>(location, model.getName());
 
   mlir::OpBuilder::InsertionGuard guard(builder());
-  mlir::Block *bodyBlock = builder().createBlock(&modelOp.getBodyRegion());
-  builder().setInsertionPointToStart(bodyBlock);
+
+  builder().setInsertionPointToStart(
+      builder().createBlock(&modelOp.getBodyRegion()));
 
   // Declare the inner classes.
   for (const auto &innerClassNode : model.getInnerClasses()) {

@@ -14,8 +14,9 @@ void RecordLowerer::declare(const ast::bmodelica::Record &record) {
   auto recordOp = builder().create<RecordOp>(location, record.getName());
 
   mlir::OpBuilder::InsertionGuard guard(builder());
-  mlir::Block *bodyBlock = builder().createBlock(&recordOp.getBodyRegion());
-  builder().setInsertionPointToStart(bodyBlock);
+
+  builder().setInsertionPointToStart(
+      builder().createBlock(&recordOp.getBodyRegion()));
 
   // Declare the inner classes.
   for (const auto &innerClassNode : record.getInnerClasses()) {
