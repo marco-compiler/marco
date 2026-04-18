@@ -10689,86 +10689,6 @@ mlir::Block *ForOp::stepBlock() {
   assert(!getStepRegion().empty());
   return &getStepRegion().front();
 }
-
-mlir::ParseResult ForOp::parse(mlir::OpAsmParser &parser,
-                               mlir::OperationState &result) {
-  mlir::Region *conditionRegion = result.addRegion();
-
-  if (mlir::succeeded(parser.parseOptionalLParen())) {
-    if (mlir::failed(parser.parseOptionalRParen())) {
-      do {
-        mlir::OpAsmParser::UnresolvedOperand arg;
-        mlir::Type argType;
-
-        if (parser.parseOperand(arg) || parser.parseColonType(argType) ||
-            parser.resolveOperand(arg, argType, result.operands))
-          return mlir::failure();
-      } while (mlir::succeeded(parser.parseOptionalComma()));
-    }
-
-    if (parser.parseRParen()) {
-      return mlir::failure();
-    }
-  }
-
-  if (parser.parseKeyword("condition")) {
-    return mlir::failure();
-  }
-
-  if (parser.parseRegion(*conditionRegion)) {
-    return mlir::failure();
-  }
-
-  if (parser.parseKeyword("body")) {
-    return mlir::failure();
-  }
-
-  mlir::Region *bodyRegion = result.addRegion();
-
-  if (parser.parseRegion(*bodyRegion)) {
-    return mlir::failure();
-  }
-
-  if (parser.parseKeyword("step")) {
-    return mlir::failure();
-  }
-
-  mlir::Region *stepRegion = result.addRegion();
-
-  if (parser.parseRegion(*stepRegion)) {
-    return mlir::failure();
-  }
-
-  if (parser.parseOptionalAttrDictWithKeyword(result.attributes)) {
-    return mlir::failure();
-  }
-
-  return mlir::success();
-}
-
-void ForOp::print(mlir::OpAsmPrinter &printer) {
-  if (auto values = getArgs(); !values.empty()) {
-    printer << "(";
-
-    for (auto arg : llvm::enumerate(values)) {
-      if (arg.index() != 0) {
-        printer << ", ";
-      }
-
-      printer << arg.value() << " : " << arg.value().getType();
-    }
-
-    printer << ")";
-  }
-
-  printer << " condition ";
-  printer.printRegion(getConditionRegion(), true);
-  printer << " body ";
-  printer.printRegion(getBodyRegion(), true);
-  printer << " step ";
-  printer.printRegion(getStepRegion(), true);
-  printer.printOptionalAttrDictWithKeyword(getOperation()->getAttrs());
-}
 } // namespace mlir::bmodelica
 
 //===---------------------------------------------------------------------===//
@@ -10795,90 +10715,12 @@ void IfOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
 mlir::Block *IfOp::thenBlock() { return &getThenRegion().front(); }
 
 mlir::Block *IfOp::elseBlock() { return &getElseRegion().front(); }
-
-mlir::ParseResult IfOp::parse(mlir::OpAsmParser &parser,
-                              mlir::OperationState &result) {
-  mlir::OpAsmParser::UnresolvedOperand condition;
-  mlir::Type conditionType;
-
-  if (parser.parseLParen() || parser.parseOperand(condition) ||
-      parser.parseColonType(conditionType) || parser.parseRParen() ||
-      parser.resolveOperand(condition, conditionType, result.operands)) {
-    return mlir::failure();
-  }
-
-  if (parser.parseOptionalAttrDictWithKeyword(result.attributes)) {
-    return mlir::failure();
-  }
-
-  mlir::Region *thenRegion = result.addRegion();
-
-  if (parser.parseRegion(*thenRegion)) {
-    return mlir::failure();
-  }
-
-  mlir::Region *elseRegion = result.addRegion();
-
-  if (mlir::succeeded(parser.parseOptionalKeyword("else"))) {
-    if (parser.parseRegion(*elseRegion)) {
-      return mlir::failure();
-    }
-  }
-
-  return mlir::success();
-}
-
-void IfOp::print(mlir::OpAsmPrinter &printer) {
-  printer << " (" << getCondition() << " : " << getCondition().getType()
-          << ") ";
-
-  printer.printOptionalAttrDictWithKeyword(getOperation()->getAttrs());
-  printer.printRegion(getThenRegion());
-
-  if (!getElseRegion().empty()) {
-    printer << " else ";
-    printer.printRegion(getElseRegion());
-  }
-}
 } // namespace mlir::bmodelica
 
 //===---------------------------------------------------------------------===//
 // WhileOp
 
 namespace mlir::bmodelica {
-mlir::ParseResult WhileOp::parse(mlir::OpAsmParser &parser,
-                                 mlir::OperationState &result) {
-  mlir::Region *conditionRegion = result.addRegion();
-  mlir::Region *bodyRegion = result.addRegion();
-
-  if (parser.parseRegion(*conditionRegion) || parser.parseKeyword("do") ||
-      parser.parseRegion(*bodyRegion)) {
-    return mlir::failure();
-  }
-
-  if (parser.parseOptionalAttrDictWithKeyword(result.attributes)) {
-    return mlir::failure();
-  }
-
-  if (conditionRegion->empty()) {
-    conditionRegion->emplaceBlock();
-  }
-
-  if (bodyRegion->empty()) {
-    bodyRegion->emplaceBlock();
-  }
-
-  return mlir::success();
-}
-
-void WhileOp::print(mlir::OpAsmPrinter &printer) {
-  printer << " ";
-  printer.printRegion(getConditionRegion(), false);
-  printer << " do ";
-  printer.printRegion(getBodyRegion(), false);
-  printer.printOptionalAttrDictWithKeyword(getOperation()->getAttrs());
-}
-
 llvm::SmallVector<mlir::Region *> WhileOp::getLoopRegions() {
   llvm::SmallVector<mlir::Region *> result;
   result.push_back(&getBodyRegion());

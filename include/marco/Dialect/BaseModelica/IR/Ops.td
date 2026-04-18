@@ -4652,24 +4652,7 @@ def BaseModelica_BreakOp : BaseModelica_Op<"break", [Terminator]>
     let summary = "Loop breaking operation.";
 
     let description = [{
-        The `modelica.break` operation terminates the execution of the closest
-        loop that contains the instruction.
-
-        Example:
-
-        ```mlir
-        modelica.while {
-            ...
-        } do {
-            %condition = ... : !modelica.bool
-
-            modelica.if %condition {
-                modelica.break
-            }
-
-            modelica.yield
-        }
-        ```
+        The operation terminates the execution of the closest parent loop.
     }];
 
     let arguments = (ins);
@@ -4682,21 +4665,8 @@ def BaseModelica_ReturnOp : BaseModelica_Op<"return", [Terminator]>
     let summary = "Early termination instruction for functions.";
 
     let description = [{
-        The `modelica.return` operation terminates the execution of the whole
-        function, making it returning the values as computed so far.
-
-        Example:
-
-        ```mlir
-        modelica.function @foo ... {
-            %condition = ... : !modelica.bool
-
-            modelica.if %condition {
-                modelica.return
-            }
-            ...
-        }
-        ```
+        The operation terminates the execution of the whole function, making
+        it returning the values as computed so far.
     }];
 
     let arguments = (ins);
@@ -4710,16 +4680,15 @@ def Modelica_IfOp : BaseModelica_Op<"if", [NoTerminator]>
 
     let description = [{
         The operation takes a value representing the condition and executes the
-        code in the "then" region; if not, it executes the code in the optional
-        "else" region.
-        The value used as condition must be convertible to `!modelica.bool`.
+        code in the "then" region if the condition holds true; if the condition
+        doesn't hold true, it executes the code in the optional "else" region.
 
         Example:
 
         ```mlir
-        %0 = ... : !modelica.bool
+        %0 = ... : !bmodelica.bool
 
-        if (%0 : !modelica.bool) {
+        if (%0 : !bmodelica.bool) {
             ...
         } else {
             ...
@@ -4735,7 +4704,12 @@ def Modelica_IfOp : BaseModelica_Op<"if", [NoTerminator]>
       AnyRegion:$elseRegion
     );
 
-    let hasCustomAssemblyFormat = 1;
+    let assemblyFormat = [{
+        ` ` `(` $condition `:` type($condition) `)`
+        $thenRegion
+        (`else` $elseRegion^)?
+        attr-dict-with-keyword
+    }];
 
     let builders = [
         OpBuilder<(ins "::mlir::Value":$condition, "bool":$withElseRegion)>
@@ -4747,14 +4721,15 @@ def Modelica_IfOp : BaseModelica_Op<"if", [NoTerminator]>
     }];
 }
 
-def Modelica_ForOp : BaseModelica_Op<"for",
-    [DeclareOpInterfaceMethods<LoopLikeOpInterface>]>
+def Modelica_ForOp : BaseModelica_Op<"for", [
+        DeclareOpInterfaceMethods<LoopLikeOpInterface>
+    ]>
 {
     let summary = "For algorithmic loop.";
 
     let description = [{
         The operation represents an algorithmic for loop.
-        It consists in three regions:
+        It consists of three regions:
             1. A condition region that determines whether the iterations should go on.
             2. The body region to be executed at each iteration.
             3. A post-iteration region that is executed after each execution of the body
@@ -4763,13 +4738,13 @@ def Modelica_ForOp : BaseModelica_Op<"for",
         Example:
 
         ```mlir
-        modelica.for condition {
-            %0 = ... : !modelica.bool
-            modelica.condition (%0 : !modelica.bool)
+        bmodelica.for condition {
+            %0 = ... : !bmodelica.bool
+            bmodelica.condition (%0 : !bmodelica.bool)
         } body {
-            modelica.yield
+            bmodelica.yield
         } step {
-            modelica.yield
+            bmodelica.yield
         }
         ```
     }];
@@ -4783,7 +4758,13 @@ def Modelica_ForOp : BaseModelica_Op<"for",
         SizedRegion<1>:$stepRegion
     );
 
-    let hasCustomAssemblyFormat = 1;
+    let assemblyFormat = [{
+        (`(` $args^ `:` type($args) `)`)?
+        `condition` $conditionRegion
+        `body` $bodyRegion
+        `step` $stepRegion
+        attr-dict
+    }];
 
     let extraClassDeclaration = [{
         ::mlir::Block* conditionBlock();
@@ -4792,28 +4773,18 @@ def Modelica_ForOp : BaseModelica_Op<"for",
     }];
 }
 
-def BaseModelica_WhileOp : BaseModelica_Op<"while",
-    [NoTerminator,
-    DeclareOpInterfaceMethods<LoopLikeOpInterface>]>
+def BaseModelica_WhileOp : BaseModelica_Op<"while", [
+        NoTerminator,
+        DeclareOpInterfaceMethods<LoopLikeOpInterface>
+    ]>
 {
     let summary = "While algorithmic loop.";
 
     let description = [{
         The operation represents an algorithmic while loop.
-        It consists in two regions:
+        It consists of two regions:
             1. A condition region that determines whether the iterations should go on.
             2. The body region to be executed at each iteration.
-
-        Example:
-
-        ```mlir
-        modelica.while {
-            %0 = ... : !modelica.bool
-            modelica.condition (%0 : !modelica.bool)
-        } do {
-            ...
-        }
-        ```
     }];
 
     let arguments = (ins);
@@ -4824,24 +4795,29 @@ def BaseModelica_WhileOp : BaseModelica_Op<"while",
         SizedRegion<1>:$bodyRegion
     );
 
-    let hasCustomAssemblyFormat = 1;
+    let assemblyFormat = [{
+        $conditionRegion
+        `do` $bodyRegion
+        attr-dict
+    }];
 }
 
-def BaseModelica_ConditionOp : BaseModelica_Op<"condition",
-    [Terminator,
-    ParentOneOf<["ForOp", "WhileOp"]>]>
+def BaseModelica_ConditionOp : BaseModelica_Op<"condition", [
+        Terminator,
+        ParentOneOf<["ForOp", "WhileOp"]>
+    ]>
 {
     let summary = "Iteration condition.";
 
     let description = [{
         The operation represents the condition to be evaluated at each
-        iteration of the parent loop (which can be either a `modelica.for` or
-        `modelica.while`).
+        iteration of the parent loop.
     }];
 
     let arguments = (ins
         AnyType:$condition,
-        Variadic<AnyType>:$values);
+        Variadic<AnyType>:$values
+    );
 
     let results = (outs);
 
