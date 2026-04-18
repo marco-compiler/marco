@@ -3172,7 +3172,7 @@ def BaseModelica_ModelOp : BaseModelica_Class<"model">
 
         /// Collect all the non-initial equations of a model.
         template<typename Equation>
-        void collectMainEquations(llvm::SmallVectorImpl<Equation>& equations)
+        void collectDynamicEquations(llvm::SmallVectorImpl<Equation>& equations)
         {
             for (DynamicOp dynamicOp : getOps<DynamicOp>()) {
                 dynamicOp.collectEquations(equations);
@@ -3184,19 +3184,14 @@ def BaseModelica_ModelOp : BaseModelica_Class<"model">
             llvm::SmallVectorImpl<AlgorithmOp>& algorithms);
 
         /// Collect all the non-initial algorithms of a model.
-        void collectMainAlgorithms(
+        void collectDynamicAlgorithms(
             llvm::SmallVectorImpl<AlgorithmOp>& algorithms);
 
         /// Collect all the initial SCCs of a model.
         void collectInitialSCCs(llvm::SmallVectorImpl<SCCOp>& SCCs);
 
         /// Collect all the non-initial SCCs of a model.
-        void collectMainSCCs(llvm::SmallVectorImpl<SCCOp>& SCCs);
-
-        /// Collect all the initial and non-initial SCC groups of a model.
-        void collectSCCGroups(
-            llvm::SmallVectorImpl<SCCGroupOp>& initialSCCGroups,
-            llvm::SmallVectorImpl<SCCGroupOp>& SCCGroups);
+        void collectDynamicSCCs(llvm::SmallVectorImpl<SCCOp>& SCCs);
     }];
 }
 
@@ -3387,14 +3382,167 @@ def Modelica_TimeOp : BaseModelica_Op<"time", []>
     ];
 }
 
-def BaseModelica_BindingEquationOp : BaseModelica_Op<"binding_equation",
-    [HasParent<"ModelOp">]>
+def BaseModelica_EquationFunctionOp : BaseModelica_Op<"equation_function",
+    [HasParent<"mlir::ModuleOp">,
+    IsolatedFromAbove,
+    AffineScope,
+    AutomaticAllocationScope,
+    Symbol,
+    FunctionOpInterface,
+    CallableOpInterface]>
+{
+    let arguments = (ins
+        SymbolNameAttr:$sym_name,
+        TypeAttrOf<FunctionType>:$function_type,
+        OptionalAttr<StrAttr>:$sym_visibility,
+        OptionalAttr<DictArrayAttr>:$arg_attrs,
+        OptionalAttr<DictArrayAttr>:$res_attrs);
+
+    let regions = (region AnyRegion:$body);
+
+    let hasCustomAssemblyFormat = 1;
+
+    let builders = [
+        OpBuilder<(ins
+            "llvm::StringRef":$name,
+            "uint64_t":$numOfInductions,
+            CArg<"ArrayRef<NamedAttribute>", "{}">:$attrs,
+            CArg<"ArrayRef<DictionaryAttr>", "{}">:$argAttrs)>
+    ];
+
+    let extraClassDeclaration = [{
+        /// @name CallableOpInterface methods
+        /// {
+
+        /// Returns the region on the current operation that is callable. This may
+        /// return null in the case of an external callable object, e.g. an external
+        /// function.
+        mlir::Region* getCallableRegion()
+        {
+            return isExternal() ? nullptr : &getBody();
+        }
+
+        /// Returns the results types that the callable region produces when
+        /// executed.
+        llvm::ArrayRef<mlir::Type> getCallableResults()
+        {
+            return getFunctionType().getResults();
+        }
+
+        /// }
+        /// @name FunctionOpInterface methods
+        /// {
+
+        /// Returns the argument types of this function.
+        llvm::ArrayRef<mlir::Type> getArgumentTypes()
+        {
+            return getFunctionType().getInputs();
+        }
+
+        /// Returns the result types of this function.
+        llvm::ArrayRef<mlir::Type> getResultTypes()
+        {
+            return getFunctionType().getResults();
+        }
+
+        /// }
+        /// @name SymbolOpInterface methods
+        /// {
+
+        bool isDeclaration()
+        {
+            return isExternal();
+        }
+
+        /// }
+
+        mlir::Value getLowerBound(uint64_t induction);
+        mlir::Value getUpperBound(uint64_t induction);
+    }];
+}
+
+def BaseModelica_EquationCallOp : BaseModelica_Op<"equation_call", []>
+{
+    let arguments = (ins
+        SymbolNameAttr:$callee,
+        IndexSetProperty:$indices,
+        DefaultValuedAttr<BoolAttr, "false">:$parallelizable);
+
+    let results = (outs);
+    let assemblyFormat = "$callee custom<EquationCallIndices>($indices) attr-dict";
+}
+
+def BaseModelica_InitialOp : BaseModelica_Op<"initial", [
+        ParentOneOf<["ModelOp", "ScheduleOp"]>,
+        SingleBlock,
+        NoTerminator
+    ]>
+{
+    let arguments = (ins);
+    let results = (outs);
+
+    let regions = (region
+        SizedRegion<1>:$bodyRegion
+    );
+
+    let assemblyFormat = "$bodyRegion attr-dict";
+    let hasCanonicalizer = 1;
+
+    let extraClassDeclaration = [{
+        template<typename Equation>
+        void collectEquations(llvm::SmallVectorImpl<Equation>& equations)
+        {
+            walk([&](Equation equation) {
+                equations.push_back(equation);
+            });
+        }
+
+        void collectSCCs(llvm::SmallVectorImpl<SCCOp>& SCCs);
+
+        void collectAlgorithms(llvm::SmallVectorImpl<AlgorithmOp>& algorithms);
+    }];
+}
+
+def BaseModelica_DynamicOp : BaseModelica_Op<"dynamic", [
+        ParentOneOf<["ModelOp", "ScheduleOp"]>,
+        SingleBlock,
+        NoTerminator
+    ]>
+{
+    let arguments = (ins);
+    let results = (outs);
+
+    let regions = (region
+        SizedRegion<1>:$bodyRegion
+    );
+
+    let assemblyFormat = "$bodyRegion attr-dict";
+    let hasCanonicalizer = 1;
+
+    let extraClassDeclaration = [{
+        template<typename Equation>
+        void collectEquations(llvm::SmallVectorImpl<Equation>& equations)
+        {
+            walk([&](Equation equation) {
+                equations.push_back(equation);
+            });
+        }
+
+        void collectSCCs(llvm::SmallVectorImpl<SCCOp>& SCCs);
+
+        void collectAlgorithms(llvm::SmallVectorImpl<AlgorithmOp>& algorithms);
+    }];
+}
+
+def BaseModelica_BindingEquationOp : BaseModelica_Op<"binding_equation", [
+        HasParent<"ModelOp">
+    ]>
 {
     let summary = "Binding equation.";
 
     let description = [{
-        The operation represents an implicit equation whose expression is
-        written in form of assignment during the declaration of a variable.
+        The operation represents an equation whose expression is written in
+        form of assignment during the declaration of a variable.
     }];
 
     let arguments = (ins SymbolNameAttr:$variable);
@@ -3409,37 +3557,51 @@ def BaseModelica_BindingEquationOp : BaseModelica_Op<"binding_equation",
     }];
 
     let extraClassDeclaration = [{
-        VariableOp getVariableOp(mlir::SymbolTableCollection& symbolTable);
+        VariableOp getVariableOp(mlir::SymbolTableCollection& symbolTables);
     }];
 }
 
-def BaseModelica_ForEquationOp : BaseModelica_Op<"for_equation",
-    [ParentOneOf<["DynamicOp", "InitialOp", "ForEquationOp"]>,
-    NoTerminator]>
+def BaseModelica_EquationOp : BaseModelica_Op<"equation", [
+        ParentOneOf<["DynamicOp", "InitialOp", "ForEquationOp"]>,
+        SingleBlock
+    ]>
 {
-    let summary = "Loop defining more equation through a for loop.";
+    let summary = "Scalar equation.";
 
     let description = [{
-        The for equation loop is an operation used to declare multiple equations whose
-        structure just differ by the indices they depend on. In this sense, the loop is
-        not the standard algorithmic loop developers are used to, but rather a modeling
-        construct that changes the model structure.
-        The iteration starts from the `from` value (included) and ends with the `to`
-        value (excluded), with a increment of 'step'.
-        Multiple for loops can be nested into each other.
-
-        Example:
-
-        ```mlir
-        modelica.for_equation {from = 3, to = 9, step = 2} {
-            modelica.equation {
-                ...
-            }
-        }
-        ```
+        The operation represents an equation.
     }];
 
-    let arguments = (ins IndexAttr:$from, IndexAttr:$to, IndexAttr:$step);
+    let arguments = (ins);
+    let results = (outs);
+    let regions = (region SizedRegion<1>:$bodyRegion);
+    let assemblyFormat = "$bodyRegion attr-dict";
+}
+
+def BaseModelica_ForEquationOp : BaseModelica_Op<"for_equation", [
+        ParentOneOf<["DynamicOp", "InitialOp", "ForEquationOp"]>,
+        SingleBlock,
+        NoTerminator
+    ]>
+{
+    let summary = "Loop defining multiple equations over an iteration space.";
+
+    let description = [{
+        The operation is used to declare multiple equations whose structure
+        just differ by the indices they depend on. Therefore, the operation
+        does not the standard algorithmic loop developers are used to, but
+        rather a modeling construct that changes the model structure.
+        The iteration starts from the `from` value (included) and ends with the
+        `to` value (excluded), with a increment of 'step'.
+        Multiple for loops can be nested into each other.
+    }];
+
+    let arguments = (ins
+        IndexAttr:$from,
+        IndexAttr:$to,
+        IndexAttr:$step
+    );
+
     let results = (outs);
 
     let regions = (region
@@ -3450,25 +3612,24 @@ def BaseModelica_ForEquationOp : BaseModelica_Op<"for_equation",
     let hasCanonicalizer = 1;
 
     let builders = [
-        OpBuilder<(ins "long":$from, "long":$to, "long":$step)>
+        OpBuilder<(ins "int64_t":$from, "int64_t":$to, "int64_t":$step)>
     ];
 
     let extraClassDeclaration = [{
-        Block* bodyBlock();
-        Value induction();
+        ::mlir::Value getInduction();
     }];
 }
 
-def BaseModelica_EquationTemplateOp : BaseModelica_Op<"equation_template",
-    [IsolatedFromAbove,
-    ParentOneOf<["ModelOp"]>,
-    SingleBlock,
-    NoMemoryEffect]>
+def BaseModelica_EquationTemplateOp : BaseModelica_Op<"equation_template", [
+        IsolatedFromAbove,
+        ParentOneOf<["ModelOp"]>,
+        SingleBlock
+    ]>
 {
     let summary = "Equation template.";
 
     let description = [{
-        A generic template for an equation or an initial equation.
+        A generic template for an equation or initial equation.
     }];
 
     let arguments = (ins);
@@ -3657,181 +3818,70 @@ def BaseModelica_EquationTemplateOp : BaseModelica_Op<"equation_template",
     }];
 }
 
-def BaseModelica_EquationFunctionOp : BaseModelica_Op<"equation_function",
-    [HasParent<"mlir::ModuleOp">,
-    IsolatedFromAbove,
-    AffineScope,
-    AutomaticAllocationScope,
-    Symbol,
-    FunctionOpInterface,
-    CallableOpInterface]>
+def BaseModelica_EquationSideOp : BaseModelica_Op<"equation_side", [
+        ParentOneOf<["EquationTemplateOp", "EquationOp"]>,
+        NoMemoryEffect,
+        DeclareOpInterfaceMethods<InferTypeOpInterface>,
+        TypesMatchWith<"result type is a tuple of operand types",
+                    "result", "result",
+                    "mlir::TupleType::get(getContext(), $values.getTypes())">
+    ]>
 {
-    let arguments = (ins
-        SymbolNameAttr:$sym_name,
-        TypeAttrOf<FunctionType>:$function_type,
-        OptionalAttr<StrAttr>:$sym_visibility,
-        OptionalAttr<DictArrayAttr>:$arg_attrs,
-        OptionalAttr<DictArrayAttr>:$res_attrs);
+    let summary = "Equation side.";
 
-    let regions = (region AnyRegion:$body);
-
-    let hasCustomAssemblyFormat = 1;
-
-    let builders = [
-        OpBuilder<(ins
-            "llvm::StringRef":$name,
-            "uint64_t":$numOfInductions,
-            CArg<"ArrayRef<NamedAttribute>", "{}">:$attrs,
-            CArg<"ArrayRef<DictionaryAttr>", "{}">:$argAttrs)>
-    ];
-
-    let extraClassDeclaration = [{
-        /// @name CallableOpInterface methods
-        /// {
-
-        /// Returns the region on the current operation that is callable. This may
-        /// return null in the case of an external callable object, e.g. an external
-        /// function.
-        mlir::Region* getCallableRegion()
-        {
-            return isExternal() ? nullptr : &getBody();
-        }
-
-        /// Returns the results types that the callable region produces when
-        /// executed.
-        llvm::ArrayRef<mlir::Type> getCallableResults()
-        {
-            return getFunctionType().getResults();
-        }
-
-        /// }
-        /// @name FunctionOpInterface methods
-        /// {
-
-        /// Returns the argument types of this function.
-        llvm::ArrayRef<mlir::Type> getArgumentTypes()
-        {
-            return getFunctionType().getInputs();
-        }
-
-        /// Returns the result types of this function.
-        llvm::ArrayRef<mlir::Type> getResultTypes()
-        {
-            return getFunctionType().getResults();
-        }
-
-        /// }
-        /// @name SymbolOpInterface methods
-        /// {
-
-        bool isDeclaration()
-        {
-            return isExternal();
-        }
-
-        /// }
-
-        mlir::Value getLowerBound(uint64_t induction);
-        mlir::Value getUpperBound(uint64_t induction);
+    let description = [{
+        The operation represents one of the sides (left or right) of an
+        equation.
     }];
-}
 
-def BaseModelica_EquationCallOp : BaseModelica_Op<"equation_call", []>
-{
-    let arguments = (ins
-        SymbolNameAttr:$callee,
-        IndexSetProperty:$indices,
-        DefaultValuedAttr<BoolAttr, "false">:$parallelizable);
+    let arguments = (ins NonEmptyVariadic<AnyType>:$values);
+    let results = (outs AnyTuple:$result);
 
-    let results = (outs);
-    let assemblyFormat = "$callee custom<EquationCallIndices>($indices) attr-dict";
-}
-
-def BaseModelica_InitialOp : BaseModelica_Op<"initial",
-    [ParentOneOf<["ModelOp", "ScheduleOp"]>,
-    SingleBlock,
-    NoTerminator]>
-{
-    let arguments = (ins);
-    let results = (outs);
-
-    let regions = (region
-        SizedRegion<1>:$bodyRegion
-    );
-
-    let assemblyFormat = "$bodyRegion attr-dict";
+    let assemblyFormat = "$values attr-dict `:` custom<EquationSideTypes>(type($values), type($result))";
     let hasCanonicalizer = 1;
-
-    let extraClassDeclaration = [{
-        template<typename Equation>
-        void collectEquations(llvm::SmallVectorImpl<Equation>& equations)
-        {
-            walk([&](Equation equation) {
-                equations.push_back(equation);
-            });
-        }
-
-        void collectSCCs(llvm::SmallVectorImpl<SCCOp>& SCCs);
-
-        void collectAlgorithms(llvm::SmallVectorImpl<AlgorithmOp>& algorithms);
-    }];
 }
 
-def BaseModelica_DynamicOp : BaseModelica_Op<"dynamic",
-    [ParentOneOf<["ModelOp", "ScheduleOp"]>,
-    SingleBlock,
-    NoTerminator]>
+def BaseModelica_EquationSidesOp : BaseModelica_Op<"equation_sides", [
+        ParentOneOf<["EquationTemplateOp", "EquationOp"]>,
+        Terminator
+    ]>
 {
-    let arguments = (ins);
-    let results = (outs);
+    let summary = "Equation terminator.";
 
-    let regions = (region
-        SizedRegion<1>:$bodyRegion
-    );
-
-    let assemblyFormat = "$bodyRegion attr-dict";
-    let hasCanonicalizer = 1;
-
-    let extraClassDeclaration = [{
-        template<typename Equation>
-        void collectEquations(llvm::SmallVectorImpl<Equation>& equations)
-        {
-            walk([&](Equation equation) {
-                equations.push_back(equation);
-            });
-        }
-
-        void collectSCCs(llvm::SmallVectorImpl<SCCOp>& SCCs);
-
-        void collectAlgorithms(llvm::SmallVectorImpl<AlgorithmOp>& algorithms);
+    let description = [{
+        The operation represents the equality between two equation sides of an
+        equation. It is intended to be used as terminator for the body of an
+        equation.
     }];
-}
 
-def BaseModelica_AbstractEquationOp : BaseModelica_Op<"abstract_equation",
-    [ParentOneOf<["SCCOp"]>,
-    SingleBlock,
-    NoTerminator]>
-{
     let arguments = (ins
-        VariablesListProperty:$writtenVariables,
-        VariablesListProperty:$readVariables);
-
-    let results = (outs);
-
-    let regions = (region
-        SizedRegion<1>:$bodyRegion
+        AnyTuple:$lhs,
+        AnyTuple:$rhs
     );
 
-    let assemblyFormat = [{
-        custom<AbstractEquationWrittenVars>($writtenVariables) `,`
-        custom<AbstractEquationReadVars>($readVariables)
-        $bodyRegion attr-dict
+    let results = (outs);
+    let assemblyFormat = "$lhs `,` $rhs attr-dict `:` type($lhs) `,` type($rhs)";
+    let hasVerifier = 1;
+
+    let extraClassDeclaration = [{
+        mlir::ValueRange getLhsValues() {
+            auto sideOp = getLhs().getDefiningOp<EquationSideOp>();
+            assert(sideOp && "Equation side not found");
+            return sideOp.getValues();
+        }
+
+        mlir::ValueRange getRhsValues() {
+            auto sideOp = getRhs().getDefiningOp<EquationSideOp>();
+            assert(sideOp && "Equation side not found");
+            return sideOp.getValues();
+        }
     }];
 }
 
-def BaseModelica_StartEquationInstanceOp : BaseModelica_Op<"start_equation_instance",
-    [ParentOneOf<["InitialOp"]>,
-    DeclareOpInterfaceMethods<EquationInstanceInterface>]>
+def BaseModelica_StartEquationInstanceOp : BaseModelica_Op<"start_equation_instance", [
+        ParentOneOf<["InitialOp"]>,
+        DeclareOpInterfaceMethods<EquationInstanceInterface>
+    ]>
 {
     let arguments = (ins
         EquationType:$base,
@@ -3879,9 +3929,10 @@ def BaseModelica_StartEquationInstanceOp : BaseModelica_Op<"start_equation_insta
     }];
 }
 
-def BaseModelica_EquationInstanceOp : BaseModelica_Op<"equation_instance",
-    [ParentOneOf<["InitialOp", "DynamicOp", "SCCOp"]>,
-    DeclareOpInterfaceMethods<EquationInstanceInterface>]>
+def BaseModelica_EquationInstanceOp : BaseModelica_Op<"equation_instance", [
+        ParentOneOf<["InitialOp", "DynamicOp", "SCCOp"]>,
+        DeclareOpInterfaceMethods<EquationInstanceInterface>
+    ]>
 {
     let arguments = (ins
         EquationType:$base,
@@ -3975,34 +4026,10 @@ def BaseModelica_EquationInstanceOp : BaseModelica_Op<"equation_instance",
     }];
 }
 
-def BaseModelica_SCCGroupOp : BaseModelica_Op<"scc_group",
-    [ParentOneOf<["ModelOp", "ScheduleOp", "InitialOp", "DynamicOp"]>,
-    DeclareOpInterfaceMethods<RegionKindInterface>,
-    SingleBlock,
-    NoTerminator]>
-{
-    let arguments = (ins);
-
-    let results = (outs);
-
-    let regions = (region
-        SizedRegion<1>:$bodyRegion
-    );
-
-    let assemblyFormat = [{
-        $bodyRegion attr-dict
-    }];
-
-    let extraClassDeclaration = [{
-        void collectSCCs(llvm::SmallVectorImpl<SCCOp>& SCCs);
-    }];
-}
-
-def BaseModelica_SCCOp : BaseModelica_Op<"scc",
-    [ParentOneOf<["InitialOp", "DynamicOp", "ScheduleOp", "SCCGroupOp"]>,
-    DeclareOpInterfaceMethods<RegionKindInterface>,
-    SingleBlock,
-    NoTerminator]>
+def BaseModelica_SCCOp : BaseModelica_Op<"scc", [
+        ParentOneOf<["InitialOp", "DynamicOp", "ScheduleOp"]>,
+        GraphRegionNoTerminator
+    ]>
 {
     let arguments = (ins
         DefaultValuedAttr<BoolAttr, "false">:$cycle);
@@ -4023,88 +4050,6 @@ def BaseModelica_SCCOp : BaseModelica_Op<"scc",
             walk([&](Equation equation) {
                 equations.push_back(equation);
             });
-        }
-    }];
-}
-
-def BaseModelica_EquationOp : BaseModelica_Op<"equation",
-    [ParentOneOf<["DynamicOp", "InitialOp", "ForEquationOp"]>,
-    SingleBlock]>
-{
-    let summary = "Equation.";
-
-    let description = [{
-        The operation represents a BaseModelica equation.
-    }];
-
-    let arguments = (ins);
-    let results = (outs);
-    let regions = (region SizedRegion<1>:$bodyRegion);
-    let assemblyFormat = "attr-dict-with-keyword $bodyRegion";
-}
-
-def BaseModelica_EquationSideOp : BaseModelica_Op<"equation_side",
-    [ParentOneOf<["EquationTemplateOp", "EquationOp"]>, NoMemoryEffect]>
-{
-    let summary = "Equation side.";
-
-    let description = [{
-        The operation represents one of the sides (left or right)
-        of an equation.
-    }];
-
-    let arguments = (ins NonEmptyVariadic<AnyType>:$values);
-    let results = (outs AnyTuple);
-
-    let hasCustomAssemblyFormat = 1;
-
-    let hasCanonicalizer = 1;
-
-    let builders = [
-        OpBuilder<(ins "ValueRange":$values), [{
-            auto tupleType = $_builder.getTupleType(values.getTypes());
-            build($_builder, $_state, tupleType, values);
-        }]>
-    ];
-}
-
-def BaseModelica_EquationSidesOp : BaseModelica_Op<"equation_sides",
-    [ParentOneOf<["EquationTemplateOp", "EquationOp"]>,
-    Terminator]>
-{
-    let summary = "Equation terminator.";
-
-    let description = [{
-        The operation represents the equality between two equation sides of an equation.
-        It is intended to be used as terminator for the body of an equation.
-
-        Example:
-
-        ```mlir
-        modelica.equation {
-            %0 = modelica.equation_side ... : tuple<!modelica.real>
-            %1 = modelica.equation_side ... : tuple<!modelica.real>
-            modelica.equation_sides %0, %1 : tuple<!modelica.real>, tuple<!modelica.real>
-        }
-        ```
-    }];
-
-    let arguments = (ins AnyTuple:$lhs, AnyTuple:$rhs);
-    let results = (outs);
-    let assemblyFormat = "$lhs `,` $rhs attr-dict `:` type($lhs) `,` type($rhs)";
-    let hasVerifier = 1;
-
-    let extraClassDeclaration = [{
-        mlir::ValueRange getLhsValues() {
-            auto sideOp = getLhs().getDefiningOp();
-            assert(sideOp != nullptr && mlir::isa<EquationSideOp>(sideOp));
-            return mlir::cast<EquationSideOp>(sideOp).getValues();
-        }
-
-        mlir::ValueRange getRhsValues() {
-            auto sideOp = getRhs().getDefiningOp();
-            assert(sideOp != nullptr && mlir::isa<EquationSideOp>(sideOp));
-            return mlir::cast<EquationSideOp>(sideOp).getValues();
         }
     }];
 }
@@ -4591,9 +4536,6 @@ def BaseModelica_ScheduleOp : BaseModelica_Op<"schedule",
     let assemblyFormat = "$sym_name attr-dict-with-keyword $bodyRegion";
 
     let extraClassDeclaration = [{
-        /// Collect the SCC groups.
-        void collectSCCGroups(llvm::SmallVectorImpl<SCCGroupOp>& SCCGroups);
-
         /// Collect the SCCs.
         void collectSCCs(llvm::SmallVectorImpl<SCCOp>& SCCs);
     }];

@@ -201,10 +201,10 @@ DerivativesMaterializationPass::processModelOp(ModelOp modelOp) {
   llvm::SmallVector<AlgorithmOp> algorithmOps;
 
   modelOp.collectInitialEquations(equationInstanceOps);
-  modelOp.collectMainEquations(equationInstanceOps);
+  modelOp.collectDynamicEquations(equationInstanceOps);
 
   modelOp.collectInitialAlgorithms(algorithmOps);
-  modelOp.collectMainAlgorithms(algorithmOps);
+  modelOp.collectDynamicAlgorithms(algorithmOps);
 
   // Collect the derived indices.
   DifferentialVariablesSet newDifferentialVariables;

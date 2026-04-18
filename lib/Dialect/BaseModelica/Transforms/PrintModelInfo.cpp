@@ -46,7 +46,7 @@ mlir::LogicalResult PrintModelInfoPass::processModelOp(ModelOp modelOp,
   llvm::SmallVector<EquationInstanceOp> dynamicEquations;
 
   modelOp.collectInitialEquations(initialEquations);
-  modelOp.collectMainEquations(dynamicEquations);
+  modelOp.collectDynamicEquations(dynamicEquations);
 
   int64_t numOfScalarInitialEquations =
       getScalarEquationsCount(initialEquations);

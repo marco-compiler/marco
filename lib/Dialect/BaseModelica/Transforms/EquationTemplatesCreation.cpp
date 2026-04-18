@@ -203,7 +203,7 @@ void EquationTemplatesCreationPass::createTemplates(ModelOp modelOp) {
     llvm::SmallVector<mlir::Value, 3> oldInductions;
 
     for (ForEquationOp forEquationOp : loops) {
-      oldInductions.push_back(forEquationOp.induction());
+      oldInductions.push_back(forEquationOp.getInduction());
     }
 
     auto templateOp = rewriter.create<EquationTemplateOp>(loc);

@@ -82,7 +82,7 @@ mlir::LogicalResult EulerForwardPass::processModelOp(ModelOp modelOp) {
   mlir::SymbolTableCollection symbolTableCollection;
 
   llvm::SmallVector<SCCOp> mainSCCs;
-  modelOp.collectMainSCCs(mainSCCs);
+  modelOp.collectDynamicSCCs(mainSCCs);
 
   llvm::SmallVector<VariableOp> variables;
   modelOp.collectVariables(variables);

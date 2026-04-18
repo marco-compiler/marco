@@ -139,7 +139,7 @@ int main(int argc, char *argv[]) {
 
   modelOp.collectVariables(variableOps);
   modelOp.collectInitialEquations(initialEquations);
-  modelOp.collectMainEquations(dynamicEquations);
+  modelOp.collectDynamicEquations(dynamicEquations);
 
   // Open the CSV file.
   std::ifstream csv(argv[2]);

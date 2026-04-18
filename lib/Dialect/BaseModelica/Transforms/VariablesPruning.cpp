@@ -139,7 +139,7 @@ mlir::LogicalResult VariablesPruningPass::processModelOp(ModelOp modelOp) {
   llvm::SmallVector<EquationInstanceOp> allEquations;
 
   modelOp.collectInitialEquations(initialEquations);
-  modelOp.collectMainEquations(dynamicEquations);
+  modelOp.collectDynamicEquations(dynamicEquations);
 
   allEquations.append(initialEquations);
   allEquations.append(dynamicEquations);

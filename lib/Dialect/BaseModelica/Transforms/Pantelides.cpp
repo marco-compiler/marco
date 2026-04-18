@@ -132,7 +132,7 @@ mlir::LogicalResult PantelidesPass::processModelOp(ModelOp modelOp) {
   llvm::SmallVector<EquationInstanceOp> equationOps;
 
   modelOp.collectVariables(variableOps);
-  modelOp.collectMainEquations(equationOps);
+  modelOp.collectDynamicEquations(equationOps);
 
   if (equationOps.empty()) {
     return mlir::success();

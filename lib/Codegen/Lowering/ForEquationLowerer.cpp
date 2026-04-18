@@ -66,11 +66,11 @@ bool ForEquationLowerer::lower(const ast::bmodelica::ForEquation &forEquation) {
     auto forEquationOp =
         builder().create<ForEquationOp>(location, begin, end, step);
 
-    builder().setInsertionPointToStart(forEquationOp.bodyBlock());
+    builder().setInsertionPointToStart(forEquationOp.getBody());
 
     // Add the induction variable to the symbol table
     insertVariable(forIndex->getName(),
-                   Reference::ssa(builder(), forEquationOp.induction()));
+                   Reference::ssa(builder(), forEquationOp.getInduction()));
 
     if (firstOp == nullptr) {
       firstOp = forEquationOp.getOperation();

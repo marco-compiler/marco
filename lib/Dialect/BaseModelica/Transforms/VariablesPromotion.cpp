@@ -311,7 +311,7 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp) {
   llvm::SmallVector<EquationInstanceOp> initialEquations;
   llvm::SmallVector<EquationInstanceOp> mainEquations;
   modelOp.collectInitialEquations(initialEquations);
-  modelOp.collectMainEquations(mainEquations);
+  modelOp.collectDynamicEquations(mainEquations);
 
   // Determine the writes map of the 'initial conditions' model. This must be
   // used to avoid having different initial equations writing into the same

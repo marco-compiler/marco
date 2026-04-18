@@ -127,16 +127,16 @@ mlir::LogicalResult EquationInductionsExplicitationPass::explicitateInductions(
       auto forOp = rewriter.create<ForEquationOp>(
           equationOp.getLoc(), 0, rhsTensorType.getDimSize(i) - 1, 1);
 
-      rewriter.setInsertionPointToStart(forOp.bodyBlock());
-      inductions.push_back(forOp.induction());
+      rewriter.setInsertionPointToStart(forOp.getBody());
+      inductions.push_back(forOp.getInduction());
     } else {
       assert(!lhsTensorType.isDynamicDim(i));
 
       auto forOp = rewriter.create<ForEquationOp>(
           equationOp.getLoc(), 0, lhsTensorType.getDimSize(i) - 1, 1);
 
-      rewriter.setInsertionPointToStart(forOp.bodyBlock());
-      inductions.push_back(forOp.induction());
+      rewriter.setInsertionPointToStart(forOp.getBody());
+      inductions.push_back(forOp.getInduction());
     }
   }
 

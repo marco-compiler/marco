@@ -90,28 +90,6 @@ void printModelDerivativesMap(mlir::OpAsmPrinter &printer, mlir::Operation *op,
   }
 }
 
-bool parseAbstractEquationWrittenVars(mlir::OpAsmParser &parser,
-                                      VariablesList &prop) {
-  return parseWrittenVars(parser, prop);
-}
-
-void printAbstractEquationWrittenVars(mlir::OpAsmPrinter &printer,
-                                      mlir::Operation *op,
-                                      const VariablesList &prop) {
-  return printWrittenVars(printer, op, prop);
-}
-
-bool parseAbstractEquationReadVars(mlir::OpAsmParser &parser,
-                                   VariablesList &prop) {
-  return parseReadVars(parser, prop);
-}
-
-void printAbstractEquationReadVars(mlir::OpAsmPrinter &printer,
-                                   mlir::Operation *op,
-                                   const VariablesList &prop) {
-  return printReadVars(printer, op, prop);
-}
-
 bool parseScheduleBlockWrittenVars(mlir::OpAsmParser &parser,
                                    VariablesList &prop) {
   return parseWrittenVars(parser, prop);
@@ -191,6 +169,30 @@ void printVariableDimensionConstraints(mlir::OpAsmPrinter &printer,
     printer << "]";
   }
 }
+
+mlir::ParseResult
+parseEquationSideTypes(mlir::OpAsmParser &parser,
+                       llvm::SmallVectorImpl<mlir::Type> &values,
+                       mlir::Type &result) {
+  if (mlir::failed(parser.parseType(result))) {
+    return mlir::failure();
+  }
+
+  auto tupleType = mlir::dyn_cast<mlir::TupleType>(result);
+
+  if (!tupleType) {
+    return mlir::failure();
+  }
+
+  llvm::append_range(values, tupleType.getTypes());
+  return mlir::success();
+}
+
+void printEquationSideTypes(mlir::OpAsmPrinter &printer, mlir::Operation *op,
+                            mlir::TypeRange values, mlir::Type result) {
+  printer << result;
+}
+
 } // namespace
 
 #define GET_OP_CLASSES
@@ -7340,7 +7342,7 @@ void ModelOp::collectInitialAlgorithms(
   }
 }
 
-void ModelOp::collectMainAlgorithms(
+void ModelOp::collectDynamicAlgorithms(
     llvm::SmallVectorImpl<AlgorithmOp> &algorithms) {
   for (DynamicOp dynamicOp : getOps<DynamicOp>()) {
     dynamicOp.collectAlgorithms(algorithms);
@@ -7353,17 +7355,9 @@ void ModelOp::collectInitialSCCs(llvm::SmallVectorImpl<SCCOp> &SCCs) {
   }
 }
 
-void ModelOp::collectMainSCCs(llvm::SmallVectorImpl<SCCOp> &SCCs) {
+void ModelOp::collectDynamicSCCs(llvm::SmallVectorImpl<SCCOp> &SCCs) {
   for (DynamicOp dynamicOp : getOps<DynamicOp>()) {
     dynamicOp.collectSCCs(SCCs);
-  }
-}
-
-void ModelOp::collectSCCGroups(
-    llvm::SmallVectorImpl<SCCGroupOp> &initialSCCGroups,
-    llvm::SmallVectorImpl<SCCGroupOp> &SCCGroups) {
-  for (SCCGroupOp op : getOps<SCCGroupOp>()) {
-    SCCGroups.push_back(op);
   }
 }
 } // namespace mlir::bmodelica
@@ -7518,13 +7512,11 @@ struct EmptyForEquationOpErasePattern
 
 namespace mlir::bmodelica {
 void ForEquationOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
-                          long from, long to, long step) {
+                          int64_t from, int64_t to, int64_t step) {
   mlir::OpBuilder::InsertionGuard guard(builder);
 
   state.addAttribute(getFromAttrName(state.name), builder.getIndexAttr(from));
-
   state.addAttribute(getToAttrName(state.name), builder.getIndexAttr(to));
-
   state.addAttribute(getStepAttrName(state.name), builder.getIndexAttr(step));
 
   mlir::Region *bodyRegion = state.addRegion();
@@ -7538,12 +7530,7 @@ void ForEquationOp::getCanonicalizationPatterns(
   patterns.add<EmptyForEquationOpErasePattern>(context);
 }
 
-mlir::Block *ForEquationOp::bodyBlock() {
-  assert(getBodyRegion().getBlocks().size() == 1);
-  return &getBodyRegion().front();
-}
-
-mlir::Value ForEquationOp::induction() {
+mlir::Value ForEquationOp::getInduction() {
   assert(getBodyRegion().getNumArguments() != 0);
   return getBodyRegion().getArgument(0);
 }
@@ -7590,7 +7577,7 @@ mlir::ParseResult ForEquationOp::parse(mlir::OpAsmParser &parser,
 }
 
 void ForEquationOp::print(mlir::OpAsmPrinter &printer) {
-  printer << " " << induction() << " = " << getFrom() << " to " << getTo();
+  printer << " " << getInduction() << " = " << getFrom() << " to " << getTo();
 
   if (auto step = getStep(); step != 1) {
     printer << " step " << step;
@@ -9798,21 +9785,6 @@ mlir::LogicalResult EquationInstanceOp::cloneWithReplacedAccess(
 } // namespace mlir::bmodelica
 
 //===---------------------------------------------------------------------===//
-// SCCGroupOp
-
-namespace mlir::bmodelica {
-mlir::RegionKind SCCGroupOp::getRegionKind(unsigned index) {
-  return mlir::RegionKind::Graph;
-}
-
-void SCCGroupOp::collectSCCs(llvm::SmallVectorImpl<SCCOp> &SCCs) {
-  for (SCCOp scc : getOps<SCCOp>()) {
-    SCCs.push_back(scc);
-  }
-}
-} // namespace mlir::bmodelica
-
-//===---------------------------------------------------------------------===//
 // SCCOp
 
 namespace {
@@ -9835,10 +9807,6 @@ namespace mlir::bmodelica {
 void SCCOp::getCanonicalizationPatterns(mlir::RewritePatternSet &patterns,
                                         mlir::MLIRContext *context) {
   patterns.add<EmptySCCPattern>(context);
-}
-
-mlir::RegionKind SCCOp::getRegionKind(unsigned index) {
-  return mlir::RegionKind::Graph;
 }
 } // namespace mlir::bmodelica
 
@@ -9878,34 +9846,13 @@ struct EquationSideTypePropagationPattern
 } // namespace
 
 namespace mlir::bmodelica {
-mlir::ParseResult EquationSideOp::parse(mlir::OpAsmParser &parser,
-                                        mlir::OperationState &result) {
-  llvm::SmallVector<mlir::OpAsmParser::UnresolvedOperand, 1> values;
-  mlir::Type resultType;
-  auto loc = parser.getCurrentLocation();
-
-  if (parser.parseOperandList(values) || parser.parseColon() ||
-      parser.parseType(resultType)) {
-    return mlir::failure();
-  }
-
-  assert(mlir::isa<mlir::TupleType>(resultType));
-  auto tupleType = mlir::cast<mlir::TupleType>(resultType);
-
-  llvm::SmallVector<mlir::Type, 1> types(tupleType.begin(), tupleType.end());
-  assert(types.size() == values.size());
-
-  if (parser.resolveOperands(values, types, loc, result.operands)) {
-    return mlir::failure();
-  }
-
-  result.addTypes(resultType);
+mlir::LogicalResult EquationSideOp::inferReturnTypes(
+    mlir::MLIRContext *context, std::optional<mlir::Location> location,
+    mlir::ValueRange operands, mlir::DictionaryAttr attributes,
+    mlir::OpaqueProperties properties, mlir::RegionRange regions,
+    llvm::SmallVectorImpl<mlir::Type> &returnTypes) {
+  returnTypes.push_back(mlir::TupleType::get(context, operands.getTypes()));
   return mlir::success();
-}
-
-void EquationSideOp::print(mlir::OpAsmPrinter &printer) {
-  printer.printOptionalAttrDict(getOperation()->getAttrs());
-  printer << " " << getValues() << " : " << getResult().getType();
 }
 
 void EquationSideOp::getCanonicalizationPatterns(
@@ -10661,13 +10608,6 @@ void ExternalCallOp::getEffects(
 // ScheduleOp
 
 namespace mlir::bmodelica {
-void ScheduleOp::collectSCCGroups(
-    llvm::SmallVectorImpl<SCCGroupOp> &SCCGroups) {
-  for (SCCGroupOp sccGroup : getOps<SCCGroupOp>()) {
-    SCCGroups.push_back(sccGroup);
-  }
-}
-
 void ScheduleOp::collectSCCs(llvm::SmallVectorImpl<SCCOp> &SCCs) {
   for (SCCOp scc : getOps<SCCOp>()) {
     SCCs.push_back(scc);
