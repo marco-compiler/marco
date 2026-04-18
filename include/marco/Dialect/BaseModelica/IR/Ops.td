@@ -4159,19 +4159,20 @@ def BaseModelica_DerFunctionOp : BaseModelica_Op<"der_function",
     }];
 }
 
-def BaseModelica_RawFunctionOp : BaseModelica_Op<"raw_function",
-    [IsolatedFromAbove,
-    AutomaticAllocationScope,
-    Symbol,
-    FunctionOpInterface,
-    CallableOpInterface]>
+def BaseModelica_RawFunctionOp : BaseModelica_Op<"raw_function", [
+        IsolatedFromAbove,
+        AutomaticAllocationScope,
+        Symbol,
+        FunctionOpInterface,
+        CallableOpInterface
+    ]>
 {
     let summary = "Raw function.";
 
     let description = [{
-        A raw BaseModelica function consists in a BaseModelica function that has been converted
-        to explicit control flow. It is intendend to be used only internally during the
-        lowering process.
+        A raw BaseModelica function consists in a BaseModelica function that
+        has been converted to have an explicit control flow. It is intendend to
+        be used only internally during the lowering process.
     }];
 
     let arguments = (ins
@@ -4179,7 +4180,8 @@ def BaseModelica_RawFunctionOp : BaseModelica_Op<"raw_function",
         TypeAttrOf<FunctionType>:$function_type,
         OptionalAttr<StrAttr>:$sym_visibility,
         OptionalAttr<DictArrayAttr>:$arg_attrs,
-        OptionalAttr<DictArrayAttr>:$res_attrs);
+        OptionalAttr<DictArrayAttr>:$res_attrs
+    );
 
     let regions = (region AnyRegion:$body);
 
@@ -4187,7 +4189,8 @@ def BaseModelica_RawFunctionOp : BaseModelica_Op<"raw_function",
 
     let builders = [
         OpBuilder<(ins
-            "llvm::StringRef":$name, "mlir::FunctionType":$type,
+            "llvm::StringRef":$name,
+            "mlir::FunctionType":$type,
             CArg<"ArrayRef<NamedAttribute>", "{}">:$attrs,
             CArg<"ArrayRef<DictionaryAttr>", "{}">:$argAttrs)>
     ];
@@ -4273,26 +4276,19 @@ def BaseModelica_RawFunctionOp : BaseModelica_Op<"raw_function",
     }];
 }
 
-def RawReturnOp : BaseModelica_Op<"raw_return",
-    [NoMemoryEffect,
-    HasParent<"RawFunctionOp">,
-    ReturnLike, Terminator]>
+def RawReturnOp : BaseModelica_Op<"raw_return", [
+        NoMemoryEffect,
+        HasParent<"RawFunctionOp">,
+        ReturnLike,
+        Terminator
+    ]>
 {
     let summary = "Raw function return operation.";
 
     let description = [{
-        The `modelica.return` operation represents a return operation within a raw
-        function. The operation takes variable number of operands and produces no
-        results. The operand number and types must match the signature of the
-        function that contains the operation.
-
-        Example:
-
-        ```mlir
-        modelica.raw_func @foo() : (!modelica.int, !modelica.real) {
-            ...
-            modelica.raw_return %0, %1 : !modelica.int, !modelica.real
-        }
+        The operation represents a return operation within a raw function. The
+        number of operands and their types must match the result types of the
+        function signature containing the operation.
         ```
     }];
 
@@ -4305,8 +4301,9 @@ def RawReturnOp : BaseModelica_Op<"raw_return",
     }]>];
 }
 
-def Modelica_RawVariableOp : BaseModelica_Op<"raw_variable",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
+def Modelica_RawVariableOp : BaseModelica_Op<"raw_variable", [
+        DeclareOpInterfaceMethods<MemoryEffectsOpInterface>
+    ]>
 {
     let summary = "Declare a raw variable of a class.";
 
@@ -4324,7 +4321,9 @@ def Modelica_RawVariableOp : BaseModelica_Op<"raw_variable",
         UnitAttr:$output,
         DefaultValuedAttr<BoolAttr, "true">:$heap);
 
-    let results = (outs AnyTypeOf<[AnyTensor, AnyMemRef]>:$variable);
+    let results = (outs
+        AnyTypeOf<[AnyTensor, AnyMemRef]>:$variable
+    );
 
     let assemblyFormat = "$dynamicSizes attr-dict `:` type($variable)";
 
@@ -4343,8 +4342,9 @@ def Modelica_RawVariableOp : BaseModelica_Op<"raw_variable",
     }];
 }
 
-def Modelica_RawVariableDeallocOp : BaseModelica_Op<"raw_variable_dealloc",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
+def Modelica_RawVariableDeallocOp : BaseModelica_Op<"raw_variable_dealloc", [
+        DeclareOpInterfaceMethods<MemoryEffectsOpInterface>
+    ]>
 {
     let summary = "Deallocate the data held by a raw variable.";
 
@@ -4352,7 +4352,10 @@ def Modelica_RawVariableDeallocOp : BaseModelica_Op<"raw_variable_dealloc",
         Deallocate the data held by a raw variable.
     }];
 
-    let arguments = (ins AnyTypeOf<[AnyTensor, AnyMemRef]>:$variable);
+    let arguments = (ins
+        AnyTypeOf<[AnyTensor, AnyMemRef]>:$variable
+    );
+
     let results = (outs);
     let assemblyFormat = "$variable attr-dict `:` type($variable)";
 
@@ -4363,8 +4366,9 @@ def Modelica_RawVariableDeallocOp : BaseModelica_Op<"raw_variable_dealloc",
     }];
 }
 
-def Modelica_RawVariableGetOp : BaseModelica_Op<"raw_variable_get",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
+def Modelica_RawVariableGetOp : BaseModelica_Op<"raw_variable_get", [
+        DeclareOpInterfaceMethods<MemoryEffectsOpInterface>
+    ]>
 {
     let summary = "Load the data held by a raw variable.";
 
@@ -4393,8 +4397,9 @@ def Modelica_RawVariableGetOp : BaseModelica_Op<"raw_variable_get",
     }];
 }
 
-def Modelica_RawVariableSetOp : BaseModelica_Op<"raw_variable_set",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
+def Modelica_RawVariableSetOp : BaseModelica_Op<"raw_variable_set", [
+        DeclareOpInterfaceMethods<MemoryEffectsOpInterface>
+    ]>
 {
     let summary = "Store data into a raw variable.";
 
@@ -4413,10 +4418,11 @@ def Modelica_RawVariableSetOp : BaseModelica_Op<"raw_variable_set",
     }];
 }
 
-def BaseModelica_CallOp : BaseModelica_Op<"call",
-    [CallOpInterface,
-    DeclareOpInterfaceMethods<SymbolUserOpInterface>,
-    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
+def BaseModelica_CallOp : BaseModelica_Op<"call", [
+        CallOpInterface,
+        DeclareOpInterfaceMethods<SymbolUserOpInterface>,
+        DeclareOpInterfaceMethods<MemoryEffectsOpInterface>
+    ]>
 {
     let summary = "Call operation.";
 
@@ -4512,8 +4518,9 @@ def BaseModelica_CallOp : BaseModelica_Op<"call",
     }];
 }
 
-def BaseModelica_ExternalCallOp : BaseModelica_Op<"external_call",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
+def BaseModelica_ExternalCallOp : BaseModelica_Op<"external_call", [
+        DeclareOpInterfaceMethods<MemoryEffectsOpInterface>
+    ]>
 {
     let summary = "External call operation.";
 
