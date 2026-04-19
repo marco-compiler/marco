@@ -123,7 +123,7 @@ std::optional<std::reference_wrapper<VariableAccessAnalysis>>
 SchedulingPass::getVariableAccessAnalysis(
     StartEquationInstanceOp equation,
     mlir::SymbolTableCollection &symbolTableCollection) {
-  return getVariableAccessAnalysis(equation.getTemplate(),
+  return getVariableAccessAnalysis(equation.getTemplateOp(),
                                    symbolTableCollection);
 }
 

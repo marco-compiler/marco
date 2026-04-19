@@ -191,7 +191,7 @@ public:
         rewriter.createBlock(&sccOp.getBodyRegion()));
 
     auto instanceOp =
-        rewriter.create<EquationInstanceOp>(op.getLoc(), op.getTemplate());
+        rewriter.create<EquationInstanceOp>(op.getLoc(), op.getTemplateOp());
 
     instanceOp.getProperties().indices = op.getProperties().indices;
 

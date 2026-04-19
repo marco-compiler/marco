@@ -9406,7 +9406,7 @@ mlir::ParseResult StartEquationInstanceOp::parse(mlir::OpAsmParser &parser,
 }
 
 void StartEquationInstanceOp::print(mlir::OpAsmPrinter &printer) {
-  printer << " " << getTemplate().getResult();
+  printer << " " << getTemplateOp().getResult();
 
   if (const IndexSet &indices = getProperties().indices; !indices.empty()) {
     printer << ", indices = ";
@@ -9430,20 +9430,6 @@ mlir::LogicalResult StartEquationInstanceOp::verify() {
   return mlir::success();
 }
 
-EquationTemplateOp StartEquationInstanceOp::getTemplate() {
-  auto result = getBase().getDefiningOp<EquationTemplateOp>();
-  assert(result != nullptr);
-  return result;
-}
-
-void StartEquationInstanceOp::printInline(llvm::raw_ostream &os) {
-  getTemplate().printInline(os);
-}
-
-mlir::ValueRange StartEquationInstanceOp::getInductionVariables() {
-  return getTemplate().getInductionVariables();
-}
-
 IndexSet StartEquationInstanceOp::getIterationSpace() {
   return getProperties().indices;
 }
@@ -9452,12 +9438,6 @@ std::optional<VariableAccess> StartEquationInstanceOp::getWriteAccess(
     mlir::SymbolTableCollection &symbolTableCollection) {
   return getAccessAtPath(symbolTableCollection,
                          EquationPath(EquationPath::LEFT, 0));
-}
-
-mlir::LogicalResult StartEquationInstanceOp::getAccesses(
-    llvm::SmallVectorImpl<VariableAccess> &result,
-    mlir::SymbolTableCollection &symbolTable) {
-  return getTemplate().getAccesses(result, symbolTable);
 }
 
 mlir::LogicalResult StartEquationInstanceOp::getReadAccesses(
@@ -9485,13 +9465,8 @@ mlir::LogicalResult StartEquationInstanceOp::getReadAccesses(
   Variable writtenVariable(writeAccess->getVariable(),
                            std::move(writtenIndices));
 
-  return getTemplate().getReadAccesses(result, equationIndices, accesses,
-                                       writtenVariable);
-}
-
-std::optional<VariableAccess> StartEquationInstanceOp::getAccessAtPath(
-    mlir::SymbolTableCollection &symbolTable, const EquationPath &path) {
-  return getTemplate().getAccessAtPath(symbolTable, path);
+  return getTemplateOp().getReadAccesses(result, equationIndices, accesses,
+                                         writtenVariable);
 }
 } // namespace mlir::bmodelica
 

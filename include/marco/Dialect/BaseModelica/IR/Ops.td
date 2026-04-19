@@ -3878,41 +3878,64 @@ def BaseModelica_EquationSidesOp : BaseModelica_Op<"equation_sides", [
     }];
 }
 
-def BaseModelica_StartEquationInstanceOp : BaseModelica_Op<"start_equation_instance", [
-        ParentOneOf<["InitialOp"]>,
+class BaseModelica_EquationInstanceBaseOp<string name, list<Trait> traits = []>
+    : BaseModelica_Op<name, !listconcat(traits, [
         DeclareOpInterfaceMethods<EquationInstanceInterface>
-    ]>
+    ])>
 {
     let arguments = (ins
         EquationType:$base,
-        IndexSetProperty:$indices);
+        IndexSetProperty:$indices
+    );
 
     let results = (outs);
 
-    let hasCustomAssemblyFormat = 1;
-    let hasVerifier = 1;
-
-    let extraClassDeclaration = [{
-        /// Get the equation template.
-        EquationTemplateOp getTemplate();
+    code extraBaseClassDeclaration = [{
+        /// Get the equation template operation.
+        EquationTemplateOp getTemplateOp() {
+            auto result = getBase().getDefiningOp<EquationTemplateOp>();
+            assert(result && "Equation template not found");
+            return result;
+        }
 
         /// @name Forwarded methods.
         /// {
 
-        void printInline(llvm::raw_ostream& os);
+        void printInline(llvm::raw_ostream& os) {
+            getTemplateOp().printInline(os);
+        }
 
-        mlir::ValueRange getInductionVariables();
+        mlir::ValueRange getInductionVariables() {
+            return getTemplateOp().getInductionVariables();
+        }
 
         mlir::LogicalResult getAccesses(
             llvm::SmallVectorImpl<VariableAccess>& result,
-            mlir::SymbolTableCollection& symbolTable);
+            mlir::SymbolTableCollection& symbolTables) {
+            return getTemplateOp().getAccesses(result, symbolTables);
+        }
 
         std::optional<VariableAccess> getAccessAtPath(
-            mlir::SymbolTableCollection& symbolTable,
-            const EquationPath& path);
+            mlir::SymbolTableCollection& symbolTables,
+            const EquationPath& path) {
+            return getTemplateOp().getAccessAtPath(symbolTables, path);
+        }
 
         /// }
+    }];
 
+    let extraClassDeclaration = extraBaseClassDeclaration;
+}
+
+def BaseModelica_StartEquationInstanceOp
+    : BaseModelica_EquationInstanceBaseOp<"start_equation_instance", [
+        ParentOneOf<["InitialOp"]>
+    ]>
+{
+    let hasCustomAssemblyFormat = 1;
+    let hasVerifier = 1;
+
+    let extraClassDeclaration = extraBaseClassDeclaration # [{
         std::optional<VariableAccess> getWriteAccess(
             mlir::SymbolTableCollection& symbolTableCollection);
 
