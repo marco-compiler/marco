@@ -194,7 +194,7 @@ class BaseModelica_Op<string mnemonic, list<Trait> traits = []> :
 // Range operations
 //===---------------------------------------------------------------------===//
 
-def RangeOp : BaseModelica_Op<"range.bounded", [
+def BaseModelica_RangeOp : BaseModelica_Op<"range.bounded", [
         DeclareOpInterfaceMethods<InferTypeOpInterface>,
         Pure
     ]>
@@ -221,7 +221,7 @@ def RangeOp : BaseModelica_Op<"range.bounded", [
     }];
 }
 
-def UnboundedRangeOp : BaseModelica_Op<"range.unbounded", [Pure]>
+def BaseModelica_UnboundedRangeOp : BaseModelica_Op<"range.unbounded", [Pure]>
 {
     let summary = "Unbounded range.";
 
@@ -235,7 +235,7 @@ def UnboundedRangeOp : BaseModelica_Op<"range.unbounded", [Pure]>
     let assemblyFormat = "attr-dict `:` type($result)";
 }
 
-def RangeBeginOp : BaseModelica_Op<"range.begin", [
+def BaseModelica_RangeBeginOp : BaseModelica_Op<"range.begin", [
         Pure,
         DeclareOpInterfaceMethods<InferTypeOpInterface>
     ]>
@@ -254,7 +254,7 @@ def RangeBeginOp : BaseModelica_Op<"range.begin", [
     let hasFolder = 1;
 }
 
-def RangeEndOp : BaseModelica_Op<"range.end", [
+def BaseModelica_RangeEndOp : BaseModelica_Op<"range.end", [
         Pure,
         DeclareOpInterfaceMethods<InferTypeOpInterface>
     ]>
@@ -273,7 +273,7 @@ def RangeEndOp : BaseModelica_Op<"range.end", [
     let hasFolder = 1;
 }
 
-def RangeStepOp : BaseModelica_Op<"range.step", [
+def BaseModelica_RangeStepOp : BaseModelica_Op<"range.step", [
         Pure,
         DeclareOpInterfaceMethods<InferTypeOpInterface>
     ]>
@@ -292,7 +292,7 @@ def RangeStepOp : BaseModelica_Op<"range.step", [
     let hasFolder = 1;
 }
 
-def RangeSizeOp : BaseModelica_Op<"range.size", [Pure]>
+def BaseModelica_RangeSizeOp : BaseModelica_Op<"range.size", [Pure]>
 {
     let summary = "Get the extension of a range";
 
@@ -310,7 +310,7 @@ def RangeSizeOp : BaseModelica_Op<"range.size", [Pure]>
 // Tensor operations
 //===---------------------------------------------------------------------===//
 
-def Modelica_TensorFromElementsOp : BaseModelica_Op<"tensor.from_elements", [
+def BaseModelica_TensorFromElementsOp : BaseModelica_Op<"tensor.from_elements", [
         Pure
     ]>
 {
@@ -325,7 +325,7 @@ def Modelica_TensorFromElementsOp : BaseModelica_Op<"tensor.from_elements", [
     let hasFolder = 1;
 }
 
-def Modelica_TensorBroadcastOp : BaseModelica_Op<"tensor.broadcast", [
+def BaseModelica_TensorBroadcastOp : BaseModelica_Op<"tensor.broadcast", [
         Pure
     ]>
 {
@@ -341,7 +341,7 @@ def Modelica_TensorBroadcastOp : BaseModelica_Op<"tensor.broadcast", [
     }];
 }
 
-def Modelica_TensorViewOp : BaseModelica_Op<"tensor.view", [
+def BaseModelica_TensorViewOp : BaseModelica_Op<"tensor.view", [
         ViewLikeOpInterface,
         Pure
     ]>
@@ -379,7 +379,7 @@ def Modelica_TensorViewOp : BaseModelica_Op<"tensor.view", [
     }];
 }
 
-def Modelica_TensorExtractOp : BaseModelica_Op<"tensor.extract", [
+def BaseModelica_TensorExtractOp : BaseModelica_Op<"tensor.extract", [
         Pure,
         TypesMatchWith<"result type matches element type of 'tensor'",
                         "tensor", "result",
@@ -404,7 +404,7 @@ def Modelica_TensorExtractOp : BaseModelica_Op<"tensor.extract", [
     ];
 }
 
-def Modelica_TensorInsertOp : BaseModelica_Op<"tensor.insert", [
+def BaseModelica_TensorInsertOp : BaseModelica_Op<"tensor.insert", [
         TypesMatchWith<"result type matches type of 'destination'",
                         "destination", "result", "$_self">
     ]>
@@ -428,7 +428,7 @@ def Modelica_TensorInsertOp : BaseModelica_Op<"tensor.insert", [
     }];
 }
 
-def Modelica_TensorInsertSliceOp : BaseModelica_Op<"tensor.insert_slice", [
+def BaseModelica_TensorInsertSliceOp : BaseModelica_Op<"tensor.insert_slice", [
         TypesMatchWith<"result type matches type of 'destination'",
                         "destination", "result", "$_self">
     ]>
@@ -456,7 +456,7 @@ def Modelica_TensorInsertSliceOp : BaseModelica_Op<"tensor.insert_slice", [
 // Array operations
 //===---------------------------------------------------------------------===//
 
-def Modelica_ArrayAllocaOp : BaseModelica_Op<"array.alloca">
+def BaseModelica_ArrayAllocaOp : BaseModelica_Op<"array.alloca">
 {
     let summary = "Allocate an array on the stack.";
 
@@ -482,7 +482,7 @@ def Modelica_ArrayAllocaOp : BaseModelica_Op<"array.alloca">
     let hasVerifier = 1;
 }
 
-def Modelica_ArrayAllocOp : BaseModelica_Op<"array.alloc">
+def BaseModelica_ArrayAllocOp : BaseModelica_Op<"array.alloc">
 {
     let summary = "Allocate an array on the heap.";
 
@@ -506,7 +506,7 @@ def Modelica_ArrayAllocOp : BaseModelica_Op<"array.alloc">
     let hasVerifier = 1;
 }
 
-def Modelica_ArrayBroadcastOp : BaseModelica_Op<"array.broadcast">
+def BaseModelica_ArrayBroadcastOp : BaseModelica_Op<"array.broadcast">
 {
     let summary = "Create an array with a given value in all positions.";
 
@@ -552,7 +552,7 @@ def BaseModelica_DeallocOp : BaseModelica_Op<"array.dealloc">
     let assemblyFormat = "$array attr-dict `:` type($array)";
 }
 
-def Modelica_ArrayCastOp : BaseModelica_Op<"array.cast", [
+def BaseModelica_ArrayCastOp : BaseModelica_Op<"array.cast", [
         ViewLikeOpInterface
     ]>
 {
@@ -602,7 +602,7 @@ def Modelica_ArrayCastOp : BaseModelica_Op<"array.cast", [
     }];
 }
 
-def Modelica_DimOp : BaseModelica_Op<"array.dim", [NoMemoryEffect]>
+def BaseModelica_DimOp : BaseModelica_Op<"array.dim", [NoMemoryEffect]>
 {
     let summary = "Get the size of an array dimension.";
 
@@ -781,7 +781,7 @@ def BaseModelica_ArrayCopyOp : BaseModelica_Op<"array.copy", [
 // Tensor-Array bridge operations
 //===---------------------------------------------------------------------===//
 
-def Modelica_TensorToArrayOp : BaseModelica_Op<"tensor.to_array", [
+def BaseModelica_TensorToArrayOp : BaseModelica_Op<"tensor.to_array", [
         SameOperandsShape,
         SameOperandsElementType,
         NoMemoryEffect
@@ -797,7 +797,7 @@ def Modelica_TensorToArrayOp : BaseModelica_Op<"tensor.to_array", [
     }];
 }
 
-def Modelica_ArrayToTensorOp : BaseModelica_Op<"array.to_tensor", [
+def BaseModelica_ArrayToTensorOp : BaseModelica_Op<"array.to_tensor", [
         SameOperandsShape,
         SameOperandsElementType,
         NoMemoryEffect
@@ -940,7 +940,7 @@ def BaseModelica_VariableGetOp : BaseModelica_Op<"variable.get", [
     ];
 }
 
-def Modelica_VariableSetOp : BaseModelica_Op<"variable.set", [
+def BaseModelica_VariableSetOp : BaseModelica_Op<"variable.set", [
         DeclareOpInterfaceMethods<SymbolUserOpInterface>
     ]>
 {
@@ -995,7 +995,7 @@ def Modelica_VariableSetOp : BaseModelica_Op<"variable.set", [
     ];
 }
 
-def Modelica_VariableComponentSetOp : BaseModelica_Op<"variable_component_set", []>
+def BaseModelica_VariableComponentSetOp : BaseModelica_Op<"variable_component_set", []>
 {
     let arguments = (ins
         FlatSymbolRefArrayAttr:$path,
@@ -1011,7 +1011,7 @@ def Modelica_VariableComponentSetOp : BaseModelica_Op<"variable_component_set", 
     }];
 }
 
-def Modelica_ComponentGetOp : BaseModelica_Op<"component_get",
+def BaseModelica_ComponentGetOp : BaseModelica_Op<"component_get",
     [DeclareOpInterfaceMethods<SymbolUserOpInterface>]>
 {
     let summary = "Get a component of a structured variable.";
@@ -1043,7 +1043,7 @@ def Modelica_ComponentGetOp : BaseModelica_Op<"component_get",
     }];
 }
 
-def Modelica_GlobalVariableOp : BaseModelica_Op<"global_variable", [
+def BaseModelica_GlobalVariableOp : BaseModelica_Op<"global_variable", [
         Symbol,
         HasParent<"mlir::ModuleOp">
     ]>
@@ -1873,7 +1873,7 @@ def BaseModelica_AbsOp : BaseModelica_Op<"abs", [
     let hasFolder = 1;
 }
 
-def Modelica_AcosOp : BaseModelica_Op<"acos", [
+def BaseModelica_AcosOp : BaseModelica_Op<"acos", [
         NoMemoryEffect
     ]>
 {
@@ -1893,7 +1893,7 @@ def Modelica_AcosOp : BaseModelica_Op<"acos", [
     let hasFolder = 1;
 }
 
-def Modelica_AsinOp : BaseModelica_Op<"asin", [
+def BaseModelica_AsinOp : BaseModelica_Op<"asin", [
         NoMemoryEffect
     ]>
 {
@@ -1934,7 +1934,7 @@ def BaseModelica_AtanOp : BaseModelica_Op<"atan", [
     let hasFolder = 1;
 }
 
-def Modelica_Atan2Op : BaseModelica_Op<"atan2", [
+def BaseModelica_Atan2Op : BaseModelica_Op<"atan2", [
         NoMemoryEffect
     ]>
 {
@@ -2047,7 +2047,7 @@ def BaseModelica_DiagonalOp : BaseModelica_Op<"diagonal", [
     }];
 }
 
-def Modelica_DivTruncOp : BaseModelica_Op<"div_trunc">
+def BaseModelica_DivTruncOp : BaseModelica_Op<"div_trunc">
 {
     let summary = "Get the integer part of a quotient.";
 
@@ -2091,7 +2091,7 @@ def BaseModelica_ExpOp : BaseModelica_Op<"exp", [
     let hasFolder = 1;
 }
 
-def Modelica_FillOp : BaseModelica_Op<"fill", [
+def BaseModelica_FillOp : BaseModelica_Op<"fill", [
         NoMemoryEffect
     ]>
 {
@@ -2178,7 +2178,7 @@ def BaseModelica_IntegerOp : BaseModelica_Op<"integer", [
     let hasFolder = 1;
 }
 
-def Modelica_LinspaceOp : BaseModelica_Op<"linspace", [
+def BaseModelica_LinspaceOp : BaseModelica_Op<"linspace", [
         NoMemoryEffect
     ]>
 {
@@ -2204,7 +2204,7 @@ def Modelica_LinspaceOp : BaseModelica_Op<"linspace", [
     }];
 }
 
-def Modelica_LogOp : BaseModelica_Op<"log", [
+def BaseModelica_LogOp : BaseModelica_Op<"log", [
         NoMemoryEffect
     ]>
 {
@@ -2224,7 +2224,7 @@ def Modelica_LogOp : BaseModelica_Op<"log", [
     let hasFolder = 1;
 }
 
-def Modelica_Log10Op : BaseModelica_Op<"log10", [
+def BaseModelica_Log10Op : BaseModelica_Op<"log10", [
         NoMemoryEffect
     ]>
 {
@@ -2320,7 +2320,7 @@ def BaseModelica_MinOp : BaseModelica_Op<"min", [
     }];
 }
 
-def Modelica_ModOp : BaseModelica_Op<"mod">
+def BaseModelica_ModOp : BaseModelica_Op<"mod">
 {
     let summary = "Get the modulus of a division of two numbers.";
 
@@ -2339,7 +2339,7 @@ def Modelica_ModOp : BaseModelica_Op<"mod">
     let hasFolder = 1;
 }
 
-def Modelica_NDimsOp : BaseModelica_Op<"ndims", [
+def BaseModelica_NDimsOp : BaseModelica_Op<"ndims", [
         Pure
     ]>
 {
@@ -2407,7 +2407,7 @@ def BaseModelica_ProductOp : BaseModelica_Op<"product", [
     }];
 }
 
-def Modelica_RemOp : BaseModelica_Op<"rem">
+def BaseModelica_RemOp : BaseModelica_Op<"rem">
 {
     let summary = "Get the modulus of a division of two numbers.";
 
@@ -2539,7 +2539,7 @@ def BaseModelica_SizeOp : BaseModelica_Op<"size", [
     }];
 }
 
-def Modelica_SqrtOp : BaseModelica_Op<"sqrt", [
+def BaseModelica_SqrtOp : BaseModelica_Op<"sqrt", [
         NoMemoryEffect
     ]>
 {
@@ -2610,7 +2610,7 @@ def BaseModelica_SymmetricOp : BaseModelica_Op<"symmetric", [
     }];
 }
 
-def Modelica_TanOp : BaseModelica_Op<"tan", [
+def BaseModelica_TanOp : BaseModelica_Op<"tan", [
         NoMemoryEffect
     ]>
 {
@@ -2651,7 +2651,7 @@ def BaseModelica_TanhOp : BaseModelica_Op<"tanh", [
     let hasFolder = 1;
 }
 
-def Modelica_TransposeOp : BaseModelica_Op<"transpose", [
+def BaseModelica_TransposeOp : BaseModelica_Op<"transpose", [
         DeclareOpInterfaceMethods<InferTypeOpInterface>,
         AlwaysSpeculatable,
         NoMemoryEffect
@@ -2753,7 +2753,7 @@ def BaseModelica_AssertOp : BaseModelica_Op<"assert", [
     let assemblyFormat = "attr-dict-with-keyword $conditionRegion";
 }
 
-def Modelica_ReductionOp : BaseModelica_Op<"reduction", [
+def BaseModelica_ReductionOp : BaseModelica_Op<"reduction", [
         SingleBlock
     ]>
 {
@@ -3092,7 +3092,7 @@ def BaseModelica_DefaultOp : BaseModelica_Op<"default",
     }];
 }
 
-def Modelica_DerOp : BaseModelica_Op<"der", []>
+def BaseModelica_DerOp : BaseModelica_Op<"der", []>
 {
     let summary = "Derivative.";
 
@@ -3108,7 +3108,7 @@ def Modelica_DerOp : BaseModelica_Op<"der", []>
     }];
 }
 
-def Modelica_TimeOp : BaseModelica_Op<"time", []>
+def BaseModelica_TimeOp : BaseModelica_Op<"time", []>
 {
     let summary = "Time.";
 
@@ -4018,7 +4018,7 @@ def RawReturnOp : BaseModelica_Op<"raw_return", [
     }]>];
 }
 
-def Modelica_RawVariableOp : BaseModelica_Op<"raw_variable", [
+def BaseModelica_RawVariableOp : BaseModelica_Op<"raw_variable", [
         DeclareOpInterfaceMethods<MemoryEffectsOpInterface>
     ]>
 {
@@ -4059,7 +4059,7 @@ def Modelica_RawVariableOp : BaseModelica_Op<"raw_variable", [
     }];
 }
 
-def Modelica_RawVariableDeallocOp : BaseModelica_Op<"raw_variable_dealloc", [
+def BaseModelica_RawVariableDeallocOp : BaseModelica_Op<"raw_variable_dealloc", [
         DeclareOpInterfaceMethods<MemoryEffectsOpInterface>
     ]>
 {
@@ -4083,7 +4083,7 @@ def Modelica_RawVariableDeallocOp : BaseModelica_Op<"raw_variable_dealloc", [
     }];
 }
 
-def Modelica_RawVariableGetOp : BaseModelica_Op<"raw_variable_get", [
+def BaseModelica_RawVariableGetOp : BaseModelica_Op<"raw_variable_get", [
         DeclareOpInterfaceMethods<MemoryEffectsOpInterface>
     ]>
 {
@@ -4114,7 +4114,7 @@ def Modelica_RawVariableGetOp : BaseModelica_Op<"raw_variable_get", [
     }];
 }
 
-def Modelica_RawVariableSetOp : BaseModelica_Op<"raw_variable_set", [
+def BaseModelica_RawVariableSetOp : BaseModelica_Op<"raw_variable_set", [
         DeclareOpInterfaceMethods<MemoryEffectsOpInterface>
     ]>
 {
@@ -4446,7 +4446,7 @@ def BaseModelica_ReturnOp : BaseModelica_Op<"return", [Terminator]>
     let assemblyFormat = "attr-dict";
 }
 
-def Modelica_IfOp : BaseModelica_Op<"if", [NoTerminator]>
+def BaseModelica_IfOp : BaseModelica_Op<"if", [NoTerminator]>
 {
     let summary = "Algorithmic if-else construct.";
 
@@ -4493,7 +4493,7 @@ def Modelica_IfOp : BaseModelica_Op<"if", [NoTerminator]>
     }];
 }
 
-def Modelica_ForOp : BaseModelica_Op<"for", [
+def BaseModelica_ForOp : BaseModelica_Op<"for", [
         DeclareOpInterfaceMethods<LoopLikeOpInterface>
     ]>
 {
@@ -4624,7 +4624,7 @@ def BaseModelica_YieldOp : BaseModelica_Op<"yield", [Terminator]>
     let builders = [OpBuilder<(ins), [{ /* nothing to do */ }]>];
 }
 
-def Modelica_CastOp : BaseModelica_Op<"cast", [NoMemoryEffect]>
+def BaseModelica_CastOp : BaseModelica_Op<"cast", [NoMemoryEffect]>
 {
     let summary = "Cast a scalar value to another type.";
 
@@ -4651,7 +4651,7 @@ def Modelica_CastOp : BaseModelica_Op<"cast", [NoMemoryEffect]>
     let hasFolder = 1;
 }
 
-def Modelica_PrintOp : BaseModelica_Op<"print", []>
+def BaseModelica_PrintOp : BaseModelica_Op<"print", []>
 {
     let summary = "Print a value to the standard output.";
 
