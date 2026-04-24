@@ -113,7 +113,7 @@ module @ConflictingIndices {
         // CHECK-NEXT:     %[[INDEX0:.*]] = bmodelica.add %[[IDX0]], %[[OFFSET]]
         // CHECK-NEXT:     %[[INDEX1:.*]] = bmodelica.add %[[IDX1]], %[[OFFSET]]
         // CHECK-NEXT:     %[[ARR:.*]] = bmodelica.variable.get @a
-        // CHECK-NEXT:     %[[REF:.*]] = bmodelica.tensor_extract %[[ARR]][%[[INDEX0]], %[[INDEX1]]]
+        // CHECK-NEXT:     %[[REF:.*]] = bmodelica.tensor.extract %[[ARR]][%[[INDEX0]], %[[INDEX1]]]
         // CHECK-NEXT:     %[[LHS:.*]] = bmodelica.equation_side %[[REF]]
         // CHECK-NEXT:     %[[CALL_RES:.*]] = bmodelica.call @f(%[[IDX0]], %[[IDX1]])
         // CHECK-NEXT:     %[[RHS:.*]] = bmodelica.equation_side %[[CALL_RES]]
@@ -123,7 +123,7 @@ module @ConflictingIndices {
             %5 = bmodelica.add %arg0, %4 : index, index -> index
             %6 = bmodelica.add %arg1, %4 : index, index -> index
             %7 = bmodelica.variable.get @a : tensor<4x5xi32>
-            %8 = bmodelica.tensor_extract %7[%5, %6] : tensor<4x5xi32>
+            %8 = bmodelica.tensor.extract %7[%5, %6] : tensor<4x5xi32>
             %9 = bmodelica.equation_side %8 : tuple<i32>
             %10 = bmodelica.call @f(%arg0, %arg1) : (index, index) -> i32
             %11 = bmodelica.equation_side %10 : tuple<i32>
@@ -136,7 +136,7 @@ module @ConflictingIndices {
             %5 = bmodelica.add %arg0, %4 : index, index -> index
             %6 = bmodelica.add %arg1, %4 : index, index -> index
             %7 = bmodelica.variable.get @b : tensor<4x5xi32>
-            %8 = bmodelica.tensor_extract %7[%5, %6] : tensor<4x5xi32>
+            %8 = bmodelica.tensor.extract %7[%5, %6] : tensor<4x5xi32>
             %9 = bmodelica.equation_side %8 : tuple<i32>
             %10 = bmodelica.call @f(%arg0, %arg1) : (index, index) -> i32
             %11 = bmodelica.equation_side %10 : tuple<i32>

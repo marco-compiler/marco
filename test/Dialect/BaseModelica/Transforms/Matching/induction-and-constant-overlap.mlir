@@ -9,10 +9,10 @@ bmodelica.model @Test {
     // COM: x[i] = 3 - x[2]
     %t0 = bmodelica.equation_template inductions = [%i0] attributes {id = "t0"} {
         %0 = bmodelica.variable.get @x : tensor<5x!bmodelica.real>
-        %1 = bmodelica.tensor_extract %0[%i0] : tensor<5x!bmodelica.real>
+        %1 = bmodelica.tensor.extract %0[%i0] : tensor<5x!bmodelica.real>
         %2 = bmodelica.constant #bmodelica<real 3.0>
         %3 = bmodelica.constant 2 : index
-        %4 = bmodelica.tensor_extract %0[%3] : tensor<5x!bmodelica.real>
+        %4 = bmodelica.tensor.extract %0[%3] : tensor<5x!bmodelica.real>
         %5 = bmodelica.sub %2, %4 : !bmodelica.real, !bmodelica.real -> !bmodelica.real
         %6 = bmodelica.equation_side %1 : tuple<!bmodelica.real>
         %7 = bmodelica.equation_side %5 : tuple<!bmodelica.real>

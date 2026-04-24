@@ -11,7 +11,7 @@ func.func @rangeSubscript(%arg0: tensor<?xf64>, %arg1: tensor<?xf64>, %arg2: !bm
     // CHECK:       %[[condition:.*]] = bmodelica.eq %[[dimSize]], %[[rangeSize]]
     // CHECK:       bmodelica.yield %[[condition]]
 
-    %1 = bmodelica.tensor_insert_slice %arg0, %arg1[%arg2] : tensor<?xf64>, tensor<?xf64>, !bmodelica<range index> -> tensor<?xf64>
+    %1 = bmodelica.tensor.insert_slice %arg0, %arg1[%arg2] : tensor<?xf64>, tensor<?xf64>, !bmodelica<range index> -> tensor<?xf64>
     func.return %1 : tensor<?xf64>
 }
 
@@ -29,7 +29,7 @@ func.func @implicitRangeSubscript(%arg0: tensor<?xf64>, %arg1: tensor<?xf64>) ->
     // CHECK: %[[condition:.*]] = bmodelica.eq %[[sourceDimSize]], %[[destinationDimSize]]
     // CHECK: bmodelica.yield %[[condition]]
 
-    %1 = bmodelica.tensor_insert_slice %arg0, %arg1[] : tensor<?xf64>, tensor<?xf64> -> tensor<?xf64>
+    %1 = bmodelica.tensor.insert_slice %arg0, %arg1[] : tensor<?xf64>, tensor<?xf64> -> tensor<?xf64>
     func.return %1 : tensor<?xf64>
 }
 
@@ -46,7 +46,7 @@ func.func @constantAndRangeSubscripts(%arg0: tensor<?xf64>, %arg1: tensor<?x?xf6
     // CHECK:       %[[condition:.*]] = bmodelica.eq %[[dimSize]], %[[rangeSize]]
     // CHECK:       bmodelica.yield %[[condition]]
 
-    %1 = bmodelica.tensor_insert_slice %arg0, %arg1[%arg2, %arg3] : tensor<?xf64>, tensor<?x?xf64>, index, !bmodelica<range index> -> tensor<?x?xf64>
+    %1 = bmodelica.tensor.insert_slice %arg0, %arg1[%arg2, %arg3] : tensor<?xf64>, tensor<?x?xf64>, index, !bmodelica<range index> -> tensor<?x?xf64>
     func.return %1 : tensor<?x?xf64>
 }
 
@@ -64,6 +64,6 @@ func.func @constantAndImplicitRangeSubscripts(%arg0: tensor<?xf64>, %arg1: tenso
     // CHECK:       %[[condition:.*]] = bmodelica.eq %[[sourceDimSize]], %[[destinationDimSize]]
     // CHECK:       bmodelica.yield %[[condition]]
 
-    %1 = bmodelica.tensor_insert_slice %arg0, %arg1[%arg2] : tensor<?xf64>, tensor<?x?xf64>, index -> tensor<?x?xf64>
+    %1 = bmodelica.tensor.insert_slice %arg0, %arg1[%arg2] : tensor<?xf64>, tensor<?x?xf64>, index -> tensor<?x?xf64>
     func.return %1 : tensor<?x?xf64>
 }

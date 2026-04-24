@@ -20,8 +20,8 @@ bmodelica.model @array3d {
         // CHECK-NEXT:          bmodelica.for_equation %[[i2:.*]] = 0 to 4
         // CHECK-DAG:               %[[x:.*]] = bmodelica.variable.get @x
         // CHECK-DAG:               %[[y:.*]] = bmodelica.variable.get @y
-        // CHECK-DAG:               %[[x_extract:.*]] = bmodelica.tensor_extract %[[x]][%[[i0]], %[[i1]], %[[i2]]]
-        // CHECK-DAG:               %[[y_extract:.*]] = bmodelica.tensor_extract %[[y]][%[[i0]], %[[i1]], %[[i2]]]
+        // CHECK-DAG:               %[[x_extract:.*]] = bmodelica.tensor.extract %[[x]][%[[i0]], %[[i1]], %[[i2]]]
+        // CHECK-DAG:               %[[y_extract:.*]] = bmodelica.tensor.extract %[[y]][%[[i0]], %[[i1]], %[[i2]]]
         // CHECK-DAG:               %[[lhs:.*]] = bmodelica.equation_side %[[x_extract]]
         // CHECK-DAG:               %[[rhs:.*]] = bmodelica.equation_side %[[y_extract]]
         // CHECK:                   bmodelica.equation_sides %[[lhs]], %[[rhs]]

@@ -310,8 +310,9 @@ def RangeSizeOp : BaseModelica_Op<"range_size", [Pure]>
 // Tensor operations
 //===---------------------------------------------------------------------===//
 
-def Modelica_TensorFromElementsOp : BaseModelica_Op<"tensor_from_elements",
-    [NoMemoryEffect]>
+def Modelica_TensorFromElementsOp : BaseModelica_Op<"tensor.from_elements", [
+        Pure
+    ]>
 {
     let arguments = (ins Variadic<AnyType>:$values);
     let results = (outs AnyTensor:$tensor);
@@ -324,12 +325,14 @@ def Modelica_TensorFromElementsOp : BaseModelica_Op<"tensor_from_elements",
     let hasFolder = 1;
 }
 
-def Modelica_TensorBroadcastOp : BaseModelica_Op<"tensor_broadcast",
-    [NoMemoryEffect]>
+def Modelica_TensorBroadcastOp : BaseModelica_Op<"tensor.broadcast", [
+        Pure
+    ]>
 {
     let arguments = (ins
         AnyType:$value,
-        Variadic<Index>:$dynamicDimensions);
+        Variadic<Index>:$dynamicDimensions
+    );
 
     let results = (outs AnyTensor:$tensor);
 
@@ -338,9 +341,10 @@ def Modelica_TensorBroadcastOp : BaseModelica_Op<"tensor_broadcast",
     }];
 }
 
-def Modelica_TensorViewOp : BaseModelica_Op<"tensor_view",
-    [ViewLikeOpInterface,
-    NoMemoryEffect]>
+def Modelica_TensorViewOp : BaseModelica_Op<"tensor.view", [
+        ViewLikeOpInterface,
+        Pure
+    ]>
 {
     let arguments = (ins
         AnyTensor:$source,
@@ -375,15 +379,17 @@ def Modelica_TensorViewOp : BaseModelica_Op<"tensor_view",
     }];
 }
 
-def Modelica_TensorExtractOp : BaseModelica_Op<"tensor_extract",
-    [TypesMatchWith<"result type matches element type of 'tensor'",
-                     "tensor", "result",
-                     "mlir::cast<mlir::TensorType>($_self).getElementType()">,
-    NoMemoryEffect]>
+def Modelica_TensorExtractOp : BaseModelica_Op<"tensor.extract", [
+        Pure,
+        TypesMatchWith<"result type matches element type of 'tensor'",
+                        "tensor", "result",
+                        "mlir::cast<mlir::TensorType>($_self).getElementType()">
+    ]>
 {
     let arguments = (ins
         AnyTensor:$tensor,
-        Variadic<Index>:$indices);
+        Variadic<Index>:$indices
+    );
 
     let results = (outs AnyType:$result);
 
@@ -398,9 +404,10 @@ def Modelica_TensorExtractOp : BaseModelica_Op<"tensor_extract",
     ];
 }
 
-def Modelica_TensorInsertOp : BaseModelica_Op<"tensor_insert",
-    [TypesMatchWith<"result type matches type of 'destination'",
-                    "destination", "result", "$_self">]>
+def Modelica_TensorInsertOp : BaseModelica_Op<"tensor.insert", [
+        TypesMatchWith<"result type matches type of 'destination'",
+                        "destination", "result", "$_self">
+    ]>
 {
     let summary = "Insert a value into a tensor.";
 
@@ -411,7 +418,8 @@ def Modelica_TensorInsertOp : BaseModelica_Op<"tensor_insert",
     let arguments = (ins
         AnyType:$value,
         AnyTensor:$destination,
-        Variadic<AnyType>:$indices);
+        Variadic<AnyType>:$indices
+    );
 
     let results = (outs AnyType:$result);
 
@@ -420,9 +428,10 @@ def Modelica_TensorInsertOp : BaseModelica_Op<"tensor_insert",
     }];
 }
 
-def Modelica_TensorInsertSliceOp : BaseModelica_Op<"tensor_insert_slice",
-    [TypesMatchWith<"result type matches type of 'destination'",
-                    "destination", "result", "$_self">]>
+def Modelica_TensorInsertSliceOp : BaseModelica_Op<"tensor.insert_slice", [
+        TypesMatchWith<"result type matches type of 'destination'",
+                        "destination", "result", "$_self">
+    ]>
 {
     let summary = "Insert a tensor into another one.";
 
@@ -433,7 +442,8 @@ def Modelica_TensorInsertSliceOp : BaseModelica_Op<"tensor_insert_slice",
     let arguments = (ins
         AnyType:$value,
         AnyTensor:$destination,
-        Variadic<AnyType>:$subscriptions);
+        Variadic<AnyType>:$subscriptions
+    );
 
     let results = (outs AnyType:$result);
 

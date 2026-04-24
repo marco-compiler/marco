@@ -7,7 +7,7 @@ bmodelica.model @Integer {
 
     // CHECK:       bmodelica.start @x {
     // CHECK-NEXT:      %[[value:.*]] = bmodelica.constant #bmodelica<int 0> : !bmodelica.int
-    // CHECK-NEXT:      %[[tensor:.*]] = bmodelica.tensor_broadcast %[[value]]
+    // CHECK-NEXT:      %[[tensor:.*]] = bmodelica.tensor.broadcast %[[value]]
     // CHECK-NEXT:      bmodelica.yield %[[tensor]]
     // CHECK-NEXT:  }
     // CHECK-SAME:  each = false

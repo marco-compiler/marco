@@ -8,7 +8,7 @@
 // CHECK-DAG:       %[[cst3:.*]] = bmodelica.constant #bmodelica<int 2>
 // CHECK-DAG:       %[[cst4:.*]] = bmodelica.constant #bmodelica<int 1>
 // CHECK-DAG:       %[[cst5:.*]] = bmodelica.constant #bmodelica<int 2>
-// CHECK-NEXT:      %[[tensor:.*]] = bmodelica.tensor_from_elements %[[cst0]], %[[cst1]], %[[cst2]], %[[cst3]], %[[cst4]], %[[cst5]] : !bmodelica.int, !bmodelica.int, !bmodelica.int, !bmodelica.int, !bmodelica.int, !bmodelica.int -> tensor<3x2x!bmodelica.real>
+// CHECK-NEXT:      %[[tensor:.*]] = bmodelica.tensor.from_elements %[[cst0]], %[[cst1]], %[[cst2]], %[[cst3]], %[[cst4]], %[[cst5]] : !bmodelica.int, !bmodelica.int, !bmodelica.int, !bmodelica.int, !bmodelica.int, !bmodelica.int -> tensor<3x2x!bmodelica.real>
 // CHECK-NEXT:      bmodelica.yield %[[tensor]]
 // CHECK-NEXT:  }
 

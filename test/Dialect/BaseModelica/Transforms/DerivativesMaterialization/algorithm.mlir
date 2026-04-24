@@ -9,7 +9,7 @@ bmodelica.model @arrayVariable {
         bmodelica.algorithm {
             %0 = bmodelica.variable.get @x : tensor<5x!bmodelica.real>
             %1 = bmodelica.constant 3 : index
-            %2 = bmodelica.tensor_extract %0[%1] : tensor<5x!bmodelica.real>
+            %2 = bmodelica.tensor.extract %0[%1] : tensor<5x!bmodelica.real>
             %3 = bmodelica.der %2 : !bmodelica.real -> !bmodelica.real
             bmodelica.variable.set @x[%1 : index], %3 : !bmodelica.real
         }
@@ -17,7 +17,7 @@ bmodelica.model @arrayVariable {
         // CHECK:       bmodelica.algorithm {
         // CHECK-DAG:       %[[index:.*]] = bmodelica.constant 3 : index
         // CHECK-DAG:       %[[der_x:.*]] = bmodelica.variable.get @der_x
-        // CHECK-NEXT:      %[[extract:.*]] = bmodelica.tensor_extract %[[der_x]][%[[index]]]
+        // CHECK-NEXT:      %[[extract:.*]] = bmodelica.tensor.extract %[[der_x]][%[[index]]]
         // CHECK-NEXT:      bmodelica.variable.set @x[%[[index]] : index], %[[extract]]
         // CHECK-NEXT:  }
     }
@@ -37,7 +37,7 @@ bmodelica.model @partialArrayVariable {
         bmodelica.algorithm {
             %0 = bmodelica.variable.get @x : tensor<5x!bmodelica.real>
             %1 = bmodelica.constant 3 : index
-            %2 = bmodelica.tensor_extract %0[%1] : tensor<5x!bmodelica.real>
+            %2 = bmodelica.tensor.extract %0[%1] : tensor<5x!bmodelica.real>
             %3 = bmodelica.der %2 : !bmodelica.real -> !bmodelica.real
             bmodelica.variable.set @x[%1 : index], %3 : !bmodelica.real
         }

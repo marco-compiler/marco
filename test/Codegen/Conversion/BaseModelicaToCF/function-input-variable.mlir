@@ -41,7 +41,7 @@ bmodelica.function @staticArray {
 
 // CHECK-LABEL: @staticArrayGet
 // CHECK-SAME:  (%[[x:.*]]: tensor<3x2x!bmodelica.int>)
-// CHECK:           %[[value:.*]] = bmodelica.tensor_extract %[[x]][%{{.*}}, %{{.*}}]
+// CHECK:           %[[value:.*]] = bmodelica.tensor.extract %[[x]][%{{.*}}, %{{.*}}]
 // CHECK-NEXT:      bmodelica.print %[[value]]
 // CHECK-NEXT:      bmodelica.raw_return
 // CHECK-NEXT:  }
@@ -52,7 +52,7 @@ bmodelica.function @staticArrayGet {
     bmodelica.algorithm {
         %0 = bmodelica.variable.get @x : tensor<3x2x!bmodelica.int>
         %1 = arith.constant 0 : index
-        %2 = bmodelica.tensor_extract %0[%1, %1] : tensor<3x2x!bmodelica.int>
+        %2 = bmodelica.tensor.extract %0[%1, %1] : tensor<3x2x!bmodelica.int>
         bmodelica.print %2 : !bmodelica.int
     }
 }
@@ -73,7 +73,7 @@ bmodelica.function @dynamicArray {
 // CHECK-LABEL: @dynamicArrayGet
 // CHECK-SAME:  (%[[x:.*]]: tensor<3x?x!bmodelica.int>)
 // CHECK-NEXT:      %[[index:.*]]= arith.constant 0 : index
-// CHECK-NEXT:      %[[value:.*]] = bmodelica.tensor_extract %[[x]][%{{.*}}, %{{.*}}]
+// CHECK-NEXT:      %[[value:.*]] = bmodelica.tensor.extract %[[x]][%{{.*}}, %{{.*}}]
 // CHECK-NEXT:      bmodelica.print %[[value]]
 // CHECK-NEXT:      bmodelica.raw_return
 // CHECK-NEXT:  }
@@ -84,7 +84,7 @@ bmodelica.function @dynamicArrayGet {
     bmodelica.algorithm {
         %0 = bmodelica.variable.get @x : tensor<3x?x!bmodelica.int>
         %1 = arith.constant 0 : index
-        %2 = bmodelica.tensor_extract %0[%1, %1] : tensor<3x?x!bmodelica.int>
+        %2 = bmodelica.tensor.extract %0[%1, %1] : tensor<3x?x!bmodelica.int>
         bmodelica.print %2 : !bmodelica.int
     }
 }

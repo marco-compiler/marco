@@ -7,7 +7,7 @@ bmodelica.model @ScalarRanges {
     
     %t0 = bmodelica.equation_template inductions = [%i0] {
         %0 = bmodelica.variable.get @x : tensor<10xf64>
-        %1 = bmodelica.tensor_extract %0[%i0] : tensor<10xf64>
+        %1 = bmodelica.tensor.extract %0[%i0] : tensor<10xf64>
         %2 = bmodelica.constant 0.0 : f64
         %3 = bmodelica.equation_side %1 : tuple<f64>
         %4 = bmodelica.equation_side %2 : tuple<f64>
@@ -32,7 +32,7 @@ bmodelica.model @NonScalarRanges {
 
     %t0 = bmodelica.equation_template inductions = [%i0] {
         %0 = bmodelica.variable.get @x : tensor<10xf64>
-        %1 = bmodelica.tensor_extract %0[%i0] : tensor<10xf64>
+        %1 = bmodelica.tensor.extract %0[%i0] : tensor<10xf64>
         %2 = bmodelica.constant 0.0 : f64
         %3 = bmodelica.equation_side %1 : tuple<f64>
         %4 = bmodelica.equation_side %2 : tuple<f64>
@@ -55,7 +55,7 @@ bmodelica.model @MixedScalarAndNonScalarRanges {
 
     %t0 = bmodelica.equation_template inductions = [%i0] {
         %0 = bmodelica.variable.get @x : tensor<10xf64>
-        %1 = bmodelica.tensor_extract %0[%i0] : tensor<10xf64>
+        %1 = bmodelica.tensor.extract %0[%i0] : tensor<10xf64>
         %2 = bmodelica.constant 0.0 : f64
         %3 = bmodelica.equation_side %1 : tuple<f64>
         %4 = bmodelica.equation_side %2 : tuple<f64>

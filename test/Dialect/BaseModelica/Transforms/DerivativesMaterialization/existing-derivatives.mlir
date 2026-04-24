@@ -44,7 +44,7 @@ bmodelica.model @Array1DNoOverlap der = [<@x, @der_x, {[0,4]}>] {
 
     %t0 = bmodelica.equation_template inductions = [%i0] {
         %0 = bmodelica.variable.get @x : tensor<10x!bmodelica.real>
-        %1 = bmodelica.tensor_extract %0[%i0] : tensor<10x!bmodelica.real>
+        %1 = bmodelica.tensor.extract %0[%i0] : tensor<10x!bmodelica.real>
         %2 = bmodelica.der %1 : !bmodelica.real -> !bmodelica.real
         %3 = bmodelica.constant #bmodelica<real 0.0>
         %4 = bmodelica.equation_side %2 : tuple<!bmodelica.real>
@@ -54,8 +54,8 @@ bmodelica.model @Array1DNoOverlap der = [<@x, @der_x, {[0,4]}>] {
 
     // CHECK:       %[[t0:.*]] = bmodelica.equation_template inductions = [%[[i0:.*]]]
     // CHECK-DAG:       %[[der_x:.*]] = bmodelica.variable.get @der_x
-    // CHECK-DAG:       %[[view:.*]] = bmodelica.tensor_view %[[der_x]][%[[i0]]]
-    // CHECK-DAG:       %[[extract:.*]] = bmodelica.tensor_extract %[[view]][]
+    // CHECK-DAG:       %[[view:.*]] = bmodelica.tensor.view %[[der_x]][%[[i0]]]
+    // CHECK-DAG:       %[[extract:.*]] = bmodelica.tensor.extract %[[view]][]
     // CHECK-DAG:       %[[lhs:.*]] = bmodelica.equation_side %[[extract]]
     // CHECK-DAG:       bmodelica.equation_sides %[[lhs]], %{{.*}}
 
@@ -77,7 +77,7 @@ bmodelica.model @Array1DPartialOverlap der = [<@x, @der_x, {[0,4]}>] {
 
     %t0 = bmodelica.equation_template inductions = [%i0] {
         %0 = bmodelica.variable.get @x : tensor<10x!bmodelica.real>
-        %1 = bmodelica.tensor_extract %0[%i0] : tensor<10x!bmodelica.real>
+        %1 = bmodelica.tensor.extract %0[%i0] : tensor<10x!bmodelica.real>
         %2 = bmodelica.der %1 : !bmodelica.real -> !bmodelica.real
         %3 = bmodelica.constant #bmodelica<real 0.0>
         %4 = bmodelica.equation_side %2 : tuple<!bmodelica.real>
@@ -87,8 +87,8 @@ bmodelica.model @Array1DPartialOverlap der = [<@x, @der_x, {[0,4]}>] {
 
     // CHECK:       %[[t0:.*]] = bmodelica.equation_template inductions = [%[[i0:.*]]]
     // CHECK-DAG:       %[[der_x:.*]] = bmodelica.variable.get @der_x
-    // CHECK-DAG:       %[[view:.*]] = bmodelica.tensor_view %[[der_x]][%[[i0]]]
-    // CHECK-DAG:       %[[extract:.*]] = bmodelica.tensor_extract %[[view]][]
+    // CHECK-DAG:       %[[view:.*]] = bmodelica.tensor.view %[[der_x]][%[[i0]]]
+    // CHECK-DAG:       %[[extract:.*]] = bmodelica.tensor.extract %[[view]][]
     // CHECK-DAG:       %[[lhs:.*]] = bmodelica.equation_side %[[extract]]
     // CHECK-DAG:       bmodelica.equation_sides %[[lhs]], %{{.*}}
 
@@ -110,7 +110,7 @@ bmodelica.model @Array2DPartialOverlap der = [<@x, @der_x, {[0,4][0,6]}>] {
 
     %t0 = bmodelica.equation_template inductions = [%i0, %i1] {
         %0 = bmodelica.variable.get @x : tensor<10x20x!bmodelica.real>
-        %1 = bmodelica.tensor_extract %0[%i0, %i1] : tensor<10x20x!bmodelica.real>
+        %1 = bmodelica.tensor.extract %0[%i0, %i1] : tensor<10x20x!bmodelica.real>
         %2 = bmodelica.der %1 : !bmodelica.real -> !bmodelica.real
         %3 = bmodelica.constant #bmodelica<real 0.0>
         %4 = bmodelica.equation_side %2 : tuple<!bmodelica.real>
@@ -120,8 +120,8 @@ bmodelica.model @Array2DPartialOverlap der = [<@x, @der_x, {[0,4][0,6]}>] {
 
     // CHECK:       %[[t0:.*]] = bmodelica.equation_template inductions = [%[[i0:.*]]]
     // CHECK-DAG:       %[[der_x:.*]] = bmodelica.variable.get @der_x
-    // CHECK-DAG:       %[[view:.*]] = bmodelica.tensor_view %[[der_x]][%[[i0]]]
-    // CHECK-DAG:       %[[extract:.*]] = bmodelica.tensor_extract %[[view]][]
+    // CHECK-DAG:       %[[view:.*]] = bmodelica.tensor.view %[[der_x]][%[[i0]]]
+    // CHECK-DAG:       %[[extract:.*]] = bmodelica.tensor.extract %[[view]][]
     // CHECK-DAG:       %[[lhs:.*]] = bmodelica.equation_side %[[extract]]
     // CHECK-DAG:       bmodelica.equation_sides %[[lhs]], %{{.*}}
 

@@ -15,8 +15,8 @@
 // CHECK-DAG:       %[[j_offset:.*]] = bmodelica.constant -1
 // CHECK-DAG:       %[[index_1:.*]] = bmodelica.add %[[j]], %[[j_offset]]
 // CHECK-DAG:       %[[x:.*]] = bmodelica.variable.get @x
-// CHECK:           %[[view:.*]] = bmodelica.tensor_view %[[x]][%[[index_0]], %[[index_1]]]
-// CHECK:           %[[extract:.*]] = bmodelica.tensor_extract %[[view]][]
+// CHECK:           %[[view:.*]] = bmodelica.tensor.view %[[x]][%[[index_0]], %[[index_1]]]
+// CHECK:           %[[extract:.*]] = bmodelica.tensor.extract %[[view]][]
 // CHECK:           bmodelica.yield %[[extract]]
 // CHECK:       } : (!bmodelica<range !bmodelica.int>, !bmodelica<range !bmodelica.int>) -> !bmodelica.real
 

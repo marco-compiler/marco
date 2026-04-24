@@ -14,9 +14,9 @@ bmodelica.model @Test {
         %0 = bmodelica.constant 1 : index
         %1 = bmodelica.sub %i0, %0 : index, index -> index
         %2 = bmodelica.variable.get @x : tensor<2x!bmodelica.int>
-        %3 = bmodelica.tensor_extract %2[%1] : tensor<2x!bmodelica.int>
+        %3 = bmodelica.tensor.extract %2[%1] : tensor<2x!bmodelica.int>
         %4 = bmodelica.variable.get @y : tensor<2x!bmodelica.int>
-        %5 = bmodelica.tensor_extract %4[%1] : tensor<2x!bmodelica.int>
+        %5 = bmodelica.tensor.extract %4[%1] : tensor<2x!bmodelica.int>
         %6 = bmodelica.equation_side %3 : tuple<!bmodelica.int>
         %7 = bmodelica.equation_side %5 : tuple<!bmodelica.int>
         bmodelica.equation_sides %6, %7 : tuple<!bmodelica.int>, tuple<!bmodelica.int>
@@ -28,7 +28,7 @@ bmodelica.model @Test {
     %t1 = bmodelica.equation_template inductions = [] attributes {id = "t1"} {
         %0 = bmodelica.variable.get @x : tensor<2x!bmodelica.int>
         %1 = bmodelica.constant 1 : index
-        %2 = bmodelica.tensor_extract %0[%1] : tensor<2x!bmodelica.int>
+        %2 = bmodelica.tensor.extract %0[%1] : tensor<2x!bmodelica.int>
         %3 = bmodelica.constant #bmodelica<int 3>
         %4 = bmodelica.equation_side %2 : tuple<!bmodelica.int>
         %5 = bmodelica.equation_side %3 : tuple<!bmodelica.int>
@@ -41,7 +41,7 @@ bmodelica.model @Test {
     %t2 = bmodelica.equation_template inductions = [] attributes {id = "t2"} {
         %0 = bmodelica.variable.get @y : tensor<2x!bmodelica.int>
         %1 = bmodelica.constant 0 : index
-        %2 = bmodelica.tensor_extract %0[%1] : tensor<2x!bmodelica.int>
+        %2 = bmodelica.tensor.extract %0[%1] : tensor<2x!bmodelica.int>
         %3 = bmodelica.constant #bmodelica<int 1>
         %4 = bmodelica.equation_side %2 : tuple<!bmodelica.int>
         %5 = bmodelica.equation_side %3 : tuple<!bmodelica.int>

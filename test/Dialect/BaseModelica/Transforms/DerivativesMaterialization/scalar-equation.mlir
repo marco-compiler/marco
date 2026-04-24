@@ -42,7 +42,7 @@ bmodelica.model @arrayVariable {
     %t0 = bmodelica.equation_template inductions = [] attributes {id = "t0"} {
         %0 = bmodelica.variable.get @x : tensor<2x!bmodelica.real>
         %1 = bmodelica.constant 0 : index
-        %2 = bmodelica.tensor_extract %0[%1] : tensor<2x!bmodelica.real>
+        %2 = bmodelica.tensor.extract %0[%1] : tensor<2x!bmodelica.real>
         %3 = bmodelica.der %2 : !bmodelica.real -> !bmodelica.real
         %4 = bmodelica.constant #bmodelica<real 0.0>
         %5 = bmodelica.equation_side %3 : tuple<!bmodelica.real>
@@ -53,15 +53,15 @@ bmodelica.model @arrayVariable {
     // CHECK:       %[[t0:.*]] = bmodelica.equation_template inductions = [] attributes {id = "t0"}
     // CHECK-DAG:       %[[der_x:.*]] = bmodelica.variable.get @der_x
     // CHECK-DAG:       %[[index:.*]] = bmodelica.constant 0 : index
-    // CHECK-DAG:       %[[der_x_view:.*]] = bmodelica.tensor_view %[[der_x]][%[[index]]]
-    // CHECK-DAG:       %[[der_x_extract:.*]] = bmodelica.tensor_extract %[[der_x_view]][]
+    // CHECK-DAG:       %[[der_x_view:.*]] = bmodelica.tensor.view %[[der_x]][%[[index]]]
+    // CHECK-DAG:       %[[der_x_extract:.*]] = bmodelica.tensor.extract %[[der_x_view]][]
     // CHECK:           %[[lhs:.*]] = bmodelica.equation_side %[[der_x_extract]]
     // CHECK:           bmodelica.equation_sides %[[lhs]], %{{.*}}
 
     %t1 = bmodelica.equation_template inductions = [] attributes {id = "eq1"} {
         %0 = bmodelica.variable.get @x : tensor<2x!bmodelica.real>
         %1 = bmodelica.constant 1 : index
-        %2 = bmodelica.tensor_extract %0[%1] : tensor<2x!bmodelica.real>
+        %2 = bmodelica.tensor.extract %0[%1] : tensor<2x!bmodelica.real>
         %3 = bmodelica.der %2 : !bmodelica.real -> !bmodelica.real
         %4 = bmodelica.constant #bmodelica<real 0.0>
         %5 = bmodelica.equation_side %3 : tuple<!bmodelica.real>
@@ -72,8 +72,8 @@ bmodelica.model @arrayVariable {
     // CHECK:       %[[t1:.*]] = bmodelica.equation_template inductions = [] attributes {id = "eq1"}
     // CHECK-DAG:       %[[der_x:.*]] = bmodelica.variable.get @der_x
     // CHECK-DAG:       %[[index:.*]] = bmodelica.constant 1 : index
-    // CHECK-DAG:       %[[der_x_view:.*]] = bmodelica.tensor_view %[[der_x]][%[[index]]]
-    // CHECK-DAG:       %[[der_x_extract:.*]] = bmodelica.tensor_extract %[[der_x_view]][]
+    // CHECK-DAG:       %[[der_x_view:.*]] = bmodelica.tensor.view %[[der_x]][%[[index]]]
+    // CHECK-DAG:       %[[der_x_extract:.*]] = bmodelica.tensor.extract %[[der_x_view]][]
     // CHECK:           %[[lhs:.*]] = bmodelica.equation_side %[[der_x_extract]]
     // CHECK:           bmodelica.equation_sides %[[lhs]], %{{.*}}
 

@@ -34,8 +34,8 @@ bmodelica.model @array3d {
         // CHECK-DAG:               %[[y:.*]] = bmodelica.variable.get @y
         // CHECK-DAG:               %[[call_foo:.*]] = bmodelica.call @foo(%[[x]])
         // CHECK-DAG:               %[[call_bar:.*]] = bmodelica.call @bar(%[[y]])
-        // CHECK-DAG:               %[[lhs_extract:.*]] = bmodelica.tensor_extract %[[call_foo]][%[[i0]], %[[i1]], %[[i2]]]
-        // CHECK-DAG:               %[[rhs_extract:.*]] = bmodelica.tensor_extract %[[call_bar]][%[[i0]], %[[i1]], %[[i2]]]
+        // CHECK-DAG:               %[[lhs_extract:.*]] = bmodelica.tensor.extract %[[call_foo]][%[[i0]], %[[i1]], %[[i2]]]
+        // CHECK-DAG:               %[[rhs_extract:.*]] = bmodelica.tensor.extract %[[call_bar]][%[[i0]], %[[i1]], %[[i2]]]
         // CHECK-DAG:               %[[lhs:.*]] = bmodelica.equation_side %[[lhs_extract]]
         // CHECK-DAG:               %[[rhs:.*]] = bmodelica.equation_side %[[rhs_extract]]
         // CHECK:                   bmodelica.equation_sides %[[lhs]], %[[rhs]]

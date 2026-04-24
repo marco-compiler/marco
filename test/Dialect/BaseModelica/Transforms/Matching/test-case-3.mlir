@@ -73,8 +73,8 @@ bmodelica.model @Test {
         %0 = bmodelica.variable.get @fl : !bmodelica.real
         %1 = bmodelica.variable.get @f : tensor<5x!bmodelica.real>
         %2 = bmodelica.variable.get @x : tensor<5x!bmodelica.real>
-        %3 = bmodelica.tensor_extract %1[%i0] : tensor<5x!bmodelica.real>
-        %4 = bmodelica.tensor_extract %2[%i0] : tensor<5x!bmodelica.real>
+        %3 = bmodelica.tensor.extract %1[%i0] : tensor<5x!bmodelica.real>
+        %4 = bmodelica.tensor.extract %2[%i0] : tensor<5x!bmodelica.real>
         %5 = bmodelica.add %0, %3 : !bmodelica.real, !bmodelica.real -> !bmodelica.real
         %6 = bmodelica.add %5, %4 : !bmodelica.real, !bmodelica.real -> !bmodelica.real
         %7 = bmodelica.constant #bmodelica<real 0.0>
@@ -90,8 +90,8 @@ bmodelica.model @Test {
         %0 = bmodelica.variable.get @fh : !bmodelica.real
         %1 = bmodelica.variable.get @f : tensor<5x!bmodelica.real>
         %2 = bmodelica.variable.get @y : tensor<5x!bmodelica.real>
-        %3 = bmodelica.tensor_extract %1[%i0] : tensor<5x!bmodelica.real>
-        %4 = bmodelica.tensor_extract %2[%i0] : tensor<5x!bmodelica.real>
+        %3 = bmodelica.tensor.extract %1[%i0] : tensor<5x!bmodelica.real>
+        %4 = bmodelica.tensor.extract %2[%i0] : tensor<5x!bmodelica.real>
         %5 = bmodelica.add %0, %3 : !bmodelica.real, !bmodelica.real -> !bmodelica.real
         %6 = bmodelica.add %5, %4 : !bmodelica.real, !bmodelica.real -> !bmodelica.real
         %7 = bmodelica.constant #bmodelica<real 0.0>
@@ -105,7 +105,7 @@ bmodelica.model @Test {
     // COM: f[i] = 0
     %t6 = bmodelica.equation_template inductions = [%i0] attributes {id = "t6"} {
         %0 = bmodelica.variable.get @f : tensor<5x!bmodelica.real>
-        %1 = bmodelica.tensor_extract %0[%i0] : tensor<5x!bmodelica.real>
+        %1 = bmodelica.tensor.extract %0[%i0] : tensor<5x!bmodelica.real>
         %2 = bmodelica.constant #bmodelica<real 0.0>
         %3 = bmodelica.equation_side %1 : tuple<!bmodelica.real>
         %4 = bmodelica.equation_side %2 : tuple<!bmodelica.real>

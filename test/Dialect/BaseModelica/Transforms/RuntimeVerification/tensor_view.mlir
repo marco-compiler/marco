@@ -13,8 +13,8 @@ func.func @constant(%arg0: tensor<?x!bmodelica.real>, %arg1: index) -> !bmodelic
     // CHECK:  %[[condition:.*]] = bmodelica.and %[[lbCondition]], %[[ubCondition]]
     // CHECK:  bmodelica.yield %[[condition]]
 
-    %0 = bmodelica.tensor_view %arg0[%arg1] : tensor<?x!bmodelica.real>, index -> tensor<!bmodelica.real>
-    %1 = bmodelica.tensor_extract %0[] : tensor<!bmodelica.real>
+    %0 = bmodelica.tensor.view %arg0[%arg1] : tensor<?x!bmodelica.real>, index -> tensor<!bmodelica.real>
+    %1 = bmodelica.tensor.extract %0[] : tensor<!bmodelica.real>
     func.return %1 : !bmodelica.real
 }
 
@@ -31,6 +31,6 @@ func.func @range(%arg0: tensor<?x!bmodelica.real>, %arg1: !bmodelica<range index
     // CHECK:       %[[condition:.*]] = bmodelica.lte %[[rangeSize]], %[[dimSize]]
     // CHECK:       bmodelica.yield %[[condition]]
 
-    %0 = bmodelica.tensor_view %arg0[%arg1] : tensor<?x!bmodelica.real>, !bmodelica<range index> -> tensor<?x!bmodelica.real>
+    %0 = bmodelica.tensor.view %arg0[%arg1] : tensor<?x!bmodelica.real>, !bmodelica<range index> -> tensor<?x!bmodelica.real>
     func.return %0 : tensor<?x!bmodelica.real>
 }

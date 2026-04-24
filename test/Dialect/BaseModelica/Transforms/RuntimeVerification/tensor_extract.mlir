@@ -22,6 +22,6 @@ func.func @Test(%arg0: tensor<?x?xf64>, %arg1: index, %arg2: index) -> f64 {
     // CHECK:  %[[condition:.*]] = bmodelica.and %[[lbCondition]], %[[ubCondition]]
     // CHECK:  bmodelica.yield %[[condition]]
     
-    %0 = bmodelica.tensor_extract %arg0[%arg1, %arg2] : tensor<?x?xf64>
+    %0 = bmodelica.tensor.extract %arg0[%arg1, %arg2] : tensor<?x?xf64>
     func.return %0 : f64
 }

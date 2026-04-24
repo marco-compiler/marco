@@ -6,6 +6,6 @@
 // CHECK: return %[[tensor]]
 
 func.func @foo(%arg0: i64) -> tensor<2x3xi64> {
-    %0 = bmodelica.tensor_broadcast %arg0 : i64 -> tensor<2x3xi64>
+    %0 = bmodelica.tensor.broadcast %arg0 : i64 -> tensor<2x3xi64>
     func.return %0 : tensor<2x3xi64>
 }

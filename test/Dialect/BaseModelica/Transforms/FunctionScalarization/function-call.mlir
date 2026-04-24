@@ -8,7 +8,7 @@
 // CHECK:       %[[dim:.*]] = arith.constant 0 : index
 // CHECK:       %[[ub:.*]] = tensor.dim %[[arg0]], %[[dim]]
 // CHECK:       affine.for %[[i:.*]] = #[[map]](%[[lb]]) to #[[map]](%[[ub]]) {
-// CHECK:           %[[extract:.*]] = bmodelica.tensor_extract %[[arg0]][%[[i]]]
+// CHECK:           %[[extract:.*]] = bmodelica.tensor.extract %[[arg0]][%[[i]]]
 // CHECK:           %[[scalarResult:.*]] = bmodelica.call @callee(%[[extract]]) : (!bmodelica.real) -> !bmodelica.real
 // CHECK:           bmodelica.store %[[result]][%[[i]]], %[[scalarResult]]
 // CHECK-NEXT:  }

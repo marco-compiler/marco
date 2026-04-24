@@ -20,13 +20,13 @@ module @SubsetRepresentative {
         // CHECK-NEXT:     %[[VAR_INDEX0:.*]] = bmodelica.add %[[IDX0]], %[[OFFSET0]]
         // CHECK-NEXT:     %[[VAR_INDEX1:.*]] = bmodelica.add %[[IDX1]], %[[OFFSET0]]
         // CHECK-NEXT:     %[[VAR_ARR:.*]] = bmodelica.variable.get @a
-        // CHECK-NEXT:     %[[VAR_REF:.*]] = bmodelica.tensor_extract %[[VAR_ARR]][%[[VAR_INDEX0]], %[[VAR_INDEX1]]]
+        // CHECK-NEXT:     %[[VAR_REF:.*]] = bmodelica.tensor.extract %[[VAR_ARR]][%[[VAR_INDEX0]], %[[VAR_INDEX1]]]
         // CHECK-NEXT:     %[[LHS:.*]] = bmodelica.equation_side %[[VAR_REF]]
 
         // CHECK-NEXT:     %[[CSE_ARR:.*]] = bmodelica.variable.get @[[CSE]]
         // CHECK-NEXT:     %[[OFFSET1:.*]] = bmodelica.constant -1
         // CHECK-NEXT:     %[[CSE_INDEX0:.*]] = bmodelica.add %[[IDX1]], %[[OFFSET1]]
-        // CHECK-NEXT:     %[[CSE_REF:.*]] = bmodelica.tensor_extract %[[CSE_ARR]][%[[CSE_INDEX0]]]
+        // CHECK-NEXT:     %[[CSE_REF:.*]] = bmodelica.tensor.extract %[[CSE_ARR]][%[[CSE_INDEX0]]]
         // CHECK-NEXT:     %[[ADD:.*]] = bmodelica.add %[[CSE_REF]], %[[IDX0]]
         // CHECK-NEXT:     %[[RHS:.*]] = bmodelica.equation_side %[[ADD]]
 
@@ -36,7 +36,7 @@ module @SubsetRepresentative {
             %5 = bmodelica.add %arg0, %4 : index, index -> index
             %6 = bmodelica.add %arg1, %4 : index, index -> index
             %7 = bmodelica.variable.get @a : tensor<4x5xi32>
-            %8 = bmodelica.tensor_extract %7[%5, %6] : tensor<4x5xi32>
+            %8 = bmodelica.tensor.extract %7[%5, %6] : tensor<4x5xi32>
             %9 = bmodelica.equation_side %8 : tuple<i32>
 
             %10 = bmodelica.call @f(%arg1) : (index) -> i32
@@ -51,13 +51,13 @@ module @SubsetRepresentative {
         // CHECK-NEXT:     %[[VAR_INDEX0:.*]] = bmodelica.add %[[IDX0]], %[[OFFSET0]]
         // CHECK-NEXT:     %[[VAR_INDEX1:.*]] = bmodelica.add %[[IDX1]], %[[OFFSET0]]
         // CHECK-NEXT:     %[[VAR_ARR:.*]] = bmodelica.variable.get @b
-        // CHECK-NEXT:     %[[VAR_REF:.*]] = bmodelica.tensor_extract %[[VAR_ARR]][%[[VAR_INDEX0]], %[[VAR_INDEX1]]]
+        // CHECK-NEXT:     %[[VAR_REF:.*]] = bmodelica.tensor.extract %[[VAR_ARR]][%[[VAR_INDEX0]], %[[VAR_INDEX1]]]
         // CHECK-NEXT:     %[[LHS:.*]] = bmodelica.equation_side %[[VAR_REF]]
 
         // CHECK-NEXT:     %[[CSE_ARR:.*]] = bmodelica.variable.get @[[CSE]]
         // CHECK-NEXT:     %[[OFFSET1:.*]] = bmodelica.constant -1
         // CHECK-NEXT:     %[[CSE_INDEX0:.*]] = bmodelica.add %[[IDX1]], %[[OFFSET1]]
-        // CHECK-NEXT:     %[[CSE_REF:.*]] = bmodelica.tensor_extract %[[CSE_ARR]][%[[CSE_INDEX0]]]
+        // CHECK-NEXT:     %[[CSE_REF:.*]] = bmodelica.tensor.extract %[[CSE_ARR]][%[[CSE_INDEX0]]]
         // CHECK-NEXT:     %[[ADD:.*]] = bmodelica.add %[[CSE_REF]], %[[IDX0]]
         // CHECK-NEXT:     %[[RHS:.*]] = bmodelica.equation_side %[[ADD]]
 
@@ -67,7 +67,7 @@ module @SubsetRepresentative {
             %5 = bmodelica.add %arg0, %4 : index, index -> index
             %6 = bmodelica.add %arg1, %4 : index, index -> index
             %7 = bmodelica.variable.get @b : tensor<4x5xi32>
-            %8 = bmodelica.tensor_extract %7[%5, %6] : tensor<4x5xi32>
+            %8 = bmodelica.tensor.extract %7[%5, %6] : tensor<4x5xi32>
             %9 = bmodelica.equation_side %8 : tuple<i32>
 
             %10 = bmodelica.call @f(%arg1) : (index) -> i32
@@ -86,7 +86,7 @@ module @SubsetRepresentative {
         // CHECK-NEXT:     %[[CSE_ARR:.*]] = bmodelica.variable.get @[[CSE]]
         // CHECK-NEXT:     %[[OFFSET:.*]] = bmodelica.constant -1
         // CHECK-NEXT:     %[[CSE_INDEX:.*]] = bmodelica.add %[[IDX0]], %[[OFFSET]]
-        // CHECK-NEXT:     %[[CSE_REF:.*]] = bmodelica.tensor_extract %[[CSE_ARR]][%[[CSE_INDEX]]]
+        // CHECK-NEXT:     %[[CSE_REF:.*]] = bmodelica.tensor.extract %[[CSE_ARR]][%[[CSE_INDEX]]]
         // CHECK-NEXT:     %[[LHS:.*]] = bmodelica.equation_side %[[CSE_REF]]
 
         // CHECK-NEXT:     %[[CALL_RES:.*]] = bmodelica.call @f(%[[IDX0]])
@@ -122,7 +122,7 @@ module @InvertedEqualInductionRanges {
         // CHECK-NEXT:     %[[VAR_INDEX0:.*]] = bmodelica.add %[[IDX0]], %[[OFFSET0]]
         // CHECK-NEXT:     %[[VAR_INDEX1:.*]] = bmodelica.add %[[IDX1]], %[[OFFSET0]]
         // CHECK-NEXT:     %[[VAR_ARR:.*]] = bmodelica.variable.get @a
-        // CHECK-NEXT:     %[[VAR_REF:.*]] = bmodelica.tensor_extract %[[VAR_ARR]][%[[VAR_INDEX0]], %[[VAR_INDEX1]]]
+        // CHECK-NEXT:     %[[VAR_REF:.*]] = bmodelica.tensor.extract %[[VAR_ARR]][%[[VAR_INDEX0]], %[[VAR_INDEX1]]]
         // CHECK-NEXT:     %[[LHS:.*]] = bmodelica.equation_side %[[VAR_REF]]
 
         // CHECK-NEXT:     %[[CSE_ARR:.*]] = bmodelica.variable.get @[[CSE]]
@@ -130,7 +130,7 @@ module @InvertedEqualInductionRanges {
         // CHECK-NEXT:     %[[CSE_INDEX0:.*]] = bmodelica.add %[[IDX0]], %[[CSE_OFFSET0]]
         // CHECK-NEXT:     %[[CSE_OFFSET1:.*]] = bmodelica.constant -1
         // CHECK-NEXT:     %[[CSE_INDEX1:.*]] = bmodelica.add %[[IDX1]], %[[CSE_OFFSET1]]
-        // CHECK-NEXT:     %[[CSE_REF:.*]] = bmodelica.tensor_extract %[[CSE_ARR]][%[[CSE_INDEX0]], %[[CSE_INDEX1]]]
+        // CHECK-NEXT:     %[[CSE_REF:.*]] = bmodelica.tensor.extract %[[CSE_ARR]][%[[CSE_INDEX0]], %[[CSE_INDEX1]]]
         // CHECK-NEXT:     %[[RHS:.*]] = bmodelica.equation_side %[[CSE_REF]]
 
         // CHECK-NEXT:     bmodelica.equation_sides %[[LHS]], %[[RHS]]
@@ -139,7 +139,7 @@ module @InvertedEqualInductionRanges {
             %5 = bmodelica.add %arg0, %4 : index, index -> index
             %6 = bmodelica.add %arg1, %4 : index, index -> index
             %7 = bmodelica.variable.get @a : tensor<5x5xi32>
-            %8 = bmodelica.tensor_extract %7[%5, %6] : tensor<5x5xi32>
+            %8 = bmodelica.tensor.extract %7[%5, %6] : tensor<5x5xi32>
             %9 = bmodelica.equation_side %8 : tuple<i32>
 
             %10 = bmodelica.call @f(%arg0, %arg1) : (index, index) -> i32
@@ -153,7 +153,7 @@ module @InvertedEqualInductionRanges {
         // CHECK-NEXT:     %[[VAR_INDEX0:.*]] = bmodelica.add %[[IDX0]], %[[OFFSET0]]
         // CHECK-NEXT:     %[[VAR_INDEX1:.*]] = bmodelica.add %[[IDX1]], %[[OFFSET0]]
         // CHECK-NEXT:     %[[VAR_ARR:.*]] = bmodelica.variable.get @b
-        // CHECK-NEXT:     %[[VAR_REF:.*]] = bmodelica.tensor_extract %[[VAR_ARR]][%[[VAR_INDEX0]], %[[VAR_INDEX1]]]
+        // CHECK-NEXT:     %[[VAR_REF:.*]] = bmodelica.tensor.extract %[[VAR_ARR]][%[[VAR_INDEX0]], %[[VAR_INDEX1]]]
         // CHECK-NEXT:     %[[LHS:.*]] = bmodelica.equation_side %[[VAR_REF]]
 
         // CHECK-NEXT:     %[[CSE_ARR:.*]] = bmodelica.variable.get @[[CSE]]
@@ -162,7 +162,7 @@ module @InvertedEqualInductionRanges {
         // CHECK-NEXT:     %[[CSE_INDEX1:.*]] = bmodelica.add %[[IDX1]], %[[CSE_OFFSET0]]
         // CHECK-NEXT:     %[[CSE_OFFSET1:.*]] = bmodelica.constant -1
         // CHECK-NEXT:     %[[CSE_INDEX0:.*]] = bmodelica.add %[[IDX0]], %[[CSE_OFFSET1]]
-        // CHECK-NEXT:     %[[CSE_REF:.*]] = bmodelica.tensor_extract %[[CSE_ARR]][%[[CSE_INDEX1]], %[[CSE_INDEX0]]]
+        // CHECK-NEXT:     %[[CSE_REF:.*]] = bmodelica.tensor.extract %[[CSE_ARR]][%[[CSE_INDEX1]], %[[CSE_INDEX0]]]
         // CHECK-NEXT:     %[[RHS:.*]] = bmodelica.equation_side %[[CSE_REF]]
 
         // CHECK-NEXT:     bmodelica.equation_sides %[[LHS]], %[[RHS]]
@@ -171,7 +171,7 @@ module @InvertedEqualInductionRanges {
             %5 = bmodelica.add %arg0, %4 : index, index -> index
             %6 = bmodelica.add %arg1, %4 : index, index -> index
             %7 = bmodelica.variable.get @b : tensor<5x5xi32>
-            %8 = bmodelica.tensor_extract %7[%5, %6] : tensor<5x5xi32>
+            %8 = bmodelica.tensor.extract %7[%5, %6] : tensor<5x5xi32>
             %9 = bmodelica.equation_side %8 : tuple<i32>
 
             %10 = bmodelica.call @f(%arg1, %arg0) : (index, index) -> i32
@@ -191,7 +191,7 @@ module @InvertedEqualInductionRanges {
         // CHECK-NEXT:     %[[CSE_INDEX0:.*]] = bmodelica.add %[[IDX0]], %[[CSE_OFFSET0]]
         // CHECK-NEXT:     %[[CSE_OFFSET1:.*]] = bmodelica.constant -1
         // CHECK-NEXT:     %[[CSE_INDEX1:.*]] = bmodelica.add %[[IDX1]], %[[CSE_OFFSET1]]
-        // CHECK-NEXT:     %[[CSE_REF:.*]] = bmodelica.tensor_extract %[[CSE_ARR]][%[[CSE_INDEX0]], %[[CSE_INDEX1]]]
+        // CHECK-NEXT:     %[[CSE_REF:.*]] = bmodelica.tensor.extract %[[CSE_ARR]][%[[CSE_INDEX0]], %[[CSE_INDEX1]]]
         // CHECK-NEXT:     %[[LHS:.*]] = bmodelica.equation_side %[[CSE_REF]]
 
         // CHECK-NEXT:     %[[CALL_RES:.*]] = bmodelica.call @f(%[[IDX0]], %[[IDX1]])
@@ -228,7 +228,7 @@ module @InductionRangeOffset {
         // CHECK-NEXT:     %[[OFFSET1:.*]] = bmodelica.constant -3
         // CHECK-NEXT:     %[[VAR_INDEX1:.*]] = bmodelica.add %[[IDX1]], %[[OFFSET1]]
         // CHECK-NEXT:     %[[VAR_ARR:.*]] = bmodelica.variable.get @a
-        // CHECK-NEXT:     %[[VAR_REF:.*]] = bmodelica.tensor_extract %[[VAR_ARR]][%[[VAR_INDEX0]], %[[VAR_INDEX1]]]
+        // CHECK-NEXT:     %[[VAR_REF:.*]] = bmodelica.tensor.extract %[[VAR_ARR]][%[[VAR_INDEX0]], %[[VAR_INDEX1]]]
         // CHECK-NEXT:     %[[LHS:.*]] = bmodelica.equation_side %[[VAR_REF]]
 
         // CHECK-NEXT:     %[[CSE_ARR:.*]] = bmodelica.variable.get @[[CSE]]
@@ -236,7 +236,7 @@ module @InductionRangeOffset {
         // CHECK-NEXT:     %[[CSE_INDEX0:.*]] = bmodelica.add %[[IDX0]], %[[CSE_OFFSET0]]
         // CHECK-NEXT:     %[[CSE_OFFSET1:.*]] = bmodelica.constant -3
         // CHECK-NEXT:     %[[CSE_INDEX1:.*]] = bmodelica.add %[[IDX1]], %[[CSE_OFFSET1]]
-        // CHECK-NEXT:     %[[CSE_REF:.*]] = bmodelica.tensor_extract %[[CSE_ARR]][%[[CSE_INDEX0]], %[[CSE_INDEX1]]]
+        // CHECK-NEXT:     %[[CSE_REF:.*]] = bmodelica.tensor.extract %[[CSE_ARR]][%[[CSE_INDEX0]], %[[CSE_INDEX1]]]
         // CHECK-NEXT:     %[[RHS:.*]] = bmodelica.equation_side %[[CSE_REF]]
 
         // CHECK-NEXT:     bmodelica.equation_sides %[[LHS]], %[[RHS]]
@@ -246,7 +246,7 @@ module @InductionRangeOffset {
             %offset1 = bmodelica.constant -3 : index
             %index1 = bmodelica.add %arg1, %offset1 : index, index -> index
             %7 = bmodelica.variable.get @a : tensor<5x6xi32>
-            %8 = bmodelica.tensor_extract %7[%index0, %index1] : tensor<5x6xi32>
+            %8 = bmodelica.tensor.extract %7[%index0, %index1] : tensor<5x6xi32>
             %9 = bmodelica.equation_side %8 : tuple<i32>
 
             %10 = bmodelica.call @f(%arg0, %arg1) : (index, index) -> i32
@@ -261,7 +261,7 @@ module @InductionRangeOffset {
         // CHECK-NEXT:     %[[OFFSET1:.*]] = bmodelica.constant 2
         // CHECK-NEXT:     %[[VAR_INDEX1:.*]] = bmodelica.add %[[IDX1]], %[[OFFSET1]]
         // CHECK-NEXT:     %[[VAR_ARR:.*]] = bmodelica.variable.get @b
-        // CHECK-NEXT:     %[[VAR_REF:.*]] = bmodelica.tensor_extract %[[VAR_ARR]][%[[VAR_INDEX0]], %[[VAR_INDEX1]]]
+        // CHECK-NEXT:     %[[VAR_REF:.*]] = bmodelica.tensor.extract %[[VAR_ARR]][%[[VAR_INDEX0]], %[[VAR_INDEX1]]]
         // CHECK-NEXT:     %[[LHS:.*]] = bmodelica.equation_side %[[VAR_REF]]
 
         // CHECK-NEXT:     %[[CSE_ARR:.*]] = bmodelica.variable.get @[[CSE]]
@@ -269,7 +269,7 @@ module @InductionRangeOffset {
         // CHECK-NEXT:     %[[CSE_INDEX0:.*]] = bmodelica.add %[[IDX1]], %[[CSE_OFFSET0]]
         // CHECK-NEXT:     %[[CSE_OFFSET1:.*]] = bmodelica.constant -3
         // CHECK-NEXT:     %[[CSE_INDEX1:.*]] = bmodelica.add %[[IDX0]], %[[CSE_OFFSET1]]
-        // CHECK-NEXT:     %[[CSE_REF:.*]] = bmodelica.tensor_extract %[[CSE_ARR]][%[[CSE_INDEX0]], %[[CSE_INDEX1]]]
+        // CHECK-NEXT:     %[[CSE_REF:.*]] = bmodelica.tensor.extract %[[CSE_ARR]][%[[CSE_INDEX0]], %[[CSE_INDEX1]]]
         // CHECK-NEXT:     %[[RHS:.*]] = bmodelica.equation_side %[[CSE_REF]]
 
         // CHECK-NEXT:     bmodelica.equation_sides %[[LHS]], %[[RHS]]
@@ -279,7 +279,7 @@ module @InductionRangeOffset {
             %offset1 = bmodelica.constant 2 : index
             %index1 = bmodelica.add %arg1, %offset1 : index, index -> index
             %7 = bmodelica.variable.get @b : tensor<6x5xi32>
-            %8 = bmodelica.tensor_extract %7[%index0, %index1] : tensor<6x5xi32>
+            %8 = bmodelica.tensor.extract %7[%index0, %index1] : tensor<6x5xi32>
             %9 = bmodelica.equation_side %8 : tuple<i32>
 
             %10 = bmodelica.call @f(%arg1, %arg0) : (index, index) -> i32
@@ -299,7 +299,7 @@ module @InductionRangeOffset {
         // CHECK-NEXT:     %[[CSE_INDEX0:.*]] = bmodelica.add %[[IDX0]], %[[OFFSET0]]
         // CHECK-NEXT:     %[[OFFSET1:.*]] = bmodelica.constant -3
         // CHECK-NEXT:     %[[CSE_INDEX1:.*]] = bmodelica.add %[[IDX1]], %[[OFFSET1]]
-        // CHECK-NEXT:     %[[CSE_REF:.*]] = bmodelica.tensor_extract %[[CSE_ARR]][%[[CSE_INDEX0]], %[[CSE_INDEX1]]]
+        // CHECK-NEXT:     %[[CSE_REF:.*]] = bmodelica.tensor.extract %[[CSE_ARR]][%[[CSE_INDEX0]], %[[CSE_INDEX1]]]
         // CHECK-NEXT:     %[[LHS:.*]] = bmodelica.equation_side %[[CSE_REF]]
 
         // CHECK-NEXT:     %[[CALL_RES:.*]] = bmodelica.call @f(%[[IDX0]], %[[IDX1]])

@@ -13,7 +13,7 @@ func.func @add1D(%tensor: tensor<6x!bmodelica.real>) -> !bmodelica.real {
     %range = bmodelica.range %begin, %end, %step : index, index, index -> !bmodelica<range index>
 
     %result = bmodelica.reduction "add", iterables = [%range], inductions = [%i0: index] {
-        %element = bmodelica.tensor_extract %tensor[%i0] : tensor<6x!bmodelica.real>
+        %element = bmodelica.tensor.extract %tensor[%i0] : tensor<6x!bmodelica.real>
         bmodelica.yield %element : !bmodelica.real
     } : (!bmodelica<range index>) -> !bmodelica.real
 
@@ -26,7 +26,7 @@ func.func @add1D(%tensor: tensor<6x!bmodelica.real>) -> !bmodelica.real {
 // CHECK-SAME: (%{{.*}}: index, %{{.*}}: index, %{{.*}}: index, %{{.*}}: index, %{{.*}}: index, %{{.*}}: index, %[[tensor:.*]]: tensor<2x3x!bmodelica.real>)
 // CHECK:       %[[init:.*]] = arith.constant 0.000000e+00 : f64
 // CHECK:       %[[result:.*]] = scf.parallel (%[[i0:.*]], %[[i1:.*]]) = (%{{.*}}, %{{.*}}) to (%{{.*}}, %{{.*}}) step (%{{.*}}, %{{.*}}) init (%[[init]]) -> f64 {
-// CHECK:           %[[extract:.*]] = bmodelica.tensor_extract %[[tensor]][%[[i0]], %[[i1]]]
+// CHECK:           %[[extract:.*]] = bmodelica.tensor.extract %[[tensor]][%[[i0]], %[[i1]]]
 // CHECK:           %[[extract_casted:.*]] = builtin.unrealized_conversion_cast %[[extract]] : !bmodelica.real to f64
 // CHECK:           scf.reduce(%[[extract_casted]] : f64) {
 // CHECK:           ^{{.*}}(%[[first:.*]]: f64, %[[second:.*]]: f64):
@@ -42,7 +42,7 @@ func.func @add2D(%begin0: index, %end0: index, %step0: index,
     %1 = bmodelica.range %begin1, %end1, %step1 : index, index, index -> !bmodelica<range index>
 
     %3 = bmodelica.reduction "add", iterables = [%0, %1], inductions = [%i0: index, %i1: index] {
-        %5 = bmodelica.tensor_extract %tensor[%i0, %i1] : tensor<2x3x!bmodelica.real>
+        %5 = bmodelica.tensor.extract %tensor[%i0, %i1] : tensor<2x3x!bmodelica.real>
         bmodelica.yield %5 : !bmodelica.real
     } : (!bmodelica<range index>, !bmodelica<range index>) -> !bmodelica.real
 
@@ -55,7 +55,7 @@ func.func @add2D(%begin0: index, %end0: index, %step0: index,
 // CHECK-SAME:  (%{{.*}}: index, %{{.*}}: index, %{{.*}}: index, %{{.*}}: index, %{{.*}}: index, %{{.*}}: index, %[[tensor:.*]]: tensor<2x3x!bmodelica.real>)
 // CHECK:       %[[init:.*]] = arith.constant 1.000000e+00 : f64
 // CHECK:       %[[result:.*]] = scf.parallel (%[[i0:.*]], %[[i1:.*]]) = (%{{.*}}, %{{.*}}) to (%{{.*}}, %{{.*}}) step (%{{.*}}, %{{.*}}) init (%[[init]]) -> f64 {
-// CHECK:           %[[extract:.*]] = bmodelica.tensor_extract %[[tensor]][%[[i0]], %[[i1]]]
+// CHECK:           %[[extract:.*]] = bmodelica.tensor.extract %[[tensor]][%[[i0]], %[[i1]]]
 // CHECK:           %[[extract_casted:.*]] = builtin.unrealized_conversion_cast %[[extract]] : !bmodelica.real to f64
 // CHECK:           scf.reduce(%[[extract_casted]] : f64) {
 // CHECK:           ^{{.*}}(%[[first:.*]]: f64, %[[second:.*]]: f64):
@@ -71,7 +71,7 @@ func.func @mul(%begin0: index, %end0: index, %step0: index,
     %1 = bmodelica.range %begin1, %end1, %step1 : index, index, index -> !bmodelica<range index>
 
     %3 = bmodelica.reduction "mul", iterables = [%0, %1], inductions = [%i0: index, %i1: index] {
-        %5 = bmodelica.tensor_extract %tensor[%i0, %i1] : tensor<2x3x!bmodelica.real>
+        %5 = bmodelica.tensor.extract %tensor[%i0, %i1] : tensor<2x3x!bmodelica.real>
         bmodelica.yield %5 : !bmodelica.real
     } : (!bmodelica<range index>, !bmodelica<range index>) -> !bmodelica.real
 

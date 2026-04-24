@@ -6,7 +6,7 @@
 // CHECK: return %[[slice]]
 
 func.func @scalarSubscripts(%arg0: tensor<4x3x2xi64>, %arg1: index) -> tensor<3x2xi64> {
-    %0 = bmodelica.tensor_view %arg0[%arg1] : tensor<4x3x2xi64>, index -> tensor<3x2xi64>
+    %0 = bmodelica.tensor.view %arg0[%arg1] : tensor<4x3x2xi64>, index -> tensor<3x2xi64>
     func.return %0 : tensor<3x2xi64>
 }
 
@@ -21,6 +21,6 @@ func.func @scalarSubscripts(%arg0: tensor<4x3x2xi64>, %arg1: index) -> tensor<3x
 // CHECK: return %[[slice]]
 
 func.func @rangeSubscripts(%arg0: tensor<4x3x2xi64>, %arg1: !bmodelica<range index>) -> tensor<?x3x2xi64> {
-    %0 = bmodelica.tensor_view %arg0[%arg1] : tensor<4x3x2xi64>, !bmodelica<range index> -> tensor<?x3x2xi64>
+    %0 = bmodelica.tensor.view %arg0[%arg1] : tensor<4x3x2xi64>, !bmodelica<range index> -> tensor<?x3x2xi64>
     func.return %0 : tensor<?x3x2xi64>
 }
