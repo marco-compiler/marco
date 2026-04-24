@@ -1,7 +1,7 @@
-// RUN: modelica-opt %s --split-input-file --convert-runtime-model-metadata | FileCheck %s --check-prefix="CHECK-VAR-UNKNOWN"
-// RUN: modelica-opt %s --split-input-file --convert-runtime-model-metadata | FileCheck %s --check-prefix="CHECK-VAR-0"
-// RUN: modelica-opt %s --split-input-file --convert-runtime-model-metadata | FileCheck %s --check-prefix="CHECK-VAR-1"
-// RUN: modelica-opt %s --split-input-file --convert-runtime-model-metadata | FileCheck %s --check-prefix="CHECK-VAR-2"
+// RUN: marco-opt %s --split-input-file --convert-runtime-model-metadata | FileCheck %s --check-prefix="CHECK-VAR-UNKNOWN"
+// RUN: marco-opt %s --split-input-file --convert-runtime-model-metadata | FileCheck %s --check-prefix="CHECK-VAR-0"
+// RUN: marco-opt %s --split-input-file --convert-runtime-model-metadata | FileCheck %s --check-prefix="CHECK-VAR-1"
+// RUN: marco-opt %s --split-input-file --convert-runtime-model-metadata | FileCheck %s --check-prefix="CHECK-VAR-2"
 
 // CHECK-VAR-UNKNOWN-LABEL: @getVariableRank
 // CHECK-VAR-UNKNOWN-SAME:  (%[[varNumber:.*]]: i64) -> i64

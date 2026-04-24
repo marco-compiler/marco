@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --ida | FileCheck %s
+// RUN: marco-opt %s --split-input-file --ida | FileCheck %s
 
 // CHECK:       runtime.function @updateNonIDAVariables() {
 // CHECK-NEXT:      runtime.return

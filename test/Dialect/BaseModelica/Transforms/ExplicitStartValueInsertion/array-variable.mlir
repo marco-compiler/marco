@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --insert-missing-start-values | FileCheck %s
+// RUN: marco-opt %s --split-input-file --insert-missing-start-values | FileCheck %s
 
 // CHECK-LABEL: @Integer
 

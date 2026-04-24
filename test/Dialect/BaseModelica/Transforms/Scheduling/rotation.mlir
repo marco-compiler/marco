@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --schedule | FileCheck %s
+// RUN: marco-opt %s --split-input-file --schedule | FileCheck %s
 
 // COM: for i in 1:9 loop
 // COM:   for j in 1:9 loop

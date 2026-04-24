@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --convert-runtime-to-llvm | FileCheck %s
+// RUN: marco-opt %s --split-input-file --convert-runtime-to-llvm | FileCheck %s
 
 // CHECK: llvm.func @foo()
 

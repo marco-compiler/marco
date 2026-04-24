@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --single-valued-induction-elimination | FileCheck %s
+// RUN: marco-opt %s --split-input-file --single-valued-induction-elimination | FileCheck %s
 
 // CHECk-LABEL: @UniqueInstance
 

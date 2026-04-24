@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --inlining-attr-insertion | FileCheck %s
+// RUN: marco-opt %s --split-input-file --inlining-attr-insertion | FileCheck %s
 
 // CHECK-LABEL: @inlineTrue
 // CHECK: bmodelica.call @inlineTrue() {inline_hint} : () -> ()

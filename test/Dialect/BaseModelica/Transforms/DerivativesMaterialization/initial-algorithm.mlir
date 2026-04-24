@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --derivatives-materialization --canonicalize | FileCheck %s
+// RUN: marco-opt %s --split-input-file --derivatives-materialization --canonicalize | FileCheck %s
 
 // CHECK-LABEL: @arrayVariable
 

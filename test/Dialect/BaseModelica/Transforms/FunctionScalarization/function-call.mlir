@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --scalarize | FileCheck %s
+// RUN: marco-opt %s --scalarize | FileCheck %s
 
 // CHECK: #[[map:.*]] = affine_map<(d0) -> (d0)>
 // CHECK-LABEL: @caller

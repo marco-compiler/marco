@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --heap-functions-replacement | FileCheck %s
+// RUN: marco-opt %s --split-input-file --heap-functions-replacement | FileCheck %s
 
 // CHECK-DAG: llvm.func @marco_free(!llvm.ptr)
 // CHECK-DAG: llvm.call @marco_free

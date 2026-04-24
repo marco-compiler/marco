@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file | FileCheck %s
+// RUN: marco-opt %s --split-input-file | FileCheck %s
 
 // CHECK-LABEL: @Scalars
 // CHECK-SAME: (%[[arg0:.*]]: !bmodelica.real, %[[arg1:.*]]: !bmodelica.real)

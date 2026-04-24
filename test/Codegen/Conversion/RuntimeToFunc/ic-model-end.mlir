@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --convert-runtime-to-func | FileCheck %s
+// RUN: marco-opt %s --split-input-file --convert-runtime-to-func | FileCheck %s
 
 // CHECK:       func.func @icModelEnd() {
 // CHECK-NEXT:      call @foo() : () -> ()

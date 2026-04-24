@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file | FileCheck %s
+// RUN: marco-opt %s --split-input-file | FileCheck %s
 
 // CHECK-LABEL: @StaticDimensions
 // CHECK-SAME: (%[[arg0:.*]]: tensor<4x4x!bmodelica.real>)

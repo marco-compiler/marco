@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --aggressive-licm | FileCheck %s
+// RUN: marco-opt %s --split-input-file --aggressive-licm | FileCheck %s
 
 // CHECK-LABEL: @AllocationInsideInnermostLoop
 // CHECK-DAG:   %[[alloca:.*]] = memref.alloca

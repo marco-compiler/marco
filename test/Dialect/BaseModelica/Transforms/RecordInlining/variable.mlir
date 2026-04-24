@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --inline-records | FileCheck %s
+// RUN: marco-opt %s --split-input-file --inline-records | FileCheck %s
 
 // CHECK-LABEL: @recordOfScalars
 

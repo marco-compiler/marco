@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --test-equation-explicitation --canonicalize | FileCheck %s
+// RUN: marco-opt %s --split-input-file --test-equation-explicitation --canonicalize | FileCheck %s
 
 // First operand.
 

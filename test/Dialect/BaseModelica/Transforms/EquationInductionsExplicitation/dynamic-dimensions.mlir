@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --explicitate-equation-inductions | FileCheck %s
+// RUN: marco-opt %s --split-input-file --explicitate-equation-inductions | FileCheck %s
 
 bmodelica.function @foo {
     bmodelica.variable @in : !bmodelica.variable<3x4x5x!bmodelica.int, input>

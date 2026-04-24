@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --split-overlapping-accesses --canonicalize | FileCheck %s
+// RUN: marco-opt %s --split-input-file --split-overlapping-accesses --canonicalize | FileCheck %s
 
 // CHECK-LABEL: @Backward
 

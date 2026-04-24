@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --generate-runtime-verification | FileCheck %s
+// RUN: marco-opt %s --split-input-file --generate-runtime-verification | FileCheck %s
 
 // CHECK-LABEL: @Test
 // CHECK-SAME: (%{{.*}}: !bmodelica.array<?x?x?xf64>, %[[arg1:.*]]: index)

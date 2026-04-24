@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --convert-bmodelica-to-runtime-call | FileCheck %s
+// RUN: marco-opt %s --split-input-file --convert-bmodelica-to-runtime-call | FileCheck %s
 
 // CHECK: runtime.function private @_Mproduct_i64_ai64(tensor<*xi64>) -> i64
 

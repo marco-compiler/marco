@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --pantelides | FileCheck %s
+// RUN: marco-opt %s --split-input-file --pantelides | FileCheck %s
 
 module {
   bmodelica.model @Pendulum der = [<@x, @der_x>, <@y, @der_y>, <@u, @der_u>, <@v, @der_v>] {

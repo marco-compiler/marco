@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --convert-bmodelica-to-tensor | FileCheck %s
+// RUN: marco-opt %s --split-input-file --convert-bmodelica-to-tensor | FileCheck %s
 
 // CHECK-LABEL: @foo
 // CHECK-SAME: (%[[arg0:.*]]: i64) -> tensor<2x3xi64>

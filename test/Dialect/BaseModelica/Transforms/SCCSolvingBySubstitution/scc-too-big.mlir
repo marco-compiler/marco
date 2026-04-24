@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --scc-solving-substitution="max-equations-in-scc=3" | FileCheck %s
+// RUN: marco-opt %s --split-input-file --scc-solving-substitution="max-equations-in-scc=3" | FileCheck %s
 
 // CHECK-DAG: %[[t0:.*]] = bmodelica.equation_template inductions = [] attributes {id = "t0"}
 // CHECK-DAG: %[[t1:.*]] = bmodelica.equation_template inductions = [] attributes {id = "t1"}

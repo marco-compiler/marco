@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --one-shot-bufferize | FileCheck %s
+// RUN: marco-opt %s --split-input-file --one-shot-bufferize | FileCheck %s
 
 // CHECK-LABEL: @staticTensorArg
 

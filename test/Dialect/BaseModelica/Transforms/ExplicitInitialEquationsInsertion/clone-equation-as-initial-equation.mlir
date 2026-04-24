@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --insert-explicit-initial-equations | FileCheck %s
+// RUN: marco-opt %s --split-input-file --insert-explicit-initial-equations | FileCheck %s
 
 // CHECK-LABEL: @scalarVariable
 

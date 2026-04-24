@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --schedule-parallelization | FileCheck %s
+// RUN: marco-opt %s --split-input-file --schedule-parallelization | FileCheck %s
 
 module {
     bmodelica.model @Test {

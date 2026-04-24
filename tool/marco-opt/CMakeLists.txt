@@ -1,7 +1,7 @@
 set(SOURCES
-    modelica-opt.cpp)
+    marco-opt.cpp)
 
-marco_add_tool(modelica-opt ${SOURCES})
+marco_add_tool(marco-opt ${SOURCES})
 
 get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
 get_property(extension_libs GLOBAL PROPERTY MLIR_EXTENSION_LIBS)
@@ -18,5 +18,5 @@ set(LIBS
     MLIRRegisterAllPasses
     MLIRToLLVMIRTranslationRegistration)
 
-target_link_libraries(modelica-opt PRIVATE ${LIBS})
-mlir_check_all_link_libraries(modelica-opt)
+target_link_libraries(marco-opt PRIVATE ${LIBS})
+mlir_check_all_link_libraries(marco-opt)

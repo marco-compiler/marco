@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --infer-range-boundaries | FileCheck %s
+// RUN: marco-opt %s --split-input-file --infer-range-boundaries | FileCheck %s
 
 // CHECK-LABEL: @foo
 // CHECK-SAME: (%[[source:.*]]: tensor<6x5x4x3x2x!bmodelica.int>)

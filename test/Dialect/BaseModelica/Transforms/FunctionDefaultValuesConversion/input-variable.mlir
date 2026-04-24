@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --function-default-values-conversion | FileCheck %s
+// RUN: marco-opt %s --split-input-file --function-default-values-conversion | FileCheck %s
 
 bmodelica.function @foo {
     bmodelica.variable @x : !bmodelica.variable<!bmodelica.int, input>

@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --convert-bmodelica-to-linalg --cse | FileCheck %s
+// RUN: marco-opt %s --split-input-file --convert-bmodelica-to-linalg --cse | FileCheck %s
 
 // CHECK-LABEL: @matrixBase
 // CHECK-SAME:  (%[[arg0:.*]]: tensor<3x3xf64>, %[[arg1:.*]]: index) -> tensor<3x3xf64>

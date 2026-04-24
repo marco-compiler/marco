@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --schedulers-instantiation | FileCheck %s
+// RUN: marco-opt %s --split-input-file --schedulers-instantiation | FileCheck %s
 
 // CHECK:       bmodelica.schedule @schedule {
 // CHECK-NEXT:      bmodelica.dynamic {

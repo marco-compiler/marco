@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --inline | FileCheck %s
+// RUN: marco-opt %s --split-input-file --inline | FileCheck %s
 
 // Inline attribute set to 'true'
 

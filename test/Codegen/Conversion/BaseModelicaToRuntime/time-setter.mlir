@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --convert-bmodelica-to-runtime | FileCheck %s
+// RUN: marco-opt %s --split-input-file --convert-bmodelica-to-runtime | FileCheck %s
 
 // CHECK:       runtime.function @setTime(%[[newTime:.*]]: f64) {
 // CHECK:           %[[time_get:.*]] = bmodelica.global_variable.get @time : !bmodelica.array<!bmodelica.real>

@@ -53,8 +53,6 @@ int main(int argc, char *argv[]) {
   mlir::registerBuiltinDialectTranslation(registry);
   mlir::registerLLVMDialectTranslation(registry);
 
-  auto result =
-      mlir::MlirOptMain(argc, argv, "Modelica optimizer driver\n", registry);
-
-  return mlir::asMainReturnCode(result);
+  return mlir::asMainReturnCode(
+      mlir::MlirOptMain(argc, argv, "MARCO optimizer driver\n", registry));
 }

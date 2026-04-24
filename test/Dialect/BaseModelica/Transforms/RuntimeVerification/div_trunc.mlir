@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --generate-runtime-verification | FileCheck %s
+// RUN: marco-opt %s --split-input-file --generate-runtime-verification | FileCheck %s
 
 // CHECK-LABEL: @Test
 // CHECK-SAME: (%{{.*}}: i64, %[[rhs:.*]]: i64)

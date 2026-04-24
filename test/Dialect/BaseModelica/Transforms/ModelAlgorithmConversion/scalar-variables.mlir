@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --convert-model-algorithms | FileCheck %s
+// RUN: marco-opt %s --split-input-file --convert-model-algorithms | FileCheck %s
 
 // CHECK: bmodelica.model @scalarVariables
 

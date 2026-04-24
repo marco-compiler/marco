@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --convert-runtime-model-metadata | FileCheck %s
+// RUN: marco-opt %s --split-input-file --convert-runtime-model-metadata | FileCheck %s
 
 // CHECK:       func.func @getVariableValue(%[[variable:.*]]: i64, %[[indices:.*]]: !llvm.ptr) -> f64 {
 // CHECK-NEXT:      %[[default:.*]] = arith.constant 0.000000e+00 : f64

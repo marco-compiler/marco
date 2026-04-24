@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --auto-diff | FileCheck %s
+// RUN: marco-opt %s --split-input-file --auto-diff | FileCheck %s
 
 // CHECK-LABEL: @pder_pder_mulOfVars
 // CHECK-NEXT:  bmodelica.variable @x : !bmodelica.variable<!bmodelica.real, input>

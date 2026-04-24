@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --convert-bmodelica-to-runtime-call | FileCheck %s
+// RUN: marco-opt %s --split-input-file --convert-bmodelica-to-runtime-call | FileCheck %s
 
 // CHECK: runtime.function private @_Mzeros_void_ai64(memref<*xi64>)
 

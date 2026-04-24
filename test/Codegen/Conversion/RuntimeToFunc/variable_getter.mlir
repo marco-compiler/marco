@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --convert-runtime-to-func --canonicalize | FileCheck %s
+// RUN: marco-opt %s --split-input-file --convert-runtime-to-func --canonicalize | FileCheck %s
 
 // COM: Scalar variable.
 

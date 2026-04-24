@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --generate-runtime-verification | FileCheck %s
+// RUN: marco-opt %s --split-input-file --generate-runtime-verification | FileCheck %s
 
 // CHECK-LABEL: @constant
 // CHECK-SAME: (%[[arg0:.*]]: tensor<?x!bmodelica.real>, %[[arg1:.*]]: index)

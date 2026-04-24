@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --convert-bmodelica-to-arith --cse | FileCheck %s
+// RUN: marco-opt %s --split-input-file --convert-bmodelica-to-arith --cse | FileCheck %s
 
 // CHECK-LABEL: @Integer
 // CHECK-SAME: (%[[arg0:.*]]: !bmodelica.int, %[[arg1:.*]]: !bmodelica.int) -> !bmodelica.int

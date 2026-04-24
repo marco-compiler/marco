@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --inline-records | FileCheck %s
+// RUN: marco-opt %s --split-input-file --inline-records | FileCheck %s
 
 bmodelica.record @R {
     bmodelica.variable @x : !bmodelica.variable<3x!bmodelica.real>

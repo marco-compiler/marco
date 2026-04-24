@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --test-access-replacement --canonicalize | FileCheck %s
+// RUN: marco-opt %s --split-input-file --test-access-replacement --canonicalize | FileCheck %s
 
 bmodelica.model @Test {
     bmodelica.variable @x : !bmodelica.variable<!bmodelica.real>

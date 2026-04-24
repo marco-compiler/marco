@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --convert-bmodelica-to-memref | FileCheck %s
+// RUN: marco-opt %s --split-input-file --convert-bmodelica-to-memref | FileCheck %s
 
 // CHECK-LABEL: @staticArrays
 // CHECK: %[[source:.*]] = memref.alloc() : memref<3x2xi64>

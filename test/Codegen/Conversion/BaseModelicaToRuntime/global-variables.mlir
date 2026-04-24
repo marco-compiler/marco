@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --convert-bmodelica-to-runtime | FileCheck %s
+// RUN: marco-opt %s --split-input-file --convert-bmodelica-to-runtime | FileCheck %s
 
 // CHECK-DAG: bmodelica.global_variable @[[x:.*]] : !bmodelica.array<!bmodelica.int>
 // CHECK-DAG: bmodelica.global_variable @[[y:.*]] : !bmodelica.array<3x!bmodelica.int>
