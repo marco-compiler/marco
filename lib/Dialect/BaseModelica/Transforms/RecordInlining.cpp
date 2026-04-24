@@ -259,7 +259,7 @@ public:
       llvm::SmallVector<int64_t> subscriptsAmounts;
 
       if (auto tensorType = mlir::dyn_cast<mlir::TensorType>(valueType)) {
-        mlir::Value unboundedRange = UnboundedRangeOp::create(
+        mlir::Value unboundedRange = RangeUnboundedOp::create(
             rewriter, op.getLoc(),
             RangeType::get(rewriter.getContext(), rewriter.getIndexType()));
 
@@ -334,7 +334,7 @@ public:
       }
 
       if (auto tensorType = mlir::dyn_cast<mlir::TensorType>(valueType)) {
-        mlir::Value unboundedRange = UnboundedRangeOp::create(
+        mlir::Value unboundedRange = RangeUnboundedOp::create(
             rewriter, op.getLoc(),
             RangeType::get(rewriter.getContext(), rewriter.getIndexType()));
 
@@ -838,7 +838,7 @@ private:
         rank - static_cast<int64_t>(numOfGivenSubscripts);
 
     for (int64_t i = 0; i < numOfAdditionalSubscripts; ++i) {
-      result.push_back(UnboundedRangeOp::create(
+      result.push_back(RangeUnboundedOp::create(
           builder, loc,
           RangeType::get(builder.getContext(), builder.getIndexType())));
     }

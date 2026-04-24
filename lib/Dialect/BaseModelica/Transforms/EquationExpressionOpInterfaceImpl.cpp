@@ -150,9 +150,9 @@ bool isEquivalent(
 } // namespace
 
 namespace {
-struct RangeOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<::RangeOpInterface,
-                                                          RangeOp> {
+struct RangeBoundedOpInterface
+    : public EquationExpressionOpInterface::ExternalModel<
+          ::RangeBoundedOpInterface, RangeBoundedOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -163,7 +163,7 @@ struct RangeOpInterface
     os << ")";
   }
 
-  DEFINE_DEFAULT_IS_EQUIVALENT(RangeOp)
+  DEFINE_DEFAULT_IS_EQUIVALENT(RangeBoundedOp)
 };
 
 struct ReductionOpInterface
@@ -2076,7 +2076,7 @@ void registerEquationExpressionOpInterfaceExternalModels(
 
     // Various operations.
     ReductionOp::attachInterface<::ReductionOpInterface>(*context);
-    RangeOp::attachInterface<::RangeOpInterface>(*context);
+    RangeBoundedOp::attachInterface<::RangeBoundedOpInterface>(*context);
     DerOp::attachInterface<::DerOpInterface>(*context);
     TimeOp::attachInterface<::TimeOpInterface>(*context);
     CallOp::attachInterface<::CallOpInterface>(*context);

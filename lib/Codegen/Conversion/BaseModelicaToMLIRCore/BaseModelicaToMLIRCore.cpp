@@ -66,7 +66,7 @@ mlir::LogicalResult BaseModelicaToMLIRCoreConversionPass::convertOperations() {
         op.getSource().getType().getElementType());
   });
 
-  target.addLegalOp<RangeOp, RangeBeginOp, RangeEndOp, RangeStepOp>();
+  target.addLegalOp<RangeBoundedOp, RangeBeginOp, RangeEndOp, RangeStepOp>();
   target.addIllegalOp<CastOp>();
 
   target.addIllegalOp<TensorFromElementsOp, TensorBroadcastOp, TensorViewOp,

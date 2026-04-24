@@ -194,7 +194,7 @@ struct TensorInsertSliceOpRuntimeVerifier
         continue;
       }
 
-      if (subscript.getDefiningOp<UnboundedRangeOp>()) {
+      if (subscript.getDefiningOp<RangeUnboundedOp>()) {
         continue;
       }
 
@@ -258,7 +258,7 @@ struct TensorViewOpRuntimeVerifier
 
     for (auto subscript : llvm::enumerate(castedOp.getSubscriptions())) {
       if (mlir::isa<RangeType>(subscript.value().getType())) {
-        if (subscript.value().getDefiningOp<UnboundedRangeOp>()) {
+        if (subscript.value().getDefiningOp<RangeUnboundedOp>()) {
           continue;
         }
 

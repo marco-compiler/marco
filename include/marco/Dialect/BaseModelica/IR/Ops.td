@@ -194,7 +194,7 @@ class BaseModelica_Op<string mnemonic, list<Trait> traits = []> :
 // Range operations
 //===---------------------------------------------------------------------===//
 
-def BaseModelica_RangeOp : BaseModelica_Op<"range.bounded", [
+def BaseModelica_RangeBoundedOp : BaseModelica_Op<"range.bounded", [
         DeclareOpInterfaceMethods<InferTypeOpInterface>,
         Pure
     ]>
@@ -221,7 +221,7 @@ def BaseModelica_RangeOp : BaseModelica_Op<"range.bounded", [
     }];
 }
 
-def BaseModelica_UnboundedRangeOp : BaseModelica_Op<"range.unbounded", [Pure]>
+def BaseModelica_RangeUnboundedOp : BaseModelica_Op<"range.unbounded", [Pure]>
 {
     let summary = "Unbounded range.";
 

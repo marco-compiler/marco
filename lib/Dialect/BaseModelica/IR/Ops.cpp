@@ -261,10 +261,10 @@ cleanEquationTemplates(mlir::RewriterBase &rewriter,
 //===---------------------------------------------------------------------===//
 
 //===---------------------------------------------------------------------===//
-// RangeOp
+// RangeBoundedOp
 
 namespace mlir::bmodelica {
-mlir::LogicalResult RangeOp::inferReturnTypes(
+mlir::LogicalResult RangeBoundedOp::inferReturnTypes(
     mlir::MLIRContext *context, std::optional<mlir::Location> location,
     mlir::ValueRange operands, mlir::DictionaryAttr attributes,
     mlir::OpaqueProperties properties, mlir::RegionRange regions,
@@ -287,8 +287,8 @@ mlir::LogicalResult RangeOp::inferReturnTypes(
   return mlir::failure();
 }
 
-bool RangeOp::isCompatibleReturnTypes(mlir::TypeRange lhs,
-                                      mlir::TypeRange rhs) {
+bool RangeBoundedOp::isCompatibleReturnTypes(mlir::TypeRange lhs,
+                                             mlir::TypeRange rhs) {
   if (lhs.size() != rhs.size()) {
     return false;
   }
@@ -302,7 +302,7 @@ bool RangeOp::isCompatibleReturnTypes(mlir::TypeRange lhs,
   return true;
 }
 
-mlir::OpFoldResult RangeOp::fold(FoldAdaptor adaptor) {
+mlir::OpFoldResult RangeBoundedOp::fold(FoldAdaptor adaptor) {
   auto lowerBound = adaptor.getLowerBound();
   auto upperBound = adaptor.getUpperBound();
   auto step = adaptor.getStep();

@@ -25,7 +25,7 @@ public:
             return true;
           }
 
-          return !mlir::isa<UnboundedRangeOp>(definingOp);
+          return !mlir::isa<RangeUnboundedOp>(definingOp);
         })) {
       return mlir::failure();
     }
@@ -36,7 +36,7 @@ public:
     for (size_t i = 0, e = op.getSubscriptions().size(); i < e; ++i) {
       mlir::Value index = op.getSubscriptions()[i];
 
-      if (index.getDefiningOp<UnboundedRangeOp>()) {
+      if (index.getDefiningOp<RangeUnboundedOp>()) {
         mlir::Value lowerBound =
             rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(0));
 
@@ -55,7 +55,7 @@ public:
         mlir::Value step =
             rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(1));
 
-        mlir::Value range = rewriter.create<RangeOp>(
+        mlir::Value range = rewriter.create<RangeBoundedOp>(
             loc, RangeType::get(getContext(), rewriter.getIndexType()),
             lowerBound, upperBound, step);
 
@@ -87,7 +87,7 @@ public:
             return true;
           }
 
-          return !mlir::isa<UnboundedRangeOp>(definingOp);
+          return !mlir::isa<RangeUnboundedOp>(definingOp);
         })) {
       return mlir::failure();
     }
@@ -98,7 +98,7 @@ public:
     for (size_t i = 0, e = op.getSubscriptions().size(); i < e; ++i) {
       mlir::Value index = op.getSubscriptions()[i];
 
-      if (index.getDefiningOp<UnboundedRangeOp>()) {
+      if (index.getDefiningOp<RangeUnboundedOp>()) {
         mlir::Value lowerBound =
             rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(0));
 
@@ -117,7 +117,7 @@ public:
         mlir::Value step =
             rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(1));
 
-        mlir::Value range = rewriter.create<RangeOp>(
+        mlir::Value range = rewriter.create<RangeBoundedOp>(
             loc, RangeType::get(getContext(), rewriter.getIndexType()),
             lowerBound, upperBound, step);
 

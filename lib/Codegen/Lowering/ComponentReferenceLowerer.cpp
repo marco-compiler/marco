@@ -131,7 +131,7 @@ std::optional<Reference> ComponentReferenceLowerer::lowerSubscripts(
       auto providedSubscripts = static_cast<int64_t>(subscripts.size());
 
       if (sourceRank > providedSubscripts) {
-        mlir::Value unboundedRange = UnboundedRangeOp::create(
+        mlir::Value unboundedRange = RangeUnboundedOp::create(
             builder(), location,
             RangeType::get(builder().getContext(), builder().getIndexType()));
 

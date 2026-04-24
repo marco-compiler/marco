@@ -182,12 +182,12 @@ public:
   }
 };
 
-class RangeOpLowering : public BaseModelicaOpConversion<RangeOp> {
+class RangeBoundedOpLowering : public BaseModelicaOpConversion<RangeBoundedOp> {
 public:
-  using BaseModelicaOpConversion<RangeOp>::BaseModelicaOpConversion;
+  using BaseModelicaOpConversion<RangeBoundedOp>::BaseModelicaOpConversion;
 
   mlir::LogicalResult
-  matchAndRewrite(RangeOp op, OpAdaptor adaptor,
+  matchAndRewrite(RangeBoundedOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
     mlir::Location loc = op.getLoc();
 
@@ -357,7 +357,7 @@ mlir::LogicalResult BaseModelicaToLLVMConversionPass::convertOperations() {
 
   target.addIllegalOp<PackageOp, RecordOp>();
 
-  target.addIllegalOp<RangeOp, RangeBeginOp, RangeEndOp, RangeStepOp>();
+  target.addIllegalOp<RangeBoundedOp, RangeBeginOp, RangeEndOp, RangeStepOp>();
 
   target.addIllegalOp<PoolVariableGetOp>();
 
@@ -392,9 +392,9 @@ void populateBaseModelicaToLLVMConversionPatterns(
 
   // Range operations.
   patterns
-      .insert<ConstantOpRangeLowering, RangeOpLowering, RangeBeginOpLowering,
-              RangeEndOpLowering, RangeStepOpLowering>(typeConverter,
-                                                       symbolTableCollection);
+      .insert<ConstantOpRangeLowering, RangeBoundedOpLowering,
+              RangeBeginOpLowering, RangeEndOpLowering, RangeStepOpLowering>(
+          typeConverter, symbolTableCollection);
 
   // Variable operations.
   patterns.insert<PoolVariableGetOpLowering>(typeConverter,
