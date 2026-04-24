@@ -14,9 +14,9 @@ func.func @scalarSubscripts(%arg0: tensor<4x3x2xi64>, %arg1: index) -> tensor<3x
 
 // CHECK-LABEL: @rangeSubscripts
 // CHECK-SAME: (%[[arg0:.*]]: tensor<4x3x2xi64>, %[[arg1:.*]]: !bmodelica<range index>) -> tensor<?x3x2xi64>
-// CHECK-DAG: %[[begin:.*]] = bmodelica.range_begin %[[arg1]]
-// CHECK-DAG: %[[size:.*]] = bmodelica.range_size %[[arg1]]
-// CHECK-DAG: %[[step:.*]] = bmodelica.range_step %[[arg1]]
+// CHECK-DAG: %[[begin:.*]] = bmodelica.range.begin %[[arg1]]
+// CHECK-DAG: %[[size:.*]] = bmodelica.range.size %[[arg1]]
+// CHECK-DAG: %[[step:.*]] = bmodelica.range.step %[[arg1]]
 // CHECK: %[[slice:.*]] = tensor.extract_slice %[[arg0]][%[[begin]], 0, 0] [%[[size]], 3, 2] [%[[step]], 1, 1] : tensor<4x3x2xi64> to tensor<?x3x2xi64>
 // CHECK: return %[[slice]]
 

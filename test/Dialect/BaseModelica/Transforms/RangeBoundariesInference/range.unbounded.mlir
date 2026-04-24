@@ -4,7 +4,7 @@
 // CHECK-SAME: (%[[source:.*]]: tensor<6x5x4x3x2x!bmodelica.int>)
 
 func.func @foo(%arg0: tensor<6x5x4x3x2x!bmodelica.int>) -> tensor<?x5x4x3x2x!bmodelica.int> {
-    %0 = bmodelica.unbounded_range : !bmodelica<range index>
+    %0 = bmodelica.range.unbounded : !bmodelica<range index>
     %1 = bmodelica.tensor.view %arg0[%0] : tensor<6x5x4x3x2x!bmodelica.int>, !bmodelica<range index> -> tensor<?x5x4x3x2x!bmodelica.int>
     func.return %1 : tensor<?x5x4x3x2x!bmodelica.int>
 

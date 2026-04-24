@@ -27,17 +27,17 @@ func.func @foo(%arg0: !bmodelica.array<6x5x4x3x2x!bmodelica.int>) -> !bmodelica.
 // CHECK-SAME: (%[[arg0:.*]]: !bmodelica.array<6x5x4x3x2x!bmodelica.int>) -> !bmodelica.array<?x?x4x3x2x!bmodelica.int>
 // CHECK: %[[memref:.*]] = builtin.unrealized_conversion_cast %[[arg0]] : !bmodelica.array<6x5x4x3x2x!bmodelica.int> to memref<6x5x4x3x2xi64>
 // CHECK-DAG: %[[int_range:.*]] = bmodelica.constant #bmodelica.int_range<3, 10, 2>
-// CHECK-DAG: %[[int_range_begin:.*]] = bmodelica.range_begin %[[int_range]]
+// CHECK-DAG: %[[int_range_begin:.*]] = bmodelica.range.begin %[[int_range]]
 // CHECK-DAG: %[[int_range_begin_casted:.*]] = bmodelica.cast %[[int_range_begin]] : !bmodelica.int -> index
-// CHECK-DAG: %[[int_range_step:.*]] = bmodelica.range_step %[[int_range]]
+// CHECK-DAG: %[[int_range_step:.*]] = bmodelica.range.step %[[int_range]]
 // CHECK-DAG: %[[int_range_step_casted:.*]] = bmodelica.cast %[[int_range_step]] : !bmodelica.int -> index
-// CHECK-DAG: %[[int_range_size:.*]] = bmodelica.range_size %[[int_range]]
+// CHECK-DAG: %[[int_range_size:.*]] = bmodelica.range.size %[[int_range]]
 // CHECK-DAG: %[[real_range:.*]] = bmodelica.constant #bmodelica.real_range<3.000000e+00, 1.000000e+01, 2.000000e+00>
-// CHECK-DAG: %[[real_range_begin:.*]] = bmodelica.range_begin %[[real_range]]
+// CHECK-DAG: %[[real_range_begin:.*]] = bmodelica.range.begin %[[real_range]]
 // CHECK-DAG: %[[real_range_begin_casted:.*]] = bmodelica.cast %[[real_range_begin]] : !bmodelica.real -> index
-// CHECK-DAG: %[[real_range_step:.*]] = bmodelica.range_step %[[real_range]]
+// CHECK-DAG: %[[real_range_step:.*]] = bmodelica.range.step %[[real_range]]
 // CHECK-DAG: %[[real_range_step_casted:.*]] = bmodelica.cast %[[real_range_step]] : !bmodelica.real -> index
-// CHECK-DAG: %[[real_range_size:.*]] = bmodelica.range_size %[[real_range]]
+// CHECK-DAG: %[[real_range_size:.*]] = bmodelica.range.size %[[real_range]]
 // CHECK: %[[subview:.*]] = memref.subview %[[memref]][%[[int_range_begin_casted]], %[[real_range_begin_casted]], 0, 0, 0] [%[[int_range_size]], %[[real_range_size]], 4, 3, 2] [%[[int_range_step_casted]], %[[real_range_step_casted]], 1, 1, 1] : memref<6x5x4x3x2xi64> to memref<?x?x4x3x2xi64, strided<[?, ?, 6, 2, 1], offset: ?>>
 // CHECK: %[[result:.*]] = memref.cast %[[subview]] : memref<?x?x4x3x2xi64, strided<[?, ?, 6, 2, 1], offset: ?>> to memref<?x?x4x3x2xi64>
 // CHECK: %[[result_cast:.*]] = builtin.unrealized_conversion_cast %[[result]] : memref<?x?x4x3x2xi64> to !bmodelica.array<?x?x4x3x2x!bmodelica.int>

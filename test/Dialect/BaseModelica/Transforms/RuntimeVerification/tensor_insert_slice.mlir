@@ -7,7 +7,7 @@ func.func @rangeSubscript(%arg0: tensor<?xf64>, %arg1: tensor<?xf64>, %arg2: !bm
     // CHECK:       bmodelica.assert
     // CHECK-DAG:   %[[dimIndex:.*]] = arith.constant 0 : index
     // CHECK-DAG:   %[[dimSize:.*]] = tensor.dim %[[arg0]], %[[dimIndex]]
-    // CHECK-DAG:   %[[rangeSize:.*]] = bmodelica.range_size %[[arg2]]
+    // CHECK-DAG:   %[[rangeSize:.*]] = bmodelica.range.size %[[arg2]]
     // CHECK:       %[[condition:.*]] = bmodelica.eq %[[dimSize]], %[[rangeSize]]
     // CHECK:       bmodelica.yield %[[condition]]
 
@@ -42,7 +42,7 @@ func.func @constantAndRangeSubscripts(%arg0: tensor<?xf64>, %arg1: tensor<?x?xf6
     // CHECK:       bmodelica.assert
     // CHECK-DAG:   %[[dimIndex:.*]] = arith.constant 0 : index
     // CHECK-DAG:   %[[dimSize:.*]] = tensor.dim %[[arg0]], %[[dimIndex]]
-    // CHECK-DAG:   %[[rangeSize:.*]] = bmodelica.range_size %[[arg3]]
+    // CHECK-DAG:   %[[rangeSize:.*]] = bmodelica.range.size %[[arg3]]
     // CHECK:       %[[condition:.*]] = bmodelica.eq %[[dimSize]], %[[rangeSize]]
     // CHECK:       bmodelica.yield %[[condition]]
 

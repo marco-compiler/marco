@@ -27,7 +27,7 @@ module @Test {
             %lower = bmodelica.constant 5 : index
             %upper = bmodelica.constant 10 : index
             %step = bmodelica.constant 1 : index
-            %range = bmodelica.range %lower, %upper, %step : index, index, index -> !bmodelica<range index>
+            %range = bmodelica.range.bounded %lower, %upper, %step : index, index, index -> !bmodelica<range index>
 
             %red = bmodelica.reduction "add", iterables = [%range], inductions = [] {
                 bmodelica.yield %1 : f64
@@ -55,7 +55,7 @@ module @Test {
             %lower = bmodelica.constant 5 : index
             %upper = bmodelica.constant 10 : index
             %step = bmodelica.constant 1 : index
-            %range = bmodelica.range %lower, %upper, %step : index, index, index -> !bmodelica<range index>
+            %range = bmodelica.range.bounded %lower, %upper, %step : index, index, index -> !bmodelica<range index>
 
             %red = bmodelica.reduction "add", iterables = [%range], inductions = [] {
                 bmodelica.yield %1 : f64
@@ -86,7 +86,7 @@ module @Test {
         // CHECK-DAG:      %[[lower:.*]] = bmodelica.constant 5
         // CHECK-DAG:      %[[upper:.*]] = bmodelica.constant 10
         // CHECK-DAG:      %[[step:.*]] = bmodelica.constant 1
-        // CHECK-DAG:      %[[range:.*]] = bmodelica.range %[[lower]], %[[upper]], %[[step]]
+        // CHECK-DAG:      %[[range:.*]] = bmodelica.range.bounded %[[lower]], %[[upper]], %[[step]]
 
         // CHECK-NEXT:     %[[red:.*]] = bmodelica.reduction "add", iterables = [%[[range]]]
         // CHECK-NEXT:         bmodelica.yield %[[c]]

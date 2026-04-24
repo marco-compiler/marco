@@ -4,11 +4,11 @@
 // CHECK-DAG: %[[i_lb:.*]] = bmodelica.constant #bmodelica<int 1>
 // CHECK-DAG: %[[i_ub:.*]] = bmodelica.constant #bmodelica<int 9>
 // CHECK-DAG: %[[i_step:.*]] = bmodelica.constant #bmodelica<int 3>
-// CHECK-DAG: %[[i_space:.*]] = bmodelica.range %[[i_lb]], %[[i_ub]], %[[i_step]]
+// CHECK-DAG: %[[i_space:.*]] = bmodelica.range.bounded %[[i_lb]], %[[i_ub]], %[[i_step]]
 // CHECK-DAG: %[[j_lb:.*]] = bmodelica.constant #bmodelica<int 4>
 // CHECK-DAG: %[[j_ub:.*]] = bmodelica.constant #bmodelica<int 6>
 // CHECK-DAG: %[[j_step:.*]] = bmodelica.constant #bmodelica<int 2>
-// CHECK-DAG: %[[j_space:.*]] = bmodelica.range %[[j_lb]], %[[j_ub]], %[[j_step]]
+// CHECK-DAG: %[[j_space:.*]] = bmodelica.range.bounded %[[j_lb]], %[[j_ub]], %[[j_step]]
 // CHECK:       bmodelica.reduction "mul", iterables = [%[[i_space]], %[[j_space]]], inductions = [%[[i:.*]]: !bmodelica.int, %[[j:.*]]: !bmodelica.int] {
 // CHECK-DAG:       %[[i_offset:.*]] = bmodelica.constant -1
 // CHECK-DAG:       %[[index_0:.*]] = bmodelica.add %[[i]], %[[i_offset]]

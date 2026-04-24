@@ -100,7 +100,7 @@ bmodelica.function @subscriptOnRecord {
 
     // CHECK:       bmodelica.algorithm
     // CHECK-DAG:   %[[index:.*]] = bmodelica.constant 0 : index
-    // CHECK-DAG:   %[[unbounded:.*]] = bmodelica.unbounded_range
+    // CHECK-DAG:   %[[unbounded:.*]] = bmodelica.range.unbounded
     // CHECK-DAG:   %[[value:.*]] = tensor.empty()
     // CHECK-DAG:   %[[x:.*]] = bmodelica.variable.get @r.x : tensor<2x3x!bmodelica.real>
     // CHECK:       %[[x_insert:.*]] = bmodelica.tensor.insert_slice %[[value]], %[[x]][%[[index]], %[[unbounded]]]
@@ -156,7 +156,7 @@ bmodelica.function @componentSubscript {
     }
 
     // CHECK:       bmodelica.algorithm
-    // CHECK-DAG:   %[[unbounded:.*]] = bmodelica.unbounded_range
+    // CHECK-DAG:   %[[unbounded:.*]] = bmodelica.range.unbounded
     // CHECK-DAG:   %[[index:.*]] = bmodelica.constant 0 : index
     // CHECK-DAG:   %[[value:.*]] = tensor.empty()
     // CHECK-DAG:   %[[x:.*]] = bmodelica.variable.get @r.x : tensor<2x3x!bmodelica.real>

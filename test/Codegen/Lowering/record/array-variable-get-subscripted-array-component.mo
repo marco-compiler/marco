@@ -2,7 +2,7 @@
 
 // CHECK:       bmodelica.function @Foo {
 // CHECK:           bmodelica.algorithm {
-// CHECK-DAG:           %[[unbounded:.*]] = bmodelica.unbounded_range
+// CHECK-DAG:           %[[unbounded:.*]] = bmodelica.range.unbounded
 // CHECK-DAG:           %[[one:.*]] = bmodelica.constant #bmodelica<int 1>
 // CHECK-DAG:           %[[minus_one:.*]] = bmodelica.constant -1 : index
 // CHECK-DAG:           %[[subscript:.*]] = bmodelica.add %[[one]], %[[minus_one]]

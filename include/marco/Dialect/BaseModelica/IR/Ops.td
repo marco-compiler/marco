@@ -194,7 +194,7 @@ class BaseModelica_Op<string mnemonic, list<Trait> traits = []> :
 // Range operations
 //===---------------------------------------------------------------------===//
 
-def RangeOp : BaseModelica_Op<"range", [
+def RangeOp : BaseModelica_Op<"range.bounded", [
         DeclareOpInterfaceMethods<InferTypeOpInterface>,
         Pure
     ]>
@@ -221,7 +221,7 @@ def RangeOp : BaseModelica_Op<"range", [
     }];
 }
 
-def UnboundedRangeOp : BaseModelica_Op<"unbounded_range", [Pure]>
+def UnboundedRangeOp : BaseModelica_Op<"range.unbounded", [Pure]>
 {
     let summary = "Unbounded range.";
 
@@ -235,7 +235,7 @@ def UnboundedRangeOp : BaseModelica_Op<"unbounded_range", [Pure]>
     let assemblyFormat = "attr-dict `:` type($result)";
 }
 
-def RangeBeginOp : BaseModelica_Op<"range_begin", [
+def RangeBeginOp : BaseModelica_Op<"range.begin", [
         Pure,
         DeclareOpInterfaceMethods<InferTypeOpInterface>
     ]>
@@ -254,7 +254,7 @@ def RangeBeginOp : BaseModelica_Op<"range_begin", [
     let hasFolder = 1;
 }
 
-def RangeEndOp : BaseModelica_Op<"range_end", [
+def RangeEndOp : BaseModelica_Op<"range.end", [
         Pure,
         DeclareOpInterfaceMethods<InferTypeOpInterface>
     ]>
@@ -273,7 +273,7 @@ def RangeEndOp : BaseModelica_Op<"range_end", [
     let hasFolder = 1;
 }
 
-def RangeStepOp : BaseModelica_Op<"range_step", [
+def RangeStepOp : BaseModelica_Op<"range.step", [
         Pure,
         DeclareOpInterfaceMethods<InferTypeOpInterface>
     ]>
@@ -292,7 +292,7 @@ def RangeStepOp : BaseModelica_Op<"range_step", [
     let hasFolder = 1;
 }
 
-def RangeSizeOp : BaseModelica_Op<"range_size", [Pure]>
+def RangeSizeOp : BaseModelica_Op<"range.size", [Pure]>
 {
     let summary = "Get the extension of a range";
 

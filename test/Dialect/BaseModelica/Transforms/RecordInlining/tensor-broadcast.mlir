@@ -20,7 +20,7 @@ bmodelica.function @Test {
     // CHECK:       bmodelica.algorithm
     // CHECK-DAG:   %[[x:.*]] = bmodelica.variable.get @x : !bmodelica.real
     // CHECK-DAG:   %[[broadcast:.*]] = bmodelica.tensor.broadcast %[[x]] : !bmodelica.real -> tensor<2x!bmodelica.real>
-    // CHECK-DAG:   %[[unbounded:.*]] = bmodelica.unbounded_range
+    // CHECK-DAG:   %[[unbounded:.*]] = bmodelica.range.unbounded
     // CHECK-DAG:   %[[r_x:.*]] = bmodelica.variable.get @r.x : tensor<2x!bmodelica.real>
     // CHECK:       %[[r_x_insert:.*]] = bmodelica.tensor.insert %[[broadcast]], %[[r_x]][%[[unbounded]]]
     // CHECK:       bmodelica.variable.set @r.x, %[[r_x_insert]]

@@ -25,7 +25,7 @@ func.func @constant(%arg0: tensor<?x!bmodelica.real>, %arg1: index) -> !bmodelic
 
 func.func @range(%arg0: tensor<?x!bmodelica.real>, %arg1: !bmodelica<range index>) -> tensor<?x!bmodelica.real> {
     // CHECK:       bmodelica.assert
-    // CHECK-DAG:   %[[rangeSize:.*]] = bmodelica.range_size %[[arg1]]
+    // CHECK-DAG:   %[[rangeSize:.*]] = bmodelica.range.size %[[arg1]]
     // CHECK-DAG:   %[[dimIndex:.*]] = arith.constant 0 : index
     // CHECK-DAG:   %[[dimSize:.*]] = tensor.dim %[[arg0]], %[[dimIndex]]
     // CHECK:       %[[condition:.*]] = bmodelica.lte %[[rangeSize]], %[[dimSize]]

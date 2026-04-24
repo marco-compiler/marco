@@ -26,9 +26,9 @@ func.func @reducedRankSource(%source: tensor<20xi64>, %destination: tensor<10x20
 
 // CHECK-LABEL: @rangeSameRank
 // CHECK-SAME:  (%[[source:.*]]: tensor<5xi64>, %[[destination:.*]]: tensor<10xi64>, %[[s0:.*]]: !bmodelica<range index>) -> tensor<10xi64>
-// CHECK-DAG:   %[[begin:.*]] = bmodelica.range_begin %[[s0]]
-// CHECK-DAG:   %[[end:.*]] = bmodelica.range_end %[[s0]]
-// CHECK-DAG:   %[[step:.*]] = bmodelica.range_step %[[s0]]
+// CHECK-DAG:   %[[begin:.*]] = bmodelica.range.begin %[[s0]]
+// CHECK-DAG:   %[[end:.*]] = bmodelica.range.end %[[s0]]
+// CHECK-DAG:   %[[step:.*]] = bmodelica.range.step %[[s0]]
 // CHECK-DAG:   %[[zero:.*]] = arith.constant 0 : index
 // CHECK:       %[[cmp:.*]] = arith.cmpi sge, %[[step]], %[[zero]]
 // CHECK:       %[[offset:.*]] = arith.select %[[cmp]], %[[begin]], %[[end]]
@@ -44,9 +44,9 @@ func.func @rangeSameRank(%source: tensor<5xi64>, %destination: tensor<10xi64>, %
 
 // CHECK-LABEL: @rangeScalar
 // CHECK-SAME:  (%[[source:.*]]: tensor<5xi64>, %[[destination:.*]]: tensor<10x10xi64>, %[[s0:.*]]: !bmodelica<range index>, %[[s1:.*]]: index) -> tensor<10x10xi64>
-// CHECK-DAG:   %[[begin:.*]] = bmodelica.range_begin %[[s0]]
-// CHECK-DAG:   %[[end:.*]] = bmodelica.range_end %[[s0]]
-// CHECK-DAG:   %[[step:.*]] = bmodelica.range_step %[[s0]]
+// CHECK-DAG:   %[[begin:.*]] = bmodelica.range.begin %[[s0]]
+// CHECK-DAG:   %[[end:.*]] = bmodelica.range.end %[[s0]]
+// CHECK-DAG:   %[[step:.*]] = bmodelica.range.step %[[s0]]
 // CHECK-DAG:   %[[zero:.*]] = arith.constant 0 : index
 // CHECK:       %[[cmp:.*]] = arith.cmpi sge, %[[step]], %[[zero]]
 // CHECK:       %[[offset:.*]] = arith.select %[[cmp]], %[[begin]], %[[end]]
@@ -62,9 +62,9 @@ func.func @rangeScalar(%source: tensor<5xi64>, %destination: tensor<10x10xi64>, 
 
 // CHECK-LABEL: @scalarRange
 // CHECK-SAME:  (%[[source:.*]]: tensor<5xi64>, %[[destination:.*]]: tensor<10x10xi64>, %[[s0:.*]]: index, %[[s1:.*]]: !bmodelica<range index>) -> tensor<10x10xi64>
-// CHECK-DAG:   %[[begin:.*]] = bmodelica.range_begin %[[s1]]
-// CHECK-DAG:   %[[end:.*]] = bmodelica.range_end %[[s1]]
-// CHECK-DAG:   %[[step:.*]] = bmodelica.range_step %[[s1]]
+// CHECK-DAG:   %[[begin:.*]] = bmodelica.range.begin %[[s1]]
+// CHECK-DAG:   %[[end:.*]] = bmodelica.range.end %[[s1]]
+// CHECK-DAG:   %[[step:.*]] = bmodelica.range.step %[[s1]]
 // CHECK-DAG:   %[[zero:.*]] = arith.constant 0 : index
 // CHECK:       %[[cmp:.*]] = arith.cmpi sge, %[[step]], %[[zero]]
 // CHECK:       %[[offset:.*]] = arith.select %[[cmp]], %[[begin]], %[[end]]
