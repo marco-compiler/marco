@@ -5,7 +5,7 @@
 // CHECK:       runtime.init_function {
 // CHECK-DAG:       %[[zero:.*]] = bmodelica.constant #bmodelica<int 0>
 // CHECK-DAG:       %[[x:.*]] = bmodelica.global_variable.get @[[global_var]]
-// CHECK:           bmodelica.store %[[x]][], %[[zero]]
+// CHECK:           bmodelica.array.store %[[x]][], %[[zero]]
 // CHECK-NEXT:      runtime.yield
 // CHECK-NEXT:  }
 
@@ -24,7 +24,7 @@ module {
 // CHECK-DAG:       %[[zero:.*]] = bmodelica.constant #bmodelica<int 0>
 // CHECK-DAG:       %[[tensor:.*]] = bmodelica.tensor.broadcast %[[zero]] : !bmodelica.int -> tensor<3x!bmodelica.int>
 // CHECK-DAG:       %[[array:.*]] = bmodelica.tensor_to_array %[[tensor]]
-// CHECK:           bmodelica.array_copy %[[array]], %[[x]]
+// CHECK:           bmodelica.array.copy %[[array]], %[[x]]
 // CHECK-NEXT:      runtime.yield
 // CHECK-NEXT:  }
 

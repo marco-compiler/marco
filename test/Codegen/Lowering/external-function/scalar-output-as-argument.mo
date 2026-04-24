@@ -3,10 +3,10 @@
 // CHECK-LABEL: @scalarOutputAsArgument
 // CHECK:   bmodelica.algorithm {
 // CHECK-DAG:   %[[x:.*]] = bmodelica.variable.get @x
-// CHECK-DAG:   %[[alloc:.*]] = bmodelica.alloc : <!bmodelica.int>
-// CHECK:       bmodelica.store %[[alloc]][], %[[x]]
+// CHECK-DAG:   %[[alloc:.*]] = bmodelica.array.alloc : <!bmodelica.int>
+// CHECK:       bmodelica.array.store %[[alloc]][], %[[x]]
 // CHECK:       bmodelica.external_call @foo(%[[alloc]]) : (!bmodelica.array<!bmodelica.int>) -> ()
-// CHECK:       %[[result:.*]] = bmodelica.load %[[alloc]][]
+// CHECK:       %[[result:.*]] = bmodelica.array.load %[[alloc]][]
 // CHECK:       bmodelica.variable.set @x, %[[result]]
 // CHECK:   }
 

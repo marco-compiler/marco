@@ -490,8 +490,9 @@ struct TensorInsertSliceOpInterface
   }
 };
 
-struct AllocaOpInterface
-    : public DerivableOpInterface::ExternalModel<AllocaOpInterface, AllocaOp> {
+struct ArrayAllocaOpInterface
+    : public DerivableOpInterface::ExternalModel<ArrayAllocaOpInterface,
+                                                 ArrayAllocaOp> {
   mlir::LogicalResult
   createPartialDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
                           mlir::SymbolTableCollection &symbolTableCollection,
@@ -509,7 +510,7 @@ struct AllocaOpInterface
   mlir::LogicalResult createDerivative(mlir::Operation *op,
                                        mlir::OpBuilder &builder,
                                        State &state) const {
-    auto castedOp = mlir::cast<AllocaOp>(op);
+    auto castedOp = mlir::cast<ArrayAllocaOp>(op);
 
     mlir::OpBuilder::InsertionGuard guard(builder);
     builder.setInsertionPointAfter(castedOp);
@@ -520,16 +521,17 @@ struct AllocaOpInterface
       return mlir::failure();
     }
 
-    auto derivedOp = builder.create<AllocaOp>(castedOp.getLoc(), *resultType,
-                                              castedOp.getDynamicSizes());
+    auto derivedOp = builder.create<ArrayAllocaOp>(
+        castedOp.getLoc(), *resultType, castedOp.getDynamicSizes());
 
     state.mapDerivative(castedOp, derivedOp);
     return mlir::success();
   }
 };
 
-struct AllocOpInterface
-    : public DerivableOpInterface::ExternalModel<AllocOpInterface, AllocOp> {
+struct ArrayAllocOpInterface
+    : public DerivableOpInterface::ExternalModel<ArrayAllocOpInterface,
+                                                 ArrayAllocOp> {
   mlir::LogicalResult
   createPartialDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
                           mlir::SymbolTableCollection &symbolTableCollection,
@@ -547,7 +549,7 @@ struct AllocOpInterface
   mlir::LogicalResult createDerivative(mlir::Operation *op,
                                        mlir::OpBuilder &builder,
                                        State &state) const {
-    auto castedOp = mlir::cast<AllocOp>(op);
+    auto castedOp = mlir::cast<ArrayAllocOp>(op);
 
     mlir::OpBuilder::InsertionGuard guard(builder);
     builder.setInsertionPointAfter(castedOp);
@@ -558,70 +560,8 @@ struct AllocOpInterface
       return mlir::failure();
     }
 
-    auto derivedOp = builder.create<AllocOp>(castedOp.getLoc(), *resultType,
-                                             castedOp.getDynamicSizes());
-
-    state.mapDerivative(castedOp, derivedOp);
-    return mlir::success();
-  }
-};
-
-struct ArrayFromElementsOpInterface
-    : public DerivableOpInterface::ExternalModel<ArrayFromElementsOpInterface,
-                                                 ArrayFromElementsOp> {
-  mlir::LogicalResult
-  createPartialDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
-                          mlir::SymbolTableCollection &symbolTableCollection,
-                          State &state) const {
-    return createDerivative(op, builder, state);
-  }
-
-  mlir::LogicalResult
-  createTimeDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
-                       mlir::SymbolTableCollection &symbolTableCollection,
-                       State &state, bool deriveDependencies) const {
-    auto castedOp = mlir::cast<ArrayFromElementsOp>(op);
-
-    if (deriveDependencies) {
-      for (mlir::Value value : castedOp.getValues()) {
-        if (mlir::failed(createValueTimeDerivative(
-                builder, symbolTableCollection, state, value))) {
-          return mlir::failure();
-        }
-      }
-    }
-
-    return createDerivative(op, builder, state);
-  }
-
-  mlir::LogicalResult createDerivative(mlir::Operation *op,
-                                       mlir::OpBuilder &builder,
-                                       State &state) const {
-    auto castedOp = mlir::cast<ArrayFromElementsOp>(op);
-
-    mlir::OpBuilder::InsertionGuard guard(builder);
-    builder.setInsertionPointAfter(castedOp);
-
-    llvm::SmallVector<mlir::Value> derivedValues;
-
-    for (mlir::Value value : castedOp.getValues()) {
-      auto derivedValue = getDerivative(state, value);
-
-      if (!derivedValue) {
-        return mlir::failure();
-      }
-
-      derivedValues.push_back(*derivedValue);
-    }
-
-    auto resultType = getDerivedType(castedOp.getResult().getType());
-
-    if (mlir::failed(resultType)) {
-      return mlir::failure();
-    }
-
-    auto derivedOp = builder.create<ArrayFromElementsOp>(
-        castedOp.getLoc(), *resultType, derivedValues);
+    auto derivedOp = builder.create<ArrayAllocOp>(
+        castedOp.getLoc(), *resultType, castedOp.getDynamicSizes());
 
     state.mapDerivative(castedOp, derivedOp);
     return mlir::success();
@@ -3403,10 +3343,8 @@ void registerDerivableOpInterfaceExternalModels(
     TensorInsertSliceOp::attachInterface<::TensorInsertSliceOpInterface>(*context);
 
     // Array operations.
-    AllocaOp::attachInterface<::AllocaOpInterface>(*context);
-    AllocOp::attachInterface<::AllocOpInterface>(*context);
-    ArrayFromElementsOp::attachInterface<::ArrayFromElementsOpInterface>(*context);
-
+    ArrayAllocaOp::attachInterface<::ArrayAllocaOpInterface>(*context);
+    ArrayAllocOp::attachInterface<::ArrayAllocOpInterface>(*context);
     ArrayBroadcastOp::attachInterface<::ArrayBroadcastOpInterface>(*context);
     SubscriptionOp::attachInterface<::SubscriptionOpInterface>(*context);
     LoadOp::attachInterface<::LoadOpInterface>(*context);

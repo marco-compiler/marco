@@ -456,212 +456,105 @@ def Modelica_TensorInsertSliceOp : BaseModelica_Op<"tensor.insert_slice", [
 // Array operations
 //===---------------------------------------------------------------------===//
 
-def Modelica_AllocaOp : BaseModelica_Op<"alloca",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
+def Modelica_ArrayAllocaOp : BaseModelica_Op<"array.alloca">
 {
     let summary = "Allocate an array on the stack.";
 
     let description = [{
-        Allocate an array on the stack.
-        The operation takes a variadic number of arguments, each of one
-        representing the size of a dynamic dimension within the desired array
-        type. Note that the amount of operands must match the number of dynamic
-        dimensions and they all must be of `index` type.
-
-        Example:
-
-        ```mlir
-        %0 = constant 5 : index
-        %1 = modelica.alloca %0 : !modelica.array<3x?x!modelica.int>
-        ```
+        The operation allocates an array on the stack.
+        It takes a variadic number of arguments, each of one representing the
+        size of a dynamic dimension within the desired array type. Note that
+        the amount of operands must match the number of dynamic dimensions.
     }];
 
     let arguments = (ins Variadic<Index>:$dynamicSizes);
-    let results = (outs AnyBaseModelicaArray:$array);
+
+    let results = (outs
+        Res<AnyBaseModelicaArray,
+            "Stack-allocated array",
+            [MemAlloc<AutomaticAllocationScopeResource, 0, FullEffect>]>:$array
+    );
 
     let assemblyFormat = [{
         $dynamicSizes attr-dict `:` type($array)
     }];
 
     let hasVerifier = 1;
-
-    let builders = [
-        OpBuilder<(ins "ArrayType":$arrayType, "ValueRange":$dynamicSizes), [{
-            $_state.types.push_back(arrayType);
-            $_state.addOperands(dynamicSizes);
-        }]>
-    ];
-
-    let extraClassDeclaration = [{
-        ArrayType getArrayType()
-        {
-            return mlir::cast<ArrayType>(getArray().getType());
-        }
-    }];
 }
 
-def Modelica_AllocOp : BaseModelica_Op<"alloc",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
+def Modelica_ArrayAllocOp : BaseModelica_Op<"array.alloc">
 {
     let summary = "Allocate an array on the heap.";
 
     let description = [{
-        Allocate an array on the heap.
-        The operation takes a variadic number of arguments, each of one
-        representing the size of a dynamic dimension within the desired array
-        type. Note that the amount of operands must match the number of dynamic
-        dimensions and they all must be of `index` type.
-
-        Example:
-
-        ```mlir
-        %0 = constant 5 : index
-        %1 = modelica.alloca %0 : !modelica.array<3x?x!modelica.int>
-        ```
+        The operation allocates an array on the heap.
+        It takes a variadic number of arguments, each of one representing the
+        size of a dynamic dimension within the desired array type. Note that
+        the amount of operands must match the number of dynamic dimensions.
     }];
 
     let arguments = (ins Variadic<Index>:$dynamicSizes);
-    let results = (outs AnyBaseModelicaArray:$array);
+
+    let results = (outs
+        Res<AnyBaseModelicaArray,
+            "Heap-allocated array",
+            [MemAlloc<DefaultResource, 0, FullEffect>]>:$array
+    );
 
     let assemblyFormat = "($dynamicSizes^)? attr-dict `:` type($array)";
 
     let hasVerifier = 1;
-
-    let builders = [
-        OpBuilder<(ins "ArrayType":$arrayType, "ValueRange":$dynamicSizes), [{
-            $_state.types.push_back(arrayType);
-            $_state.addOperands(dynamicSizes);
-        }]>
-    ];
-
-    let extraClassDeclaration = [{
-        /// Get the result array type.
-        ArrayType getArrayType()
-        {
-            return mlir::cast<ArrayType>(getArray().getType());
-        }
-    }];
 }
 
-def Modelica_ArrayFromElementsOp : BaseModelica_Op<"array_from_elements",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
-{
-    let summary = "Create an array with the given elements.";
-
-    let description = [{
-        Alloc an array with the given elements.
-        The amount of operands must match the total number of values of the
-        array.
-
-        Example:
-
-        ```mlir
-        %0 = constant #modelica<int 1>
-        %1 = constant #modelica<real 2.0>
-        %2 = constant #modelica<real 3.0>
-        %3 = constant #modelica<int 4>
-        %4 = constant #modelica<int 5>
-        %5 = constant #modelica<int 6>
-        %6 = modelica.array_from_elements %0, %1, %2, %3, %4, %5 : !modelica.int, !modelica.real, !modelica.real, !modelica.int, !modelica.int, !modelica.int -> !modelica.array<3x2x!modelica.real>
-        ```
-    }];
-
-    let arguments = (ins Variadic<AnyType>:$values);
-    let results = (outs AnyBaseModelicaArray:$array);
-
-    let assemblyFormat = [{
-        $values attr-dict `:` type($values) `->` type($array)
-    }];
-
-    let hasVerifier = 1;
-    let hasFolder = 1;
-
-    let builders = [
-        OpBuilder<(ins "ArrayType":$arrayType, "ValueRange":$values), [{
-            $_state.types.push_back(arrayType);
-            $_state.addOperands(values);
-        }]>
-    ];
-
-    let extraClassDeclaration = [{
-        /// Get the result array type.
-        ArrayType getArrayType()
-        {
-            return mlir::cast<ArrayType>(getArray().getType());
-        }
-    }];
-}
-
-def Modelica_ArrayBroadcastOp : BaseModelica_Op<"array_broadcast",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
+def Modelica_ArrayBroadcastOp : BaseModelica_Op<"array.broadcast">
 {
     let summary = "Create an array with a given value in all positions.";
 
     let description = [{
-        Alloc an array with all the elements equal to a given one.
+        Heap-allocate an array with all the elements equal to a given one.
         Dynamically sized arrays can be created by passing also the dynamic
         dimensions.
-
-        Example with static dimensions:
-
-        ```mlir
-        %0 = ... : !modelica.int
-        %1 = modelica.array_broadcast %0 : !modelica.int -> !modelica.array<3x2x!modelica.real>
-        ```
-
-        Example with dynamic dimensions:
-
-        ```mlir
-        %0 = ... : !modelica.int
-        %1 = ... : index
-        %2 = ... : index
-        %3 = modelica.array_broadcast %0, %1, %2 : !modelica.int -> !modelica.array<?x2x?x!modelica.real>
-        ```
     }];
 
     let arguments = (ins
         BaseModelicaCompatibleScalar:$value,
-        Variadic<Index>:$dynamicDimensions);
+        Variadic<Index>:$dynamicDimensions
+    );
 
-    let results = (outs AnyBaseModelicaArray:$array);
+    let results = (outs
+        Res<AnyBaseModelicaArray,
+            "Heap-allocated array",
+            [MemAlloc<DefaultResource, 0, FullEffect>]>:$array
+    );
 
     let assemblyFormat = [{
         $value (`,` $dynamicDimensions^)? attr-dict `:` type($value) `->` type($array)
     }];
-
-    let extraClassDeclaration = [{
-        /// Get the result array type.
-        ArrayType getArrayType()
-        {
-            return mlir::cast<ArrayType>(getArray().getType());
-        }
-    }];
 }
 
-def BaseModelica_FreeOp : BaseModelica_Op<"free",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
+def BaseModelica_DeallocOp : BaseModelica_Op<"array.dealloc">
 {
     let summary = "Deallocate an heap-allocated array.";
 
     let description = [{
         Deallocate an heap-allocated array.
-        The array must have been created using the `modelica.alloc` operation.
-
-        Example:
-
-        ```mlir
-        %array = ... : !modelica.array<?x!modelica.int>
-        modelica.free %array : !modelica.array<?x!modelica.int>
-        ```
+        The array must have been created using the `bmodelica.array.alloc`
+        operation.
     }];
 
-    let arguments = (ins AnyBaseModelicaArray:$array);
+    let arguments = (ins
+        Arg<AnyBaseModelicaArray,
+            "Heap-allocated array",
+            [MemFreeAt<0, FullEffect>]>:$array
+    );
+
     let results = (outs);
     let assemblyFormat = "$array attr-dict `:` type($array)";
 }
 
-def Modelica_ArrayCastOp : BaseModelica_Op<"array_cast",
-    [ViewLikeOpInterface]>
+def Modelica_ArrayCastOp : BaseModelica_Op<"array.cast", [
+        ViewLikeOpInterface
+    ]>
 {
     let summary = "Cast operation for array types.";
 
@@ -676,21 +569,21 @@ def Modelica_ArrayCastOp : BaseModelica_Op<"array_cast",
         Correct usage examples:
 
         ```mlir
-        %0 = ... : !modelica.array<3x2x!modelica.int>
-        %1 = modelica.array_cast %0 : !modelica.array<3x2x!modelica.int> -> !modelica.array<?x?x!modelica.int>
-        %2 = modelica.array_cast %0 : !modelica.array<3x2x!modelica.int> -> !modelica.array<*x!modelica.int>
+        %0 = ... : !bmodelica.array<3x2x!modelica.int>
+        %1 = bmodelica.array_cast %0 : !bmodelica.array<3x2x!modelica.int> -> !bmodelica.array<?x?x!modelica.int>
+        %2 = bmodelica.array_cast %0 : !bmodelica.array<3x2x!modelica.int> -> !bmodelica.array<*x!modelica.int>
         ```
 
         Wrong usage examples:
 
         ```mlir
-        %0 = ... : !modelica.array<3x2x!modelica.int>
-        %1 = modelica.array_cast %0 : !modelica.array<3x2x!modelica.int> -> !modelica.array<3x2x!modelica.real>
+        %0 = ... : !bmodelica.array<3x2x!modelica.int>
+        %1 = bmodelica.array_cast %0 : !bmodelica.array<3x2x!modelica.int> -> !bmodelica.array<3x2x!modelica.real>
         ```
     }];
 
-    let arguments = (ins AnyType:$source);
-    let results = (outs AnyType:$result);
+    let arguments = (ins AnyBaseModelicaArray:$source);
+    let results = (outs AnyBaseModelicaArray:$result);
 
     let assemblyFormat = [{
         $source attr-dict `:` type($source) `->` type($result)
@@ -709,57 +602,42 @@ def Modelica_ArrayCastOp : BaseModelica_Op<"array_cast",
     }];
 }
 
-def Modelica_DimOp : BaseModelica_Op<"dim", [NoMemoryEffect]>
+def Modelica_DimOp : BaseModelica_Op<"array.dim", [NoMemoryEffect]>
 {
     let summary = "Get the size of an array dimension.";
 
     let description = [{
-        Get the size of an array dimension. The operation is trivial in case of
-        statically shaped arrays, while it is more useful in case of dimensions
-        that are unknown at compile-time.
-        The result value has `index` type.
-
-        Example:
-
-        ```mlir
-        %array = ... : !modelica.array<?x?x?x!modelica.int>
-        %c2 = constant 2 : index
-        %dim = modelica.dim %array, %c2 : !modelica.array<?x?x?x!modelica.int>
-        ```
+        The operation computes the size of an array dimension.
     }];
 
-    let arguments = (ins AnyBaseModelicaArray:$array, Index:$dimension);
+    let arguments = (ins
+        AnyBaseModelicaArray:$array,
+        Index:$dimension
+    );
+
     let results = (outs Index:$result);
     let assemblyFormat = "$array `,` $dimension attr-dict `:` type($array)";
     let hasCanonicalizer = 1;
 }
 
-def BaseModelica_LoadOp : BaseModelica_Op<"load",
-    [TypesMatchWith<"result type matches element type of 'array'",
-                     "array", "result",
-                     "mlir::cast<ArrayType>($_self).getElementType()">,
-    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
+def BaseModelica_LoadOp : BaseModelica_Op<"array.load", [
+        TypesMatchWith<"result type matches element type of 'array'",
+                        "array", "result",
+                        "mlir::cast<ArrayType>($_self).getElementType()">
+    ]>
 {
     let summary = "Load a value from an array.";
 
     let description = [{
-        Load a value from an array location given by indices.
-        The number of arguments provided within brackets must match the rank of
-        the array.
-
-        Example:
-
-        ```mlir
-        $array = ... : !modelica.array<?x?x!modelica.int>
-        %0 = constant 3 : index
-        %1 = constant 5 : index
-        %value = modelica.load %array[%0, %1] : !modelica.array<?x?x!modelica.int>
-        ```
+        The operation loads a value from an array location given by indices.
+        The number of arguments provided as indices must match the rank of the
+        array.
     }];
 
     let arguments = (ins
-        AnyBaseModelicaArray:$array,
-        Variadic<Index>:$indices);
+        Arg<AnyBaseModelicaArray, "Array to read from", [MemRead]>:$array,
+        Variadic<Index>:$indices
+    );
 
     let results = (outs AnyType:$result);
 
@@ -773,21 +651,13 @@ def BaseModelica_LoadOp : BaseModelica_Op<"load",
     let builders = [
         OpBuilder<(ins "mlir::Value":$array, CArg<"mlir::ValueRange", "{}">:$indices)>
     ];
-
-    let extraClassDeclaration = [{
-        /// Get the array type.
-        ArrayType getArrayType()
-        {
-            return mlir::cast<ArrayType>(getArray().getType());
-        }
-    }];
 }
 
-def BaseModelica_StoreOp : BaseModelica_Op<"store",
-    [TypesMatchWith<"type of 'value' matches element type of 'array'",
-                    "array", "value",
-                    "mlir::cast<ArrayType>($_self).getElementType()">,
-    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
+def BaseModelica_StoreOp : BaseModelica_Op<"array.store", [
+        TypesMatchWith<"type of 'value' matches element type of 'array'",
+                        "array", "value",
+                        "mlir::cast<ArrayType>($_self).getElementType()">
+    ]>
 {
     let summary = "Store a value into an array.";
 
@@ -796,22 +666,13 @@ def BaseModelica_StoreOp : BaseModelica_Op<"store",
         The value stored must have the same type as the elemental type of the
         array. The number of arguments provided within brackets must match the
         rank of the array.
-
-        Example:
-
-        ```mlir
-        %array = ... : !modelica.array<?x?x!modelica.int>
-        %0 = constant 3 : index
-        %1 = constant 5 : index
-        %value = ... : !modelica.int
-        modelica.store %array[%0, %1], %value : !modelica.array<?x?x!modelica.int>
-        ```
     }];
 
     let arguments = (ins
         AnyType:$value,
-        AnyBaseModelicaArray:$array,
-        Variadic<Index>:$indices);
+        Arg<AnyBaseModelicaArray, "Array to write to", [MemWrite]>:$array,
+        Variadic<Index>:$indices
+    );
 
     let results = (outs);
 
@@ -824,43 +685,27 @@ def BaseModelica_StoreOp : BaseModelica_Op<"store",
     let builders = [
         OpBuilder<(ins "mlir::Value":$value, "mlir::Value":$array, CArg<"mlir::ValueRange", "{}">:$indices)>
     ];
-
-    let extraClassDeclaration = [{
-        /// Get the array type.
-        ArrayType getArrayType()
-        {
-            return mlir::cast<ArrayType>(getArray().getType());
-        }
-    }];
 }
 
-def BaseModelica_SubscriptionOp : BaseModelica_Op<"subscription",
-    [ViewLikeOpInterface,
-    NoMemoryEffect]>
+def BaseModelica_SubscriptionOp : BaseModelica_Op<"array.subscription", [
+        ViewLikeOpInterface,
+        NoMemoryEffect
+    ]>
 {
     let summary = "Create a view over an array.";
 
     let description = [{
-        Create a view over an array.
+        The operation creates a view over an array.
         The values of the original arrays are not copied and all the modifications
         performed on the subview do reflect on the original array.
-
-        Example:
-
-        ```mlir
-        %array = ... : !modelica.array<3x5x4x!modelica.int>
-        %c1 : constant 1 : index
-        %c2 : constant 2 : index
-        %view = modelica.subscription %array[%c1, %c2] : !modelica.array<3x5x4x!modelica.int>
-        // %view has type !modelica.array<4x!modelica.int>
-        ```
     }];
 
     let arguments = (ins
         AnyBaseModelicaArray:$source,
-        Variadic<AnyTypeOf<[BaseModelicaCompatibleScalar, BaseModelicaRange]>>:$indices);
+        Variadic<AnyTypeOf<[BaseModelicaCompatibleScalar, BaseModelicaRange]>>:$indices
+    );
 
-    let results = (outs AnyType:$result);
+    let results = (outs AnyBaseModelicaArray:$result);
 
     let assemblyFormat = [{
         $source `[` $indices `]` attr-dict `:` type($source) (`,` type($indices)^)? `->` type($result)
@@ -877,16 +722,6 @@ def BaseModelica_SubscriptionOp : BaseModelica_Op<"subscription",
         static ArrayType inferResultType(
             ArrayType source, mlir::ValueRange indices);
 
-        ArrayType getSourceArrayType()
-        {
-            return mlir::cast<ArrayType>(getSource().getType());
-        }
-
-        ArrayType getResultArrayType()
-        {
-            return mlir::cast<ArrayType>(getResult().getType());
-        }
-
         /// @name ViewLikeOpInterface methods
         /// {
 
@@ -899,59 +734,42 @@ def BaseModelica_SubscriptionOp : BaseModelica_Op<"subscription",
     }];
 }
 
-def BaseModelica_ArrayFillOp : BaseModelica_Op<"array_fill",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
+def BaseModelica_ArrayFillOp : BaseModelica_Op<"array.fill">
 {
     let summary = "Fill an array with a value.";
 
     let description = [{
         Set all the elements of an array to a given value.
-
-        Example:
-
-        ```mlir
-        %value = ... : !modelica.int
-        %array = ... : !modelica.array<?x!modelica.real>
-        modelica.array_fill %array, %value : !modelica.array<?x!modelica.real>, !modelica.int
-        ```
     }];
 
-    let arguments = (ins AnyBaseModelicaArray:$array, BaseModelicaCompatibleScalar:$value);
+    let arguments = (ins
+        Arg<AnyBaseModelicaArray, "Array to write to", [MemWrite]>:$array,
+        BaseModelicaCompatibleScalar:$value
+    );
+
     let results = (outs);
 
     let assemblyFormat = [{
         $array `,` $value attr-dict `:` type($array) `,` type($value)
     }];
-
-    let extraClassDeclaration = [{
-        /// Get the array type.
-        ArrayType getArrayType()
-        {
-            return mlir::cast<ArrayType>(getArray().getType());
-        }
-    }];
 }
 
-def BaseModelica_ArrayCopyOp : BaseModelica_Op<"array_copy",
-    [SameOperandsShape,
-     DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
+def BaseModelica_ArrayCopyOp : BaseModelica_Op<"array.copy", [
+        SameOperandsShape
+    ]>
 {
     let summary = "Copy the elements from an array to another.";
 
     let description = [{
         The operation copies the elements from the source to the destination
         array.
-
-        Example:
-
-        ```mlir
-        %source = ... : !modelica.array<?x!modelica.int>
-        %destination = ... : !modelica.array<?x!modelica.real>
-        modelica.array_copy %destination, %source : !modelica.array<?x!modelica.int>, !modelica.array<?x!modelica.real>
-        ```
     }];
 
-    let arguments = (ins BaseModelicaArray:$source, BaseModelicaArray:$destination);
+    let arguments = (ins
+        Arg<AnyBaseModelicaArray, "Array to read from", [MemRead]>:$source,
+        Arg<AnyBaseModelicaArray, "Array to write to", [MemWrite]>:$destination
+    );
+
     let results = (outs);
 
     let assemblyFormat = [{

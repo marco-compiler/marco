@@ -12,6 +12,6 @@ func.func @Test(%arg0: !bmodelica.array<?x?x?xf64>, %arg1: index) -> index {
     // CHECK:       %[[cond:.*]] = bmodelica.and %[[lbCondition]], %[[ubCoundition]]
     // CHECK:       bmodelica.yield %[[cond]]
 
-    %0 = bmodelica.dim %arg0, %arg1 : !bmodelica.array<?x?x?xf64>
+    %0 = bmodelica.array.dim %arg0, %arg1 : !bmodelica.array<?x?x?xf64>
     func.return %0 : index
 }

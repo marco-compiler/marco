@@ -16,7 +16,7 @@
 
 func.func @fixedSize() -> !bmodelica.array<3x!bmodelica.int> {
     %0 = bmodelica.constant #bmodelica<int 0>
-    %1 = bmodelica.array_broadcast %0 : !bmodelica.int -> !bmodelica.array<3x!bmodelica.int>
+    %1 = bmodelica.array.broadcast %0 : !bmodelica.int -> !bmodelica.array<3x!bmodelica.int>
     func.return %1 : !bmodelica.array<3x!bmodelica.int>
 }
 
@@ -40,7 +40,7 @@ func.func @fixedSize() -> !bmodelica.array<3x!bmodelica.int> {
 func.func @dynamicSize() -> !bmodelica.array<?x!bmodelica.int> {
     %0 = arith.constant 2 : index
     %1 = bmodelica.constant #bmodelica<int 0>
-    %2 = bmodelica.array_broadcast %1, %0 : !bmodelica.int -> !bmodelica.array<?x!bmodelica.int>
+    %2 = bmodelica.array.broadcast %1, %0 : !bmodelica.int -> !bmodelica.array<?x!bmodelica.int>
     func.return %2 : !bmodelica.array<?x!bmodelica.int>
 }
 
@@ -70,7 +70,7 @@ func.func @dynamicSize() -> !bmodelica.array<?x!bmodelica.int> {
 
 func.func @multidimensionalArray() -> !bmodelica.array<2x3x4x!bmodelica.int> {
     %0 = bmodelica.constant #bmodelica<int 0>
-    %1 = bmodelica.array_broadcast %0 : !bmodelica.int -> !bmodelica.array<2x3x4x!bmodelica.int>
+    %1 = bmodelica.array.broadcast %0 : !bmodelica.int -> !bmodelica.array<2x3x4x!bmodelica.int>
     func.return %1 : !bmodelica.array<2x3x4x!bmodelica.int>
 }
 
@@ -95,6 +95,6 @@ func.func @multidimensionalArray() -> !bmodelica.array<2x3x4x!bmodelica.int> {
 
 func.func @implicitCast() -> !bmodelica.array<3x!bmodelica.real> {
     %0 = bmodelica.constant #bmodelica<int 0>
-    %1 = bmodelica.array_broadcast %0 : !bmodelica.int -> !bmodelica.array<3x!bmodelica.real>
+    %1 = bmodelica.array.broadcast %0 : !bmodelica.int -> !bmodelica.array<3x!bmodelica.real>
     func.return %1 : !bmodelica.array<3x!bmodelica.real>
 }

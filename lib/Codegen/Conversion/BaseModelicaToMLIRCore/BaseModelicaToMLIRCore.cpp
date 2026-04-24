@@ -95,9 +95,9 @@ mlir::LogicalResult BaseModelicaToMLIRCoreConversionPass::convertOperations() {
   target.addDynamicallyLegalOp<PoolVariableGetOp>(
       [](PoolVariableGetOp op) { return !mlir::isa<ArrayType>(op.getType()); });
 
-  target.addIllegalOp<AllocaOp, AllocOp, ArrayFromElementsOp, ArrayBroadcastOp,
-                      FreeOp, DimOp, SubscriptionOp, LoadOp, StoreOp,
-                      ArrayCastOp, ArrayFillOp, ArrayCopyOp>();
+  target.addIllegalOp<ArrayAllocaOp, ArrayAllocOp, ArrayBroadcastOp, DeallocOp,
+                      DimOp, SubscriptionOp, LoadOp, StoreOp, ArrayCastOp,
+                      ArrayFillOp, ArrayCopyOp>();
 
   target.addIllegalOp<EquationFunctionOp, EquationCallOp, RawFunctionOp,
                       RawReturnOp, CallOp>();

@@ -6,11 +6,12 @@ using namespace ::mlir::bmodelica;
 using namespace ::mlir::bufferization;
 
 namespace {
-struct AllocOpInterface
-    : public AllocationOpInterface::ExternalModel<AllocOpInterface, AllocOp> {
+struct ArrayAllocOpInterface
+    : public AllocationOpInterface::ExternalModel<ArrayAllocOpInterface,
+                                                  ArrayAllocOp> {
   static std::optional<mlir::Operation *> buildDealloc(mlir::OpBuilder &builder,
                                                        mlir::Value alloc) {
-    return builder.create<FreeOp>(alloc.getLoc(), alloc).getOperation();
+    return builder.create<DeallocOp>(alloc.getLoc(), alloc).getOperation();
   }
 
   static std::optional<mlir::Value> buildClone(mlir::OpBuilder &builder,
@@ -26,23 +27,10 @@ struct AllocOpInterface
   buildPromotedAlloc(mlir::OpBuilder &builder, mlir::Value alloc) {
     mlir::Operation *definingOp = alloc.getDefiningOp();
 
-    return builder.create<AllocaOp>(
+    return builder.create<ArrayAllocaOp>(
         definingOp->getLoc(),
         mlir::cast<ArrayType>(definingOp->getResultTypes()[0]),
         definingOp->getOperands(), definingOp->getAttrs());
-  }
-};
-
-struct ArrayFromElementsOpInterface
-    : public AllocationOpInterface::ExternalModel<ArrayFromElementsOpInterface,
-                                                  ArrayFromElementsOp> {
-  static std::optional<mlir::Operation *> buildDealloc(mlir::OpBuilder &builder,
-                                                       mlir::Value alloc) {
-    return builder.create<FreeOp>(alloc.getLoc(), alloc).getOperation();
-  }
-
-  static mlir::HoistingKind getHoistingKind() {
-    return mlir::HoistingKind::Loop | mlir::HoistingKind::Block;
   }
 };
 
@@ -51,7 +39,7 @@ struct ArrayBroadcastOpInterface
                                                   ArrayBroadcastOp> {
   static std::optional<mlir::Operation *> buildDealloc(mlir::OpBuilder &builder,
                                                        mlir::Value alloc) {
-    return builder.create<FreeOp>(alloc.getLoc(), alloc).getOperation();
+    return builder.create<DeallocOp>(alloc.getLoc(), alloc).getOperation();
   }
 
   static mlir::HoistingKind getHoistingKind() {
@@ -96,7 +84,7 @@ struct CallOpInterface
     : public AllocationOpInterface::ExternalModel<CallOpInterface, CallOp> {
   static std::optional<mlir::Operation *> buildDealloc(mlir::OpBuilder &builder,
                                                        mlir::Value alloc) {
-    return builder.create<FreeOp>(alloc.getLoc(), alloc).getOperation();
+    return builder.create<DeallocOp>(alloc.getLoc(), alloc).getOperation();
   }
 
   static mlir::HoistingKind getHoistingKind() {
@@ -110,14 +98,12 @@ void registerAllocationOpInterfaceExternalModels(
     mlir::DialectRegistry &registry) {
   registry.addExtension(+[](mlir::MLIRContext *context,
                             BaseModelicaDialect *dialect) {
-    AllocOp::attachInterface<::AllocOpInterface>(*context);
-
-    ArrayFromElementsOp::attachInterface<::ArrayFromElementsOpInterface>(
-        *context);
-
+    // clang-format off
+    ArrayAllocOp::attachInterface<::ArrayAllocOpInterface>(*context);
     ArrayBroadcastOp::attachInterface<::ArrayBroadcastOpInterface>(*context);
     CallOp::attachInterface<::CallOpInterface>(*context);
     RawVariableOp::attachInterface<::RawVariableOpInterface>(*context);
+    // clang-format on
   });
 }
 } // namespace mlir::bmodelica

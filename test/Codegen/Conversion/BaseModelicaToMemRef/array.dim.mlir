@@ -9,6 +9,6 @@
 
 func.func @foo(%arg0: !bmodelica.array<5x?x!bmodelica.int>) -> index {
     %0 = arith.constant 1 : index
-    %1 = bmodelica.dim %arg0, %0 : !bmodelica.array<5x?x!bmodelica.int>
+    %1 = bmodelica.array.dim %arg0, %0 : !bmodelica.array<5x?x!bmodelica.int>
     func.return %1 : index
 }

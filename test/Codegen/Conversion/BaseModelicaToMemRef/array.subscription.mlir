@@ -15,7 +15,7 @@
 func.func @foo(%arg0: !bmodelica.array<6x5x4x3x2x!bmodelica.int>) -> !bmodelica.array<4x3x2x!bmodelica.int> {
     %0 = arith.constant 3 : index
     %1 = arith.constant 2 : index
-    %2 = bmodelica.subscription %arg0[%0, %1] : !bmodelica.array<6x5x4x3x2x!bmodelica.int>, index, index -> !bmodelica.array<4x3x2x!bmodelica.int>
+    %2 = bmodelica.array.subscription %arg0[%0, %1] : !bmodelica.array<6x5x4x3x2x!bmodelica.int>, index, index -> !bmodelica.array<4x3x2x!bmodelica.int>
     func.return %2 : !bmodelica.array<4x3x2x!bmodelica.int>
 }
 
@@ -46,6 +46,6 @@ func.func @foo(%arg0: !bmodelica.array<6x5x4x3x2x!bmodelica.int>) -> !bmodelica.
 func.func @foo(%arg0: !bmodelica.array<6x5x4x3x2x!bmodelica.int>) -> !bmodelica.array<?x?x4x3x2x!bmodelica.int> {
     %0 = bmodelica.constant #bmodelica.int_range<3, 10, 2> : !bmodelica<range !bmodelica.int>
     %1 = bmodelica.constant #bmodelica.real_range<3.0, 10.0, 2.0> : !bmodelica<range !bmodelica.real>
-    %2 = bmodelica.subscription %arg0[%0, %1] : !bmodelica.array<6x5x4x3x2x!bmodelica.int>, !bmodelica<range !bmodelica.int>, !bmodelica<range !bmodelica.real> -> !bmodelica.array<?x?x4x3x2x!bmodelica.int>
+    %2 = bmodelica.array.subscription %arg0[%0, %1] : !bmodelica.array<6x5x4x3x2x!bmodelica.int>, !bmodelica<range !bmodelica.int>, !bmodelica<range !bmodelica.real> -> !bmodelica.array<?x?x4x3x2x!bmodelica.int>
     func.return %2 : !bmodelica.array<?x?x4x3x2x!bmodelica.int>
 }

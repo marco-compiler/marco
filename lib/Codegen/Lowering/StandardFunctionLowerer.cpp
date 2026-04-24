@@ -325,7 +325,7 @@ bool StandardFunctionLowerer::lowerExternalFunctionCall(
         mlir::Value currentValue =
             (*loweredArg)[0].get((*loweredArg)[0].getLoc());
 
-        auto allocOp = builder().create<AllocOp>(
+        auto allocOp = builder().create<ArrayAllocOp>(
             currentValue.getLoc(), ArrayType::get({}, currentValue.getType()),
             mlir::ValueRange());
 

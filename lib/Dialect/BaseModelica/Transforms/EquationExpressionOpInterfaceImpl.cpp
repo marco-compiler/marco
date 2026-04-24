@@ -752,26 +752,6 @@ struct TensorInsertOpInterface
   DEFINE_DEFAULT_IS_EQUIVALENT(TensorInsertOp)
 };
 
-struct ArrayFromElementsOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<
-          ::ArrayFromElementsOpInterface, ArrayFromElementsOp> {
-  void printExpression(
-      mlir::Operation *op, llvm::raw_ostream &os,
-      const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
-    auto castedOp = mlir::cast<ArrayFromElementsOp>(op);
-
-    os << "{";
-
-    llvm::interleaveComma(castedOp.getValues(), os, [&](mlir::Value exp) {
-      ::printExpression(os, exp, inductions);
-    });
-
-    os << "}";
-  }
-
-  DEFINE_DEFAULT_IS_EQUIVALENT(ArrayFromElementsOp)
-};
-
 struct ArrayBroadcastOpInterface
     : public EquationExpressionOpInterface::ExternalModel<
           ::ArrayBroadcastOpInterface, ArrayBroadcastOp> {
@@ -782,8 +762,8 @@ struct ArrayBroadcastOpInterface
 
     os << "{";
 
-    for (int64_t i = 0, e = castedOp.getArrayType().getNumElements(); i < e;
-         ++i) {
+    for (int64_t i = 0, e = castedOp.getArray().getType().getNumElements();
+         i < e; ++i) {
       if (i != 0) {
         os << ", ";
       }
@@ -2018,7 +1998,6 @@ void registerEquationExpressionOpInterfaceExternalModels(
     TensorInsertOp::attachInterface<::TensorInsertOpInterface>(*context);
 
     // Array operations.
-    ArrayFromElementsOp::attachInterface<::ArrayFromElementsOpInterface>(*context);
     ArrayBroadcastOp::attachInterface<::ArrayBroadcastOpInterface>(*context);
     ArrayCastOp::attachInterface<::ArrayCastOpInterface>(*context);
     DimOp::attachInterface<::DimOpInterface>(*context);

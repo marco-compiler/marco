@@ -7,6 +7,6 @@
 // CHECK: return
 
 func.func @foo(%arg0: !bmodelica.array<5x3x!bmodelica.int>) {
-    bmodelica.free %arg0 : !bmodelica.array<5x3x!bmodelica.int>
+    bmodelica.array.dealloc %arg0 : !bmodelica.array<5x3x!bmodelica.int>
     func.return
 }

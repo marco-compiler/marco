@@ -8,7 +8,7 @@ func.func @Test(%arg0: !bmodelica.array<?x?xf64>, %arg1: index, %arg2: index, %a
     // CHECK:  %[[lowerBound:.*]] = bmodelica.constant 0 : index
     // CHECK:  %[[lbCondition:.*]] = bmodelica.gte %[[arg1]], %[[lowerBound]]
     // CHECK:  %[[dimIndex:.*]] = bmodelica.constant 0 : index
-    // CHECK:  %[[dimSize:.*]] = bmodelica.dim %[[arg0]], %[[dimIndex]]
+    // CHECK:  %[[dimSize:.*]] = bmodelica.array.dim %[[arg0]], %[[dimIndex]]
     // CHECK:  %[[ubCondition:.*]] = bmodelica.lt %[[arg1]], %[[dimSize]]
     // CHECK:  %[[condition:.*]] = bmodelica.and %[[lbCondition]], %[[ubCondition]]
     // CHECK:  bmodelica.yield %[[condition]]
@@ -17,11 +17,11 @@ func.func @Test(%arg0: !bmodelica.array<?x?xf64>, %arg1: index, %arg2: index, %a
     // CHECK:  %[[lowerBound:.*]] = bmodelica.constant 0 : index
     // CHECK:  %[[lbCondition:.*]] = bmodelica.gte %[[arg2]], %[[lowerBound]]
     // CHECK:  %[[dimIndex:.*]] = bmodelica.constant 1 : index
-    // CHECK:  %[[dimSize:.*]] = bmodelica.dim %[[arg0]], %[[dimIndex]]
+    // CHECK:  %[[dimSize:.*]] = bmodelica.array.dim %[[arg0]], %[[dimIndex]]
     // CHECK:  %[[ubCondition:.*]] = bmodelica.lt %[[arg2]], %[[dimSize]]
     // CHECK:  %[[condition:.*]] = bmodelica.and %[[lbCondition]], %[[ubCondition]]
     // CHECK:  bmodelica.yield %[[condition]]
     
-    bmodelica.store %arg0[%arg1, %arg2], %arg3 : !bmodelica.array<?x?xf64>
+    bmodelica.array.store %arg0[%arg1, %arg2], %arg3 : !bmodelica.array<?x?xf64>
     func.return 
 }

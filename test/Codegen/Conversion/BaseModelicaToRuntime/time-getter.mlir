@@ -2,7 +2,7 @@
 
 // CHECK:       runtime.function @getTime() -> f64 {
 // CHECK:           %[[time_get:.*]] = bmodelica.global_variable.get @time : !bmodelica.array<!bmodelica.real>
-// CHECK:           %[[time_load:.*]] = bmodelica.load %[[time_get]][]
+// CHECK:           %[[time_load:.*]] = bmodelica.array.load %[[time_get]][]
 // CHECK:           %[[result:.*]] = bmodelica.cast %[[time_load]] : !bmodelica.real -> f64
 // CHECK:           runtime.return %[[result]] : f64
 // CHECK-NEXT:  }

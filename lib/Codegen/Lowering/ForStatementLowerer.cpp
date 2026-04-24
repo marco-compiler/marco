@@ -32,7 +32,7 @@ bool ForStatementLowerer::lower(const ast::bmodelica::ForStatement &statement) {
     assert(forIndexRange->getOperationKind() ==
            ast::bmodelica::OperationKind::range);
 
-    mlir::Value inductionVar = builder().create<AllocaOp>(
+    mlir::Value inductionVar = builder().create<ArrayAllocaOp>(
         location, ArrayType::get({}, builder().getIndexType()),
         mlir::ValueRange());
 

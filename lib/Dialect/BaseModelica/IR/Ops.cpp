@@ -846,11 +846,11 @@ void TensorExtractOp::getCanonicalizationPatterns(
 //===---------------------------------------------------------------------===//
 
 //===---------------------------------------------------------------------===//
-// AllocaOp
+// ArrayAllocaOp
 
 namespace mlir::bmodelica {
-mlir::LogicalResult AllocaOp::verify() {
-  int64_t dynamicDimensionsAmount = getArrayType().getNumDynamicDims();
+mlir::LogicalResult ArrayAllocaOp::verify() {
+  int64_t dynamicDimensionsAmount = getArray().getType().getNumDynamicDims();
   size_t valuesAmount = getDynamicSizes().size();
 
   if (dynamicDimensionsAmount != static_cast<int64_t>(valuesAmount)) {
@@ -862,25 +862,14 @@ mlir::LogicalResult AllocaOp::verify() {
 
   return mlir::success();
 }
-
-void AllocaOp::getEffects(
-    mlir::SmallVectorImpl<
-        mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>
-        &effects) {
-  if (auto arrayType = mlir::dyn_cast<ArrayType>(getResult().getType())) {
-    effects.emplace_back(
-        mlir::MemoryEffects::Allocate::get(), getOperation()->getResult(0),
-        mlir::SideEffects::AutomaticAllocationScopeResource::get());
-  }
-}
 } // namespace mlir::bmodelica
 
 //===---------------------------------------------------------------------===//
-// AllocOp
+// ArrayAllocOp
 
 namespace mlir::bmodelica {
-mlir::LogicalResult AllocOp::verify() {
-  int64_t dynamicDimensionsAmount = getArrayType().getNumDynamicDims();
+mlir::LogicalResult ArrayAllocOp::verify() {
+  int64_t dynamicDimensionsAmount = getArray().getType().getNumDynamicDims();
   size_t valuesAmount = getDynamicSizes().size();
 
   if (dynamicDimensionsAmount != static_cast<int64_t>(valuesAmount)) {
@@ -891,126 +880,6 @@ mlir::LogicalResult AllocOp::verify() {
   }
 
   return mlir::success();
-}
-
-void AllocOp::getEffects(
-    mlir::SmallVectorImpl<
-        mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>
-        &effects) {
-  if (auto arrayType = mlir::dyn_cast<ArrayType>(getResult().getType())) {
-    effects.emplace_back(mlir::MemoryEffects::Allocate::get(),
-                         getOperation()->getResult(0),
-                         mlir::SideEffects::DefaultResource::get());
-  }
-}
-} // namespace mlir::bmodelica
-
-//===---------------------------------------------------------------------===//
-// ArrayFromElementsOp
-
-namespace mlir::bmodelica {
-mlir::LogicalResult ArrayFromElementsOp::verify() {
-  if (!getArrayType().hasStaticShape()) {
-    return emitOpError("the shape must be fixed");
-  }
-
-  int64_t arrayFlatSize = getArrayType().getNumElements();
-  size_t numOfValues = getValues().size();
-
-  if (arrayFlatSize != static_cast<int64_t>(numOfValues)) {
-    return emitOpError("incorrect number of values (expected " +
-                       std::to_string(arrayFlatSize) + ", got " +
-                       std::to_string(numOfValues) + ")");
-  }
-
-  return mlir::success();
-}
-
-mlir::OpFoldResult ArrayFromElementsOp::fold(FoldAdaptor adaptor) {
-  if (llvm::all_of(adaptor.getOperands(),
-                   [](mlir::Attribute attr) { return attr != nullptr; })) {
-    ArrayType arrayType = getArrayType();
-
-    if (!arrayType.hasStaticShape()) {
-      return {};
-    }
-
-    mlir::Type elementType = arrayType.getElementType();
-
-    if (mlir::isa<BooleanType>(elementType)) {
-      llvm::SmallVector<bool> casted;
-
-      if (!getScalarAttributesValues(adaptor.getOperands(), casted)) {
-        return {};
-      }
-
-      return DenseBooleanElementsAttr::get(arrayType, casted);
-    }
-
-    if (mlir::isa<IntegerType>(elementType)) {
-      llvm::SmallVector<int64_t> casted;
-
-      if (!getScalarAttributesValues(adaptor.getOperands(), casted)) {
-        return {};
-      }
-
-      return DenseIntegerElementsAttr::get(arrayType, casted);
-    }
-
-    if (mlir::isa<RealType>(elementType)) {
-      llvm::SmallVector<double> casted;
-
-      if (!getScalarAttributesValues(adaptor.getOperands(), casted)) {
-        return {};
-      }
-
-      return DenseRealElementsAttr::get(arrayType, casted);
-    }
-  }
-
-  return {};
-}
-
-void ArrayFromElementsOp::getEffects(
-    mlir::SmallVectorImpl<
-        mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>
-        &effects) {
-  effects.emplace_back(mlir::MemoryEffects::Allocate::get(),
-                       getOperation()->getResult(0),
-                       mlir::SideEffects::DefaultResource::get());
-
-  effects.emplace_back(mlir::MemoryEffects::Write::get(),
-                       getOperation()->getResult(0),
-                       mlir::SideEffects::DefaultResource::get());
-}
-} // namespace mlir::bmodelica
-
-//===---------------------------------------------------------------------===//
-// ArrayBroadcastOp
-
-namespace mlir::bmodelica {
-void ArrayBroadcastOp::getEffects(
-    mlir::SmallVectorImpl<
-        mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>
-        &effects) {
-  effects.emplace_back(mlir::MemoryEffects::Allocate::get(),
-                       getOperation()->getResult(0),
-                       mlir::SideEffects::DefaultResource::get());
-
-  effects.emplace_back(mlir::MemoryEffects::Write::get(),
-                       getOperation()->getResult(0),
-                       mlir::SideEffects::DefaultResource::get());
-}
-} // namespace mlir::bmodelica
-
-//===---------------------------------------------------------------------===//
-// FreeOp
-
-namespace mlir::bmodelica {
-void FreeOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<
-                            mlir::MemoryEffects::Effect>> &effects) {
-  effects.emplace_back(mlir::MemoryEffects::Free::get(), &getArrayMutable(),
-                       mlir::SideEffects::DefaultResource::get());
 }
 } // namespace mlir::bmodelica
 
@@ -1112,7 +981,7 @@ void LoadOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
 
 mlir::LogicalResult LoadOp::verify() {
   size_t indicesAmount = getIndices().size();
-  int64_t rank = getArrayType().getRank();
+  int64_t rank = getArray().getType().getRank();
 
   if (rank != static_cast<int64_t>(indicesAmount)) {
     return emitOpError() << "incorrect number of indices (expected " << rank
@@ -1127,7 +996,8 @@ mlir::LogicalResult LoadOp::verify() {
           return emitOpError() << "invalid index (" << *index << ")";
         }
 
-        if (int64_t dimSize = getArrayType().getDimSize(i); *index >= dimSize) {
+        if (int64_t dimSize = getArray().getType().getDimSize(i);
+            *index >= dimSize) {
           return emitOpError() << "out of bounds access (index = " << *index
                                << ", dimension = " << dimSize << ")";
         }
@@ -1141,12 +1011,6 @@ mlir::LogicalResult LoadOp::verify() {
 void LoadOp::getCanonicalizationPatterns(mlir::RewritePatternSet &patterns,
                                          mlir::MLIRContext *context) {
   patterns.add<LoadOpMergeSubscriptionPattern>(context);
-}
-
-void LoadOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<
-                            mlir::MemoryEffects::Effect>> &effects) {
-  effects.emplace_back(mlir::MemoryEffects::Read::get(), &getArrayMutable(),
-                       mlir::SideEffects::DefaultResource::get());
 }
 } // namespace mlir::bmodelica
 
@@ -1210,7 +1074,7 @@ void StoreOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
 
 mlir::LogicalResult StoreOp::verify() {
   size_t indicesAmount = getIndices().size();
-  int64_t rank = getArrayType().getRank();
+  int64_t rank = getArray().getType().getRank();
 
   if (rank != static_cast<int64_t>(indicesAmount)) {
     return emitOpError() << "incorrect number of indices (expected " << rank
@@ -1225,7 +1089,8 @@ mlir::LogicalResult StoreOp::verify() {
           return emitOpError() << "invalid index (" << *index << ")";
         }
 
-        if (int64_t dimSize = getArrayType().getDimSize(i); *index >= dimSize) {
+        if (int64_t dimSize = getArray().getType().getDimSize(i);
+            *index >= dimSize) {
           return emitOpError() << "out of bounds access (index = " << *index
                                << ", dimension = " << dimSize << ")";
         }
@@ -1239,14 +1104,6 @@ mlir::LogicalResult StoreOp::verify() {
 void StoreOp::getCanonicalizationPatterns(mlir::RewritePatternSet &patterns,
                                           mlir::MLIRContext *context) {
   patterns.add<StoreOpMergeSubscriptionPattern>(context);
-}
-
-void StoreOp::getEffects(
-    mlir::SmallVectorImpl<
-        mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>
-        &effects) {
-  effects.emplace_back(mlir::MemoryEffects::Write::get(), &getArrayMutable(),
-                       mlir::SideEffects::DefaultResource::get());
 }
 } // namespace mlir::bmodelica
 
@@ -1264,7 +1121,7 @@ struct InferSubscriptionResultTypePattern
     ArrayType inferredResultType = SubscriptionOp::inferResultType(
         op.getSource().getType(), op.getIndices());
 
-    if (inferredResultType != op.getResultArrayType()) {
+    if (inferredResultType != op.getResult().getType()) {
       auto newOp = rewriter.create<SubscriptionOp>(
           op.getLoc(), inferredResultType, op.getSource(), op.getIndices());
 
@@ -1325,8 +1182,8 @@ void SubscriptionOp::build(mlir::OpBuilder &builder,
 }
 
 mlir::LogicalResult SubscriptionOp::verify() {
-  ArrayType sourceType = getSourceArrayType();
-  ArrayType resultType = getResultArrayType();
+  ArrayType sourceType = getSource().getType();
+  ArrayType resultType = getResult().getType();
   ArrayType expectedResultType = inferResultType(sourceType, getIndices());
 
   if (resultType.getRank() != expectedResultType.getRank()) {
@@ -1382,36 +1239,6 @@ ArrayType SubscriptionOp::inferResultType(ArrayType source,
   }
 
   return source.withShape(shape);
-}
-} // namespace mlir::bmodelica
-
-//===---------------------------------------------------------------------===//
-// ArrayFillOp
-
-namespace mlir::bmodelica {
-void ArrayFillOp::getEffects(
-    mlir::SmallVectorImpl<
-        mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>
-        &effects) {
-  effects.emplace_back(mlir::MemoryEffects::Write::get(), &getArrayMutable(),
-                       mlir::SideEffects::DefaultResource::get());
-}
-} // namespace mlir::bmodelica
-
-//===---------------------------------------------------------------------===//
-// ArrayCopyOp
-
-namespace mlir::bmodelica {
-void ArrayCopyOp::getEffects(
-    mlir::SmallVectorImpl<
-        mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>
-        &effects) {
-  effects.emplace_back(mlir::MemoryEffects::Read::get(), &getSourceMutable(),
-                       mlir::SideEffects::DefaultResource::get());
-
-  effects.emplace_back(mlir::MemoryEffects::Write::get(),
-                       &getDestinationMutable(),
-                       mlir::SideEffects::DefaultResource::get());
 }
 } // namespace mlir::bmodelica
 

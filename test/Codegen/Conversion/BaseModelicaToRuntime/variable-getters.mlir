@@ -5,7 +5,7 @@
 // CHECK:       bmodelica.global_variable @[[var:.*]] : !bmodelica.array<!bmodelica.int>
 // CHECK:       runtime.variable_getter @[[getter:.*]]() -> f64 {
 // CHECK:           %[[get:.*]] = bmodelica.global_variable.get @[[var]]
-// CHECK:           %[[load:.*]] = bmodelica.load %[[get]][]
+// CHECK:           %[[load:.*]] = bmodelica.array.load %[[get]][]
 // CHECK:           %[[cast:.*]] = bmodelica.cast %[[load]] : !bmodelica.int -> f64
 // CHECK-NEXT:      runtime.return %[[cast]]
 // CHECK-NEXT:  }

@@ -167,7 +167,7 @@ public:
                                       resultTensorType.getElementType());
 
       mlir::Value array =
-          rewriter.create<AllocOp>(loc, arrayType, dynamicDimensions);
+          rewriter.create<ArrayAllocOp>(loc, arrayType, dynamicDimensions);
 
       results.push_back(array);
     }

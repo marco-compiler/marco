@@ -14,8 +14,8 @@
 // CHECK:       scf.for %[[i0:.*]] = %[[lb]] to %[[ub]] step %[[step]] {
 // CHECK:           bmodelica.constant 1 : index
 // CHECK:           %[[var:.*]] = bmodelica.qualified_variable_get @Test::@x
-// CHECK:           %[[subscription:.*]] = bmodelica.subscription %[[var]][%[[i0]]]
-// CHECK:           bmodelica.store %[[subscription]][], %{{.*}}
+// CHECK:           %[[subscription:.*]] = bmodelica.array.subscription %[[var]][%[[i0]]]
+// CHECK:           bmodelica.array.store %[[subscription]][], %{{.*}}
 // CHECK:       }
 // CHECK-NEXT:  bmodelica.yield
 

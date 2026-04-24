@@ -300,11 +300,12 @@ class PoolVariableGetOpLowering
   }
 };
 
-class AllocaOpLowering : public ModelicaOpConversionPattern<AllocaOp> {
-  using ModelicaOpConversionPattern<AllocaOp>::ModelicaOpConversionPattern;
+class ArrayAllocaOpLowering
+    : public ModelicaOpConversionPattern<ArrayAllocaOp> {
+  using ModelicaOpConversionPattern<ArrayAllocaOp>::ModelicaOpConversionPattern;
 
   mlir::LogicalResult
-  matchAndRewrite(AllocaOp op, OpAdaptor adaptor,
+  matchAndRewrite(ArrayAllocaOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
     auto memRefType = mlir::cast<mlir::MemRefType>(
         getTypeConverter()->convertType(op.getResult().getType()));
@@ -316,76 +317,17 @@ class AllocaOpLowering : public ModelicaOpConversionPattern<AllocaOp> {
   }
 };
 
-class AllocOpLowering : public ModelicaOpConversionPattern<AllocOp> {
-  using ModelicaOpConversionPattern<AllocOp>::ModelicaOpConversionPattern;
+class ArrayAllocOpLowering : public ModelicaOpConversionPattern<ArrayAllocOp> {
+  using ModelicaOpConversionPattern<ArrayAllocOp>::ModelicaOpConversionPattern;
 
   mlir::LogicalResult
-  matchAndRewrite(AllocOp op, OpAdaptor adaptor,
+  matchAndRewrite(ArrayAllocOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
     auto memRefType = mlir::cast<mlir::MemRefType>(
         getTypeConverter()->convertType(op.getResult().getType()));
 
     rewriter.replaceOpWithNewOp<mlir::memref::AllocOp>(
         op, memRefType, adaptor.getDynamicSizes());
-
-    return mlir::success();
-  }
-};
-
-class ArrayFromElementsOpLowering
-    : public ModelicaOpRewritePattern<ArrayFromElementsOp> {
-  using ModelicaOpRewritePattern<ArrayFromElementsOp>::ModelicaOpRewritePattern;
-
-  mlir::LogicalResult
-  matchAndRewrite(ArrayFromElementsOp op,
-                  mlir::PatternRewriter &rewriter) const override {
-    mlir::Location loc = op.getLoc();
-
-    ArrayType arrayType = op.getArrayType();
-    assert(arrayType.hasStaticShape());
-
-    auto allocOp =
-        rewriter.replaceOpWithNewOp<AllocOp>(op, arrayType, mlir::ValueRange());
-
-    mlir::ValueRange values = op.getValues();
-    size_t currentValue = 0;
-
-    llvm::SmallVector<int64_t, 3> indices(arrayType.getRank(), 0);
-
-    auto advanceIndices = [&]() -> bool {
-      for (size_t i = 0, e = indices.size(); i < e; ++i) {
-        size_t pos = e - i - 1;
-        ++indices[pos];
-
-        if (indices[pos] == arrayType.getDimSize(pos)) {
-          indices[pos] = 0;
-        } else {
-          return true;
-        }
-      }
-
-      return false;
-    };
-
-    llvm::SmallVector<mlir::Value, 3> indicesValues;
-
-    do {
-      for (int64_t index : indices) {
-        indicesValues.push_back(rewriter.create<mlir::arith::ConstantOp>(
-            loc, rewriter.getIndexAttr(index)));
-      }
-
-      mlir::Value value = values[currentValue++];
-
-      if (mlir::Type elementType = arrayType.getElementType();
-          value.getType() != elementType) {
-        value = rewriter.create<CastOp>(loc, elementType, value);
-      }
-
-      rewriter.create<StoreOp>(loc, value, allocOp.getResult(), indicesValues);
-
-      indicesValues.clear();
-    } while (advanceIndices());
 
     return mlir::success();
   }
@@ -399,9 +341,9 @@ class ArrayBroadcastOpLowering
   matchAndRewrite(ArrayBroadcastOp op,
                   mlir::PatternRewriter &rewriter) const override {
     mlir::Location loc = op.getLoc();
-    ArrayType arrayType = op.getArrayType();
+    ArrayType arrayType = op.getArray().getType();
 
-    auto allocOp = rewriter.replaceOpWithNewOp<AllocOp>(
+    auto allocOp = rewriter.replaceOpWithNewOp<ArrayAllocOp>(
         op, arrayType, op.getDynamicDimensions());
 
     rewriter.create<ArrayFillOp>(loc, allocOp.getResult(), op.getValue());
@@ -409,11 +351,11 @@ class ArrayBroadcastOpLowering
   }
 };
 
-class FreeOpLowering : public ModelicaOpConversionPattern<FreeOp> {
-  using ModelicaOpConversionPattern<FreeOp>::ModelicaOpConversionPattern;
+class DeallocOpLowering : public ModelicaOpConversionPattern<DeallocOp> {
+  using ModelicaOpConversionPattern<DeallocOp>::ModelicaOpConversionPattern;
 
   mlir::LogicalResult
-  matchAndRewrite(FreeOp op, OpAdaptor adaptor,
+  matchAndRewrite(DeallocOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
     rewriter.replaceOpWithNewOp<mlir::memref::DeallocOp>(op,
                                                          adaptor.getArray());
@@ -551,7 +493,7 @@ class ArrayFillOpLowering : public ModelicaOpRewritePattern<ArrayFillOp> {
   matchAndRewrite(ArrayFillOp op,
                   mlir::PatternRewriter &rewriter) const override {
     mlir::Location loc = op.getLoc();
-    ArrayType arrayType = op.getArrayType();
+    ArrayType arrayType = op.getArray().getType();
 
     mlir::Value zero =
         rewriter.create<mlir::arith::ConstantOp>(loc, rewriter.getIndexAttr(0));
@@ -695,8 +637,8 @@ mlir::LogicalResult BaseModelicaToMemRefConversionPass::convertOperations() {
 
   target.addIllegalOp<ArrayToTensorOp, TensorToArrayOp>();
 
-  target.addIllegalOp<GlobalVariableOp, GlobalVariableGetOp, AllocaOp, AllocOp,
-                      ArrayFromElementsOp, ArrayBroadcastOp, FreeOp, DimOp,
+  target.addIllegalOp<GlobalVariableOp, GlobalVariableGetOp, ArrayAllocaOp,
+                      ArrayAllocOp, ArrayBroadcastOp, DeallocOp, DimOp,
                       SubscriptionOp, LoadOp, StoreOp, ArrayFillOp,
                       ArrayCopyOp>();
 
@@ -740,12 +682,12 @@ void populateBaseModelicaToMemRefConversionPatterns(
   patterns.insert<GlobalVariableGetOpLowering, PoolVariableGetOpLowering>(
       typeConverter, context);
 
-  patterns.insert<AllocaOpLowering, AllocOpLowering>(typeConverter, context);
+  patterns.insert<ArrayAllocaOpLowering, ArrayAllocOpLowering>(typeConverter,
+                                                               context);
 
-  patterns.insert<ArrayFromElementsOpLowering, ArrayBroadcastOpLowering>(
-      context);
+  patterns.insert<ArrayBroadcastOpLowering>(context);
 
-  patterns.insert<FreeOpLowering, DimOpLowering, SubscriptionOpLowering,
+  patterns.insert<DeallocOpLowering, DimOpLowering, SubscriptionOpLowering,
                   LoadOpLowering, StoreOpLowering>(typeConverter, context);
 
   patterns.insert<ArrayFillOpLowering, ArrayCopyOpDifferentTypeLowering>(

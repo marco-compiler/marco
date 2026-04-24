@@ -5,7 +5,7 @@
 
 func.func @staticDimension(%arg0: !bmodelica.array<7x?x9x!bmodelica.int>) -> index {
     %0 = bmodelica.constant 2 : index
-    %1 = bmodelica.dim %arg0, %0 : !bmodelica.array<7x?x9x!bmodelica.int>
+    %1 = bmodelica.array.dim %arg0, %0 : !bmodelica.array<7x?x9x!bmodelica.int>
     return %1 : index
 
     // CHECK-DAG: %[[cst_9:.*]] = bmodelica.constant 9 : index
@@ -19,11 +19,11 @@ func.func @staticDimension(%arg0: !bmodelica.array<7x?x9x!bmodelica.int>) -> ind
 
 func.func @dynamicDimension(%arg0: !bmodelica.array<7x?x9x!bmodelica.int>) -> index {
     %0 = bmodelica.constant 1 : index
-    %1 = bmodelica.dim %arg0, %0 : !bmodelica.array<7x?x9x!bmodelica.int>
+    %1 = bmodelica.array.dim %arg0, %0 : !bmodelica.array<7x?x9x!bmodelica.int>
     return %1 : index
 
     // CHECK-DAG: %[[cst_1:.*]] = bmodelica.constant 1 : index
-    // CHECK-DAG: %[[dim:.*]] = bmodelica.dim %[[arg0]], %[[cst_1]]
+    // CHECK-DAG: %[[dim:.*]] = bmodelica.array.dim %[[arg0]], %[[cst_1]]
     // CHECK: return %[[dim]]
 }
 
@@ -33,9 +33,9 @@ func.func @dynamicDimension(%arg0: !bmodelica.array<7x?x9x!bmodelica.int>) -> in
 // CHECK-SAME: (%[[arg0:.*]]: !bmodelica.array<7x?x9x!bmodelica.int>, %[[arg1:.*]]: index)
 
 func.func @unknownDimension(%arg0: !bmodelica.array<7x?x9x!bmodelica.int>, %arg1: index) -> index {
-    %0 = bmodelica.dim %arg0, %arg1 : !bmodelica.array<7x?x9x!bmodelica.int>
+    %0 = bmodelica.array.dim %arg0, %arg1 : !bmodelica.array<7x?x9x!bmodelica.int>
     return %0 : index
 
-    // CHECK-DAG: %[[dim:.*]] = bmodelica.dim %[[arg0]], %[[arg1]]
+    // CHECK-DAG: %[[dim:.*]] = bmodelica.array.dim %[[arg0]], %[[arg1]]
     // CHECK: return %[[dim]]
 }
