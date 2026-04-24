@@ -27,7 +27,7 @@ module @Test {
             %lower = bmodelica.constant 5 : index
             %upper = bmodelica.constant 10 : index
             %step = bmodelica.constant 1 : index
-            %range = bmodelica.range %lower, %upper, %step : (index, index, index) -> !bmodelica<range index>
+            %range = bmodelica.range %lower, %upper, %step : index, index, index -> !bmodelica<range index>
 
             %red = bmodelica.reduction "add", iterables = [%range], inductions = [] {
                 bmodelica.yield %1 : f64
@@ -55,7 +55,7 @@ module @Test {
             %lower = bmodelica.constant 5 : index
             %upper = bmodelica.constant 10 : index
             %step = bmodelica.constant 1 : index
-            %range = bmodelica.range %lower, %upper, %step : (index, index, index) -> !bmodelica<range index>
+            %range = bmodelica.range %lower, %upper, %step : index, index, index -> !bmodelica<range index>
 
             %red = bmodelica.reduction "add", iterables = [%range], inductions = [] {
                 bmodelica.yield %1 : f64

@@ -361,6 +361,22 @@ mlir::OpFoldResult RangeOp::fold(FoldAdaptor adaptor) {
 // RangeBeginOp
 
 namespace mlir::bmodelica {
+mlir::LogicalResult RangeBeginOp::inferReturnTypes(
+    mlir::MLIRContext *context, std::optional<mlir::Location> location,
+    mlir::ValueRange operands, mlir::DictionaryAttr attributes,
+    mlir::OpaqueProperties properties, mlir::RegionRange regions,
+    llvm::SmallVectorImpl<mlir::Type> &returnTypes) {
+  Adaptor adaptor(operands, attributes, properties, regions);
+  auto rangeType = mlir::dyn_cast<RangeType>(adaptor.getRange().getType());
+
+  if (!rangeType) {
+    return mlir::failure();
+  }
+
+  returnTypes.push_back(rangeType.getInductionType());
+  return mlir::success();
+}
+
 mlir::OpFoldResult RangeBeginOp::fold(FoldAdaptor adaptor) {
   auto range = adaptor.getRange();
 
@@ -393,6 +409,22 @@ mlir::OpFoldResult RangeBeginOp::fold(FoldAdaptor adaptor) {
 // RangeEndOp
 
 namespace mlir::bmodelica {
+mlir::LogicalResult RangeEndOp::inferReturnTypes(
+    mlir::MLIRContext *context, std::optional<mlir::Location> location,
+    mlir::ValueRange operands, mlir::DictionaryAttr attributes,
+    mlir::OpaqueProperties properties, mlir::RegionRange regions,
+    llvm::SmallVectorImpl<mlir::Type> &returnTypes) {
+  Adaptor adaptor(operands, attributes, properties, regions);
+  auto rangeType = mlir::dyn_cast<RangeType>(adaptor.getRange().getType());
+
+  if (!rangeType) {
+    return mlir::failure();
+  }
+
+  returnTypes.push_back(rangeType.getInductionType());
+  return mlir::success();
+}
+
 mlir::OpFoldResult RangeEndOp::fold(FoldAdaptor adaptor) {
   auto range = adaptor.getRange();
 
@@ -425,6 +457,22 @@ mlir::OpFoldResult RangeEndOp::fold(FoldAdaptor adaptor) {
 // RangeStepOp
 
 namespace mlir::bmodelica {
+mlir::LogicalResult RangeStepOp::inferReturnTypes(
+    mlir::MLIRContext *context, std::optional<mlir::Location> location,
+    mlir::ValueRange operands, mlir::DictionaryAttr attributes,
+    mlir::OpaqueProperties properties, mlir::RegionRange regions,
+    llvm::SmallVectorImpl<mlir::Type> &returnTypes) {
+  Adaptor adaptor(operands, attributes, properties, regions);
+  auto rangeType = mlir::dyn_cast<RangeType>(adaptor.getRange().getType());
+
+  if (!rangeType) {
+    return mlir::failure();
+  }
+
+  returnTypes.push_back(rangeType.getInductionType());
+  return mlir::success();
+}
+
 mlir::OpFoldResult RangeStepOp::fold(FoldAdaptor adaptor) {
   auto range = adaptor.getRange();
 

@@ -13,6 +13,6 @@
 // CHECK: return %[[result]]
 
 func.func @foo(%arg0: !bmodelica.int, %arg1: !bmodelica.int, %arg2: !bmodelica.int) -> !bmodelica<range !bmodelica.int> {
-    %0 = bmodelica.range %arg0, %arg1, %arg2 : (!bmodelica.int, !bmodelica.int, !bmodelica.int) -> !bmodelica<range !bmodelica.int>
+    %0 = bmodelica.range %arg0, %arg1, %arg2 : !bmodelica.int, !bmodelica.int, !bmodelica.int -> !bmodelica<range !bmodelica.int>
     func.return %0 : !bmodelica<range !bmodelica.int>
 }

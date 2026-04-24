@@ -12,7 +12,9 @@ SubscriptLowerer::lower(const ast::bmodelica::Subscript &subscript) {
   mlir::Location location = loc(subscript.getLocation());
 
   if (subscript.isUnbounded()) {
-    mlir::Value result = builder().create<UnboundedRangeOp>(location);
+    mlir::Value result =
+        UnboundedRangeOp::create(builder(), location, builder().getIndexType());
+
     return Reference::ssa(builder(), result);
   }
 

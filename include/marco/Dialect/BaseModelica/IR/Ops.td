@@ -194,20 +194,16 @@ class BaseModelica_Op<string mnemonic, list<Trait> traits = []> :
 // Range operations
 //===---------------------------------------------------------------------===//
 
-def RangeOp : BaseModelica_Op<"range",
-    [DeclareOpInterfaceMethods<InferTypeOpInterface>]>
+def RangeOp : BaseModelica_Op<"range", [
+        DeclareOpInterfaceMethods<InferTypeOpInterface>,
+        Pure
+    ]>
 {
-    let summary = "Range";
+    let summary = "Range.";
 
     let description = [{
         The operation represents a mono-dimensional range, with a lower bound,
         an upper bound and a step.
-
-        Example:
-
-        ```mlir
-        %0 = modelica.range %0, %1, %2 : (index, index, index) -> !modelica<range index>
-        ```
     }];
 
     let arguments = (ins
@@ -216,7 +212,7 @@ def RangeOp : BaseModelica_Op<"range",
         AnyType:$step);
 
     let results = (outs BaseModelicaRange:$result);
-    let assemblyFormat = "$lowerBound `,` $upperBound `,` $step attr-dict `:` `(` type($lowerBound) `,` type($upperBound) `,` type($step) `)` `->` type($result)";
+    let assemblyFormat = "$lowerBound `,` $upperBound `,` $step attr-dict `:` type($lowerBound) `,` type($upperBound) `,` type($step) `->` type($result)";
     let hasFolder = 1;
 
     let extraClassDeclaration = [{
@@ -227,46 +223,27 @@ def RangeOp : BaseModelica_Op<"range",
 
 def UnboundedRangeOp : BaseModelica_Op<"unbounded_range", [Pure]>
 {
-    let summary = "Unbounded range";
+    let summary = "Unbounded range.";
 
     let description = [{
-        The operation represents a mono-dimensional range with unbounded
-        bounds.
-
-        Example:
-
-        ```mlir
-        %0 = modelica.unbounded_range : !modelica<range index>
-        ```
+        The operation represents a mono-dimensional range with unlimited
+        lower and upper bounds.
     }];
 
     let arguments = (ins);
     let results = (outs BaseModelicaRange:$result);
     let assemblyFormat = "attr-dict `:` type($result)";
-
-    let builders = [
-        OpBuilder<(ins), [{
-            auto rangeType = RangeType::get(
-                $_builder.getContext(), $_builder.getIndexType());
-
-            build($_builder, $_state, rangeType);
-        }]>
-    ];
 }
 
-def RangeBeginOp : BaseModelica_Op<"range_begin", []>
+def RangeBeginOp : BaseModelica_Op<"range_begin", [
+        Pure,
+        DeclareOpInterfaceMethods<InferTypeOpInterface>
+    ]>
 {
-    let summary = "Get the begin value of a range";
+    let summary = "Get the lower bound of a range.";
 
     let description = [{
-        Get the begin value of a range.
-
-        Example:
-
-        ```mlir
-        %0 = ... : !modelica<range index>
-        %1 = modelica.range_begin %0 : !modelica<range index> -> index
-        ```
+        Get the lower bound of a range. The range must not be unbounded.
     }];
 
     let arguments = (ins BaseModelicaRange:$range);
@@ -275,30 +252,17 @@ def RangeBeginOp : BaseModelica_Op<"range_begin", []>
     let assemblyFormat = "$range attr-dict `:` type($range) `->` type($result)";
 
     let hasFolder = 1;
-
-    let builders = [
-        OpBuilder<(ins "mlir::Value":$range), [{
-            auto inductionType =
-                mlir::cast<RangeType>(range.getType()).getInductionType();
-
-            build($_builder, $_state, inductionType, range);
-        }]>
-    ];
 }
 
-def RangeEndOp : BaseModelica_Op<"range_end", []>
+def RangeEndOp : BaseModelica_Op<"range_end", [
+        Pure,
+        DeclareOpInterfaceMethods<InferTypeOpInterface>
+    ]>
 {
-    let summary = "Get the end value of a range";
+    let summary = "Get the upper bound of a range.";
 
     let description = [{
-        Get the end value of a range.
-
-        Example:
-
-        ```mlir
-        %0 = ... : !modelica<range index>
-        %1 = modelica.range_end %0 : !modelica<range index> -> index
-        ```
+        Get the upper bound of a range. The range must not be unbounded.
     }];
 
     let arguments = (ins BaseModelicaRange:$range);
@@ -307,30 +271,17 @@ def RangeEndOp : BaseModelica_Op<"range_end", []>
     let assemblyFormat = "$range attr-dict `:` type($range) `->` type($result)";
 
     let hasFolder = 1;
-
-    let builders = [
-        OpBuilder<(ins "mlir::Value":$range), [{
-            auto inductionType =
-                mlir::cast<RangeType>(range.getType()).getInductionType();
-
-            build($_builder, $_state, inductionType, range);
-        }]>
-    ];
 }
 
-def RangeStepOp : BaseModelica_Op<"range_step", []>
+def RangeStepOp : BaseModelica_Op<"range_step", [
+        Pure,
+        DeclareOpInterfaceMethods<InferTypeOpInterface>
+    ]>
 {
-    let summary = "Get the step value of a range";
+    let summary = "Get the step value of a range.";
 
     let description = [{
         Get the step value of a range.
-
-        Example:
-
-        ```mlir
-        %0 = ... : !modelica<range index>
-        %1 = modelica.range_step %0 : !modelica<range index> -> index
-        ```
     }];
 
     let arguments = (ins BaseModelicaRange:$range);
@@ -339,30 +290,14 @@ def RangeStepOp : BaseModelica_Op<"range_step", []>
     let assemblyFormat = "$range attr-dict `:` type($range) `->` type($result)";
 
     let hasFolder = 1;
-
-    let builders = [
-        OpBuilder<(ins "mlir::Value":$range), [{
-            auto inductionType =
-                mlir::cast<RangeType>(range.getType()).getInductionType();
-
-            build($_builder, $_state, inductionType, range);
-        }]>
-    ];
 }
 
-def RangeSizeOp : BaseModelica_Op<"range_size", []>
+def RangeSizeOp : BaseModelica_Op<"range_size", [Pure]>
 {
-    let summary = "Get the step value of a range";
+    let summary = "Get the extension of a range";
 
     let description = [{
         Get the number of elements of a range.
-
-        Example:
-
-        ```mlir
-        %0 = ... : !modelica<range index>
-        %1 = modelica.range_size %0 : !modelica<range index> -> index
-        ```
     }];
 
     let arguments = (ins BaseModelicaRange:$range);

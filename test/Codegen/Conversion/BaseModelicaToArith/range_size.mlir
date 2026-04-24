@@ -13,7 +13,7 @@
 // CHECK: return %[[add]]
 
 func.func @Integer(%arg0: i64, %arg1: i64, %arg2: i64) -> index {
-    %0 = bmodelica.range %arg0, %arg1, %arg2 : (i64, i64, i64) -> !bmodelica<range i64>
+    %0 = bmodelica.range %arg0, %arg1, %arg2 : i64, i64, i64 -> !bmodelica<range i64>
     %1 = bmodelica.range_size %0 : !bmodelica<range i64>
     func.return %1 : index
 }
