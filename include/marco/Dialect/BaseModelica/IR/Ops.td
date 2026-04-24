@@ -781,7 +781,11 @@ def BaseModelica_ArrayCopyOp : BaseModelica_Op<"array.copy", [
 // Tensor-Array bridge operations
 //===---------------------------------------------------------------------===//
 
-def Modelica_TensorToArrayOp : BaseModelica_Op<"tensor_to_array", [NoMemoryEffect]>
+def Modelica_TensorToArrayOp : BaseModelica_Op<"tensor.to_array", [
+        SameOperandsShape,
+        SameOperandsElementType,
+        NoMemoryEffect
+    ]>
 {
     let summary = "Convert a tensor to an array.";
 
@@ -793,8 +797,11 @@ def Modelica_TensorToArrayOp : BaseModelica_Op<"tensor_to_array", [NoMemoryEffec
     }];
 }
 
-def Modelica_ArrayToTensorOp : BaseModelica_Op<"array_to_tensor",
-    [NoMemoryEffect]>
+def Modelica_ArrayToTensorOp : BaseModelica_Op<"array.to_tensor", [
+        SameOperandsShape,
+        SameOperandsElementType,
+        NoMemoryEffect
+    ]>
 {
     let summary = "Convert an array to a tensor.";
 

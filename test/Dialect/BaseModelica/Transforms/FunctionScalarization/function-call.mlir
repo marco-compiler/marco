@@ -12,7 +12,7 @@
 // CHECK:           %[[scalarResult:.*]] = bmodelica.call @callee(%[[extract]]) : (!bmodelica.real) -> !bmodelica.real
 // CHECK:           bmodelica.array.store %[[result]][%[[i]]], %[[scalarResult]]
 // CHECK-NEXT:  }
-// CHECK:       %[[result_tensor:.*]] = bmodelica.array_to_tensor %[[result]]
+// CHECK:       %[[result_tensor:.*]] = bmodelica.array.to_tensor %[[result]]
 // CHECK:       return %[[result_tensor]]
 
 bmodelica.function @callee {
