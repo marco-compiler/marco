@@ -1208,23 +1208,16 @@ def Modelica_ComponentGetOp : BaseModelica_Op<"component_get",
     }];
 }
 
-def Modelica_GlobalVariableOp : BaseModelica_Op<"global_variable",
-    [Symbol,
-    HasParent<"mlir::ModuleOp">]>
+def Modelica_GlobalVariableOp : BaseModelica_Op<"global_variable", [
+        Symbol,
+        HasParent<"mlir::ModuleOp">
+    ]>
 {
     let summary = "Declare a global variable.";
 
     let description = [{
         Declare a global variable inside a module.
         Its type must be an ArrayType.
-
-        Example:
-
-        ```mlir
-        module {
-            modelica.global_variable @x : !modelica.array<2x3x!modelica.real>
-        }
-        ```
     }];
 
     let arguments = (ins
@@ -1242,32 +1235,19 @@ def Modelica_GlobalVariableOp : BaseModelica_Op<"global_variable",
     ];
 }
 
-def BaseModelica_GlobalVariableGetOp : BaseModelica_Op<"global_variable_get",
-    [DeclareOpInterfaceMethods<SymbolUserOpInterface>]>
+def BaseModelica_GlobalVariableGetOp : BaseModelica_Op<"global_variable.get", [
+        DeclareOpInterfaceMethods<SymbolUserOpInterface>
+    ]>
 {
     let summary = "Get the data held by a global variable.";
 
     let description = [{
         Get the data held by a global variable.
         Allows to shift from symbol semantics to SSA semantics.
-        Notice that there is no `GlobalVariableSetOp` counterpart for storing a
-        value. Global variables always have array type and thus are directly
-        modifiable once its reference is obtained through this operation, even
-        in case of scalar variables.
-
-        Example with scalar variable:
-
-        ```mlir
-        modelica.global_variable @x : !modelica.array<!modelica.real>
-        %0 = modelica.global_variable_get @x : !modelica.array<!modelica.real>
-        ```
-
-        Example with array variable:
-
-        ```mlir
-        modelica.global_variable @x : !modelica.array<2x3x!modelica.real>
-        %0 = modelica.global_variable_get @x : !modelica.array<2x3x!modelica.real>
-        ```
+        Notice that there is no `bmodelica.global_variable.set` counterpart for
+        storing a value. Global variables always have array type and thus are
+        directly modifiable once its reference is obtained through this
+        operation, even in case of scalar variables.
     }];
 
     let arguments = (ins SymbolNameAttr:$variable);
@@ -1279,16 +1259,17 @@ def BaseModelica_GlobalVariableGetOp : BaseModelica_Op<"global_variable_get",
     ];
 }
 
-def BaseModelica_QualifiedVariableGetOp : BaseModelica_Op<"qualified_variable_get",
-    [DeclareOpInterfaceMethods<SymbolUserOpInterface>]>
+def BaseModelica_QualifiedVariableGetOp : BaseModelica_Op<"qualified_variable_get", [
+        DeclareOpInterfaceMethods<SymbolUserOpInterface>
+    ]>
 {
     let summary = "Get the data held by a class variable.";
 
     let description = [{
-        Get the data held by variable of a class.
-        Similar to `VariableGetOp`, but with the lookup being performed
-        starting from the module, thus enabling the referral to class variables
-        from outside the class body.
+        The operation gets the data held by the variable of a class.
+        It is similar to `bmodelica.variable.get`, but with the lookup being
+        performed starting from the module, and thus enables referring to class
+        variables from outside the class body.
     }];
 
     let arguments = (ins SymbolRefAttr:$variable);
@@ -1301,28 +1282,28 @@ def BaseModelica_QualifiedVariableGetOp : BaseModelica_Op<"qualified_variable_ge
 
     let extraClassDeclaration = [{
         VariableOp getVariableOp();
-
-        VariableOp getVariableOp(
-            mlir::SymbolTableCollection& symbolTableCollection);
+        VariableOp getVariableOp( mlir::SymbolTableCollection& symbolTables);
     }];
 }
 
-def BaseModelica_QualifiedVariableSetOp : BaseModelica_Op<"qualified_variable_set",
-    [DeclareOpInterfaceMethods<SymbolUserOpInterface>]>
+def BaseModelica_QualifiedVariableSetOp : BaseModelica_Op<"qualified_variable_set", [
+        DeclareOpInterfaceMethods<SymbolUserOpInterface>
+    ]>
 {
     let summary = "Store data into a class variable.";
 
     let description = [{
-        Store data into the variable of a class.
-        Similar to `VariableSetOp`, but with the lookup being performed
-        starting from the module, thus enabling the referral to class variables
-        from outside the class body.
+        The operation stores data into the variable of a class.
+        It is similar to `bmodelica.variable.set`, but with the lookup being
+        performed starting from the module, and thus enables referring to class
+        variables from outside the class body.
     }];
 
     let arguments = (ins
         SymbolRefAttr:$variable,
         Variadic<AnyType>:$indices,
-        AnyType:$value);
+        AnyType:$value
+    );
 
     let results = (outs);
     let hasCustomAssemblyFormat = 1;
@@ -1334,9 +1315,7 @@ def BaseModelica_QualifiedVariableSetOp : BaseModelica_Op<"qualified_variable_se
 
     let extraClassDeclaration = [{
         VariableOp getVariableOp();
-
-        VariableOp getVariableOp(
-            mlir::SymbolTableCollection& symbolTableCollection);
+        VariableOp getVariableOp(mlir::SymbolTableCollection& symbolTables);
     }];
 }
 
