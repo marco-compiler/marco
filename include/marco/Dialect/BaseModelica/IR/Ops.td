@@ -4036,7 +4036,8 @@ def BaseModelica_RawVariableOp : BaseModelica_Op<"raw_variable", [
         DefaultValuedAttr<DimensionConstraintArrayAttr, "{}">:$dimensionsConstraints,
         Variadic<Index>:$dynamicSizes,
         UnitAttr:$output,
-        DefaultValuedAttr<BoolAttr, "true">:$heap);
+        DefaultValuedAttr<BoolAttr, "true">:$heap
+    );
 
     let results = (outs
         AnyTypeOf<[AnyTensor, AnyMemRef]>:$variable
@@ -4059,7 +4060,7 @@ def BaseModelica_RawVariableOp : BaseModelica_Op<"raw_variable", [
     }];
 }
 
-def BaseModelica_RawVariableDeallocOp : BaseModelica_Op<"raw_variable_dealloc", [
+def BaseModelica_RawVariableDeallocOp : BaseModelica_Op<"raw_variable.dealloc", [
         DeclareOpInterfaceMethods<MemoryEffectsOpInterface>
     ]>
 {
@@ -4083,7 +4084,7 @@ def BaseModelica_RawVariableDeallocOp : BaseModelica_Op<"raw_variable_dealloc", 
     }];
 }
 
-def BaseModelica_RawVariableGetOp : BaseModelica_Op<"raw_variable_get", [
+def BaseModelica_RawVariableGetOp : BaseModelica_Op<"raw_variable.get", [
         DeclareOpInterfaceMethods<MemoryEffectsOpInterface>
     ]>
 {
@@ -4093,7 +4094,10 @@ def BaseModelica_RawVariableGetOp : BaseModelica_Op<"raw_variable_get", [
         Load the data held by a raw variable.
     }];
 
-    let arguments = (ins AnyTypeOf<[AnyTensor, AnyMemRef]>:$variable);
+    let arguments = (ins
+        AnyTypeOf<[AnyTensor, AnyMemRef]>:$variable
+    );
+    
     let results = (outs AnyType:$result);
     let assemblyFormat = "$variable attr-dict `:` type($variable) `->` type($result)";
 
@@ -4114,7 +4118,7 @@ def BaseModelica_RawVariableGetOp : BaseModelica_Op<"raw_variable_get", [
     }];
 }
 
-def BaseModelica_RawVariableSetOp : BaseModelica_Op<"raw_variable_set", [
+def BaseModelica_RawVariableSetOp : BaseModelica_Op<"raw_variable.set", [
         DeclareOpInterfaceMethods<MemoryEffectsOpInterface>
     ]>
 {
@@ -4124,7 +4128,11 @@ def BaseModelica_RawVariableSetOp : BaseModelica_Op<"raw_variable_set", [
         Store data into a raw variable of a class.
     }];
 
-    let arguments = (ins AnyTypeOf<[AnyTensor, AnyMemRef]>:$variable, AnyType:$value);
+    let arguments = (ins
+        AnyTypeOf<[AnyTensor, AnyMemRef]>:$variable,
+        AnyType:$value
+    );
+
     let results = (outs);
     let assemblyFormat = "$variable `,` $value attr-dict `:` type($variable) `,` type($value)";
 

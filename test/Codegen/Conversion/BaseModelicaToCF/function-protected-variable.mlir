@@ -6,7 +6,7 @@
 // CHECK-NEXT:      %[[variable:.*]] = bmodelica.raw_variable {name = "x"} : tensor<i64>
 // CHECK-NEXT:      cf.br ^[[bb2:.*]]
 // CHECK-NEXT:  ^[[bb2]]:  // pred: ^bb1
-// CHECK-NEXT:      %[[value:.*]] = bmodelica.raw_variable_get %[[variable]]
+// CHECK-NEXT:      %[[value:.*]] = bmodelica.raw_variable.get %[[variable]]
 // CHECK-NEXT:      bmodelica.print %[[value]]
 // CHECK-NEXT:      cf.br ^{{.*}}
 // CHECK:       }
@@ -29,7 +29,7 @@ bmodelica.function @scalarVariableGet {
 // CHECK-NEXT:      cf.br ^[[bb2:.*]]
 // CHECK-NEXT:  ^[[bb2]]:
 // CHECK-NEXT:      %[[value:.*]] = arith.constant 0 : i64
-// CHECK-NEXT:      bmodelica.raw_variable_set %[[variable]], %[[value]]
+// CHECK-NEXT:      bmodelica.raw_variable.set %[[variable]], %[[value]]
 // CHECK-NEXT:      cf.br ^{{.*}}
 // CHECK:       }
 
@@ -50,7 +50,7 @@ bmodelica.function @scalarVariableSet {
 // CHECK-NEXT:      %[[variable:.*]] = bmodelica.raw_variable {name = "x"} : tensor<3x2xi64>
 // CHECK-NEXT:      cf.br ^[[bb2:.*]]
 // CHECK-NEXT:  ^[[bb2]]:
-// CHECK-NEXT:      %[[value:.*]] = bmodelica.raw_variable_get %[[variable]]
+// CHECK-NEXT:      %[[value:.*]] = bmodelica.raw_variable.get %[[variable]]
 // CHECK-NEXT:      bmodelica.print %[[value]]
 // CHECK-NEXT:      cf.br ^{{.*}}
 // CHECK:       }
@@ -73,7 +73,7 @@ bmodelica.function @staticArrayGet {
 // CHECK-NEXT:      cf.br ^[[bb2:.*]]
 // CHECK-NEXT:  ^[[bb2]]:
 // CHECK-NEXT:      %[[value]] = tensor.empty() : tensor<3x2xi64>
-// CHECK-NEXT:      bmodelica.raw_variable_set %[[variable]], %[[value]]
+// CHECK-NEXT:      bmodelica.raw_variable.set %[[variable]], %[[value]]
 // CHECK-NEXT:      cf.br ^{{.*}}
 // CHECK:       }
 
@@ -94,7 +94,7 @@ bmodelica.function @staticArraySet {
 // CHECK-NEXT:      %[[variable:.*]] = bmodelica.raw_variable {name = "x"} : tensor<3x?xi64>
 // CHECK-NEXT:      cf.br ^[[bb2:.*]]
 // CHECK-NEXT:  ^[[bb2]]:
-// CHECK-NEXT:      %[[value]] = bmodelica.raw_variable_get %[[variable]]
+// CHECK-NEXT:      %[[value]] = bmodelica.raw_variable.get %[[variable]]
 // CHECK-NEXT:      bmodelica.print %[[value]]
 // CHECK-NEXT:      cf.br ^{{.*}}
 // CHECK:       }
@@ -118,7 +118,7 @@ bmodelica.function @dynamicArrayGet {
 // CHECK-NEXT:  ^[[bb2]]:
 // CHECK-NEXT:      %[[value:.*]] = tensor.empty() : tensor<3x2xi64>
 // CHECK-NEXT:      %[[cast:.*]] = bmodelica.cast %[[value]] : tensor<3x2xi64> -> tensor<3x?xi64>
-// CHECK-NEXT:      bmodelica.raw_variable_set %[[variable]], %[[cast]]
+// CHECK-NEXT:      bmodelica.raw_variable.set %[[variable]], %[[cast]]
 // CHECK-NEXT:      cf.br ^{{.*}}
 // CHECK:       }
 

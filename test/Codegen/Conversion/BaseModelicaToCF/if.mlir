@@ -4,11 +4,11 @@
 // CHECK-SAME:  (%{{.*}}: i64)
 // CHECK:           cond_br %{{.*}}, ^[[if_then:.*]], ^[[if_else:.*]]
 // CHECK-NEXT:  ^[[if_then]]:
-// CHECK-NEXT:      bmodelica.raw_variable_set
+// CHECK-NEXT:      bmodelica.raw_variable.set
 // CHECK-NEXT:      bmodelica.print
 // CHECK-NEXT:      br ^[[out:.*]]
 // CHECK-NEXT:  ^[[if_else]]:
-// CHECK-NEXT:      bmodelica.raw_variable_set
+// CHECK-NEXT:      bmodelica.raw_variable.set
 // CHECK-NEXT:      br ^[[out]]
 // CHECK-NEXT:  ^[[out]]:
 // CHECK:           bmodelica.raw_return
