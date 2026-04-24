@@ -8,7 +8,7 @@
 // CHECK: return %[[result]]
 
 func.func @scalars(%arg0: f64, %arg1: f64) -> f64 {
-    %0 = bmodelica.max %arg0, %arg1 : (f64, f64) -> f64
+    %0 = bmodelica.max %arg0, %arg1 : f64, f64 -> f64
     func.return %0 : f64
 }
 

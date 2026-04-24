@@ -69,7 +69,7 @@ std::optional<Results> ComponentReferenceLowerer::lower(
         llvm::append_range(shape, parentShapedType.getShape());
       }
 
-      mlir::Type componentType = variableOp.getVariableType().unwrap();
+      mlir::Type componentType = variableOp.getType().unwrap();
 
       if (auto componentShapedType =
               mlir::dyn_cast<mlir::ShapedType>(componentType)) {
@@ -131,8 +131,9 @@ std::optional<Reference> ComponentReferenceLowerer::lowerSubscripts(
       auto providedSubscripts = static_cast<int64_t>(subscripts.size());
 
       if (sourceRank > providedSubscripts) {
-        mlir::Value unboundedRange =
-            builder().create<UnboundedRangeOp>(location);
+        mlir::Value unboundedRange = RangeUnboundedOp::create(
+            builder(), location,
+            RangeType::get(builder().getContext(), builder().getIndexType()));
 
         fullRankSubscripts.append(sourceRank - providedSubscripts,
                                   unboundedRange);

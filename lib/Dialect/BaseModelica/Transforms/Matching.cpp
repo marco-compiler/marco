@@ -142,7 +142,7 @@ mlir::LogicalResult MatchingPass::processModelOp(ModelOp modelOp) {
   llvm::SmallVector<EquationInstanceOp> initialEquations;
   llvm::SmallVector<EquationInstanceOp> mainEquations;
   modelOp.collectInitialEquations(initialEquations);
-  modelOp.collectMainEquations(mainEquations);
+  modelOp.collectDynamicEquations(mainEquations);
 
   // The symbol table collection to be used for caching.
   mlir::SymbolTableCollection symbolTableCollection;
@@ -181,7 +181,7 @@ mlir::LogicalResult MatchingPass::processModelOp(ModelOp modelOp) {
 
       if (auto derivedIndices =
               derivativesMap.getDerivedIndices(variableName)) {
-        if (variable.getVariableType().isScalar()) {
+        if (variable.getType().isScalar()) {
           return std::nullopt;
         }
 

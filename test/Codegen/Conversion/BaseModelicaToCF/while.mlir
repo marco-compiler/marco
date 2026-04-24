@@ -22,12 +22,12 @@ bmodelica.function @while {
     bmodelica.variable @y : !bmodelica.variable<i64, input>
 
     bmodelica.algorithm {
-        %0 = bmodelica.variable_get @x : i1
+        %0 = bmodelica.variable.get @x : i1
 
         bmodelica.while {
             bmodelica.condition (%0 : i1)
         } do {
-            %1 = bmodelica.variable_get @y : i64
+            %1 = bmodelica.variable.get @y : i64
             bmodelica.print %1 : i64
         }
 

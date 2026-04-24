@@ -6,7 +6,7 @@ bmodelica.model @scalarVariable {
     bmodelica.variable @x : !bmodelica.variable<!bmodelica.int>
 
     %t0 = bmodelica.equation_template inductions = [] {
-        %0 = bmodelica.variable_get @x : !bmodelica.int
+        %0 = bmodelica.variable.get @x : !bmodelica.int
         %1 = bmodelica.constant #bmodelica<int 0>
         %lhs = bmodelica.equation_side %0 : tuple<!bmodelica.int>
         %rhs = bmodelica.equation_side %1 : tuple<!bmodelica.int>

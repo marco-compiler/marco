@@ -2,14 +2,14 @@
 
 // CHECK:       bmodelica.function @Foo {
 // CHECK:           bmodelica.algorithm {
-// CHECK-DAG:           %[[unbounded:.*]] = bmodelica.unbounded_range
+// CHECK-DAG:           %[[unbounded:.*]] = bmodelica.range.unbounded
 // CHECK-DAG:           %[[one:.*]] = bmodelica.constant #bmodelica<int 1>
 // CHECK-DAG:           %[[minus_one:.*]] = bmodelica.constant -1 : index
 // CHECK-DAG:           %[[subscript:.*]] = bmodelica.add %[[one]], %[[minus_one]]
-// CHECK-DAG:           %[[r:.*]] = bmodelica.variable_get @r : tensor<3x!bmodelica<record @R>>
+// CHECK-DAG:           %[[r:.*]] = bmodelica.variable.get @r : tensor<3x!bmodelica<record @R>>
 // CHECK-DAG:           %[[r_x:.*]] = bmodelica.component_get %[[r]], @x : tensor<3x!bmodelica<record @R>> -> tensor<3x2x!bmodelica.real>
-// CHECK-DAG:           %[[view:.*]] = bmodelica.tensor_view %[[r_x]][%[[unbounded]], %[[subscript]]]
-// CHECK:               bmodelica.variable_set @x, %[[view]]
+// CHECK-DAG:           %[[view:.*]] = bmodelica.tensor.view %[[r_x]][%[[unbounded]], %[[subscript]]]
+// CHECK:               bmodelica.variable.set @x, %[[view]]
 // CHECK-NEXT:      }
 // CHECK-NEXT:  }
 

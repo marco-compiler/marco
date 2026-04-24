@@ -194,7 +194,7 @@ struct TensorInsertSliceOpRuntimeVerifier
         continue;
       }
 
-      if (subscript.getDefiningOp<UnboundedRangeOp>()) {
+      if (subscript.getDefiningOp<RangeUnboundedOp>()) {
         continue;
       }
 
@@ -258,7 +258,7 @@ struct TensorViewOpRuntimeVerifier
 
     for (auto subscript : llvm::enumerate(castedOp.getSubscriptions())) {
       if (mlir::isa<RangeType>(subscript.value().getType())) {
-        if (subscript.value().getDefiningOp<UnboundedRangeOp>()) {
+        if (subscript.value().getDefiningOp<RangeUnboundedOp>()) {
           continue;
         }
 
@@ -610,7 +610,7 @@ struct SizeOpRuntimeVerifier
           builder.create<GteOp>(loc, dimension, lowerBoundValue);
 
       auto shapedType =
-          mlir::cast<mlir::ShapedType>(castedOp.getArray().getType());
+          mlir::cast<mlir::ShapedType>(castedOp.getTensor().getType());
 
       mlir::Value upperBoundValue = builder.create<ConstantOp>(
           loc, builder.getIndexAttr(shapedType.getRank()));

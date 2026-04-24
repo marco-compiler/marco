@@ -190,7 +190,7 @@ mlir::LogicalResult AutomaticDifferentiationPass::convertPartialDerFunction(
   // Forward the input variables.
   for (VariableOp variableOp : inputVariables) {
     args.push_back(builder.create<VariableGetOp>(
-        loc, variableOp.getVariableType().unwrap(), variableOp.getSymName()));
+        loc, variableOp.getType().unwrap(), variableOp.getSymName()));
   }
 
   // Append the seeds.

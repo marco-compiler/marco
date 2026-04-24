@@ -17,14 +17,14 @@ bmodelica.model @scalarVariables {
 
     bmodelica.dynamic {
         bmodelica.algorithm {
-            %0 = bmodelica.variable_get @x : !bmodelica.int
-            bmodelica.variable_set @y, %0 : !bmodelica.int
+            %0 = bmodelica.variable.get @x : !bmodelica.int
+            bmodelica.variable.set @y, %0 : !bmodelica.int
         }
     }
 
     // CHECK:       %[[t0:.*]] = bmodelica.equation_template inductions = [] {
-    // CHECK-DAG:       %[[x:.*]] = bmodelica.variable_get @x
-    // CHECK-DAG:       %[[y:.*]] = bmodelica.variable_get @y
+    // CHECK-DAG:       %[[x:.*]] = bmodelica.variable.get @x
+    // CHECK-DAG:       %[[y:.*]] = bmodelica.variable.get @y
     // CHECK-DAG:       %[[res:.*]] = bmodelica.call @[[algorithm_func:.*]](%[[x]])
     // CHECK-DAG:       %[[lhs:.*]] = bmodelica.equation_side %[[y]]
     // CHECK-DAG:       %[[rhs:.*]] = bmodelica.equation_side %[[res]]
@@ -47,6 +47,6 @@ bmodelica.model @scalarVariables {
 // CHECK-NEXT:  }
 
 // CHECK:       bmodelica.algorithm {
-// CHECK-NEXT:      %0 = bmodelica.variable_get @x
-// CHECK-NEXT:      bmodelica.variable_set @y, %0
+// CHECK-NEXT:      %0 = bmodelica.variable.get @x
+// CHECK-NEXT:      bmodelica.variable.set @y, %0
 // CHECK-NEXT:  }

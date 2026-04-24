@@ -37,6 +37,6 @@ func.func @multipleResults() -> !bmodelica.int {
     %falseValue0 = bmodelica.constant #bmodelica<int 2>
     %falseValue1 = bmodelica.constant #bmodelica<int 3>
     %select:2 = bmodelica.select (%condition : !bmodelica.bool), (%trueValue0, %trueValue1 : !bmodelica.int, !bmodelica.int), (%falseValue0, %falseValue1 : !bmodelica.int, !bmodelica.int) -> (!bmodelica.int, !bmodelica.int)
-    %result = bmodelica.add %select#0, %select#1 : (!bmodelica.int, !bmodelica.int) -> !bmodelica.int
+    %result = bmodelica.add %select#0, %select#1 : !bmodelica.int, !bmodelica.int -> !bmodelica.int
     func.return %result : !bmodelica.int
 }

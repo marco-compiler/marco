@@ -245,8 +245,8 @@ public:
 
     for (VariableOp recordComponentOp : recordOp.getVariables()) {
       mlir::Value componentValue = rewriter.create<ComponentGetOp>(
-          op.getLoc(), recordComponentOp.getVariableType().unwrap(),
-          op.getValue(), recordComponentOp.getSymName());
+          op.getLoc(), recordComponentOp.getType().unwrap(), op.getValue(),
+          recordComponentOp.getSymName());
 
       llvm::SmallVector<mlir::Attribute, 1> newPath;
 
@@ -259,8 +259,9 @@ public:
       llvm::SmallVector<int64_t> subscriptsAmounts;
 
       if (auto tensorType = mlir::dyn_cast<mlir::TensorType>(valueType)) {
-        mlir::Value unboundedRange =
-            rewriter.create<UnboundedRangeOp>(op.getLoc());
+        mlir::Value unboundedRange = RangeUnboundedOp::create(
+            rewriter, op.getLoc(),
+            RangeType::get(rewriter.getContext(), rewriter.getIndexType()));
 
         subscripts.append(tensorType.getRank(), unboundedRange);
         subscriptsAmounts.push_back(tensorType.getRank());
@@ -308,8 +309,8 @@ public:
 
     for (VariableOp recordComponentOp : recordOp.getVariables()) {
       mlir::Value componentValue = rewriter.create<ComponentGetOp>(
-          op.getLoc(), recordComponentOp.getVariableType().unwrap(),
-          op.getValue(), recordComponentOp.getSymName());
+          op.getLoc(), recordComponentOp.getType().unwrap(), op.getValue(),
+          recordComponentOp.getSymName());
 
       llvm::SmallVector<mlir::Attribute, 10> newPath;
 
@@ -333,8 +334,9 @@ public:
       }
 
       if (auto tensorType = mlir::dyn_cast<mlir::TensorType>(valueType)) {
-        mlir::Value unboundedRange =
-            rewriter.create<UnboundedRangeOp>(op.getLoc());
+        mlir::Value unboundedRange = RangeUnboundedOp::create(
+            rewriter, op.getLoc(),
+            RangeType::get(rewriter.getContext(), rewriter.getIndexType()));
 
         subscripts.append(tensorType.getRank(), unboundedRange);
         subscriptsAmounts.push_back(tensorType.getRank());
@@ -369,7 +371,7 @@ public:
 
         for (VariableOp component : recordOp.getVariables()) {
           auto componentGetOp = rewriter.create<ComponentGetOp>(
-              value.getLoc(), component.getVariableType().unwrap(), value,
+              value.getLoc(), component.getType().unwrap(), value,
               component.getSymName());
 
           newValues.push_back(componentGetOp.getResult());
@@ -418,7 +420,7 @@ public:
   mlir::LogicalResult
   matchAndRewrite(VariableOp op,
                   mlir::PatternRewriter &rewriter) const override {
-    VariableType variableType = op.getVariableType();
+    VariableType variableType = op.getType();
     mlir::Type elementType = variableType.getElementType();
 
     if (!mlir::isa<RecordType>(elementType)) {
@@ -433,7 +435,7 @@ public:
     llvm::StringMap<VariableOp> componentsMap;
 
     for (VariableOp component : recordOp.getVariables()) {
-      VariableType componentVariableType = component.getVariableType();
+      VariableType componentVariableType = component.getType();
       llvm::SmallVector<int64_t, 3> dimensions;
 
       // Use the shape of the original record variable.
@@ -450,7 +452,7 @@ public:
       // modifiers.
       componentVariableType =
           variableType.withShape(dimensions)
-              .withType(component.getVariableType().getElementType());
+              .withType(component.getType().getElementType());
 
       // Create the variable for the component.
       auto unpackedComponent = rewriter.create<VariableOp>(
@@ -533,7 +535,7 @@ private:
         modelOp, op.getVariable().getRootReference());
 
     auto recordType =
-        mlir::cast<RecordType>(variableOp.getVariableType().getElementType());
+        mlir::cast<RecordType>(variableOp.getType().getElementType());
 
     auto recordOp = getRecordOp(recordType);
 
@@ -561,8 +563,8 @@ private:
 
       mlir::Value componentValue = rewriter.create<ComponentGetOp>(
           yieldOp.getLoc(),
-          component.getVariableType()
-              .withShape(componentVariableOp.getVariableType().getShape())
+          component.getType()
+              .withShape(componentVariableOp.getType().getShape())
               .unwrap(),
           yieldOp.getValues()[0], component.getSymName());
 
@@ -586,7 +588,7 @@ private:
     VariableOp variableOp = op.getVariableOp(getSymbolTableCollection());
 
     auto recordType =
-        mlir::cast<RecordType>(variableOp.getVariableType().getElementType());
+        mlir::cast<RecordType>(variableOp.getType().getElementType());
 
     auto recordOp = getRecordOp(recordType);
 
@@ -613,8 +615,8 @@ private:
 
       mlir::Value componentValue = rewriter.create<ComponentGetOp>(
           yieldOp.getLoc(),
-          component.getVariableType()
-              .withShape(componentVariableOp.getVariableType().getShape())
+          component.getType()
+              .withShape(componentVariableOp.getType().getShape())
               .unwrap(),
           yieldOp.getValues()[0], component.getSymName());
 
@@ -637,7 +639,7 @@ private:
     VariableOp variableOp = op.getVariableOp(getSymbolTableCollection());
 
     auto recordType =
-        mlir::cast<RecordType>(variableOp.getVariableType().getElementType());
+        mlir::cast<RecordType>(variableOp.getType().getElementType());
 
     auto recordOp = getRecordOp(recordType);
 
@@ -666,8 +668,8 @@ private:
 
       mlir::Value componentValue = rewriter.create<ComponentGetOp>(
           yieldOp.getLoc(),
-          component.getVariableType()
-              .withShape(componentVariableOp.getVariableType().getShape())
+          component.getType()
+              .withShape(componentVariableOp.getType().getShape())
               .unwrap(),
           yieldOp.getValues()[0], component.getSymName());
 
@@ -717,7 +719,7 @@ private:
     mlir::OpBuilder::InsertionGuard guard(rewriter);
     rewriter.setInsertionPoint(setOp);
 
-    int64_t rootVariableRank = variableOp.getVariableType().getRank();
+    int64_t rootVariableRank = variableOp.getType().getRank();
     size_t pathLength = setOp.getPath().size();
 
     if (pathLength > 2) {
@@ -836,7 +838,9 @@ private:
         rank - static_cast<int64_t>(numOfGivenSubscripts);
 
     for (int64_t i = 0; i < numOfAdditionalSubscripts; ++i) {
-      result.push_back(builder.create<UnboundedRangeOp>(loc));
+      result.push_back(RangeUnboundedOp::create(
+          builder, loc,
+          RangeType::get(builder.getContext(), builder.getIndexType())));
     }
   }
 };
@@ -941,7 +945,7 @@ private:
       dimensions.clear();
       dimensions.append(baseDimensions);
 
-      auto variableType = component.getVariableType();
+      auto variableType = component.getType();
       auto shape = variableType.getShape();
       dimensions.append(shape.begin(), shape.end());
 
@@ -1046,12 +1050,11 @@ public:
           elementShape = elementTensorType.getShape();
         }
 
-        mergeShapes(shape, elementShape,
-                    component.getVariableType().getShape());
+        mergeShapes(shape, elementShape, component.getType().getShape());
 
         auto componentGetOp = rewriter.create<ComponentGetOp>(
-            op.getLoc(), component.getVariableType().withShape(shape).unwrap(),
-            element, component.getSymName());
+            op.getLoc(), component.getType().withShape(shape).unwrap(), element,
+            component.getSymName());
 
         componentValues.push_back(componentGetOp);
       }
@@ -1059,12 +1062,12 @@ public:
       llvm::SmallVector<int64_t, 3> shape;
 
       mergeShapes(shape, op.getTensor().getType().getShape(),
-                  component.getVariableType().getShape());
+                  component.getType().getShape());
 
       auto sliceOp = rewriter.create<TensorFromElementsOp>(
           op.getLoc(),
           op.getTensor().getType().clone(shape).clone(
-              component.getVariableType().getElementType()),
+              component.getType().getElementType()),
           componentValues);
 
       componentsMap[component.getSymName()] = sliceOp;
@@ -1138,12 +1141,10 @@ public:
         elementShape = elementTensorType.getShape();
       }
 
-      mergeShapes(getResultShape, elementShape,
-                  component.getVariableType().getShape());
+      mergeShapes(getResultShape, elementShape, component.getType().getShape());
 
       auto componentGetOp = rewriter.create<ComponentGetOp>(
-          op.getLoc(),
-          component.getVariableType().withShape(getResultShape).unwrap(),
+          op.getLoc(), component.getType().withShape(getResultShape).unwrap(),
           element, component.getSymName());
 
       componentValues.push_back(componentGetOp);
@@ -1151,12 +1152,12 @@ public:
       llvm::SmallVector<int64_t, 3> shape;
 
       mergeShapes(shape, op.getTensor().getType().getShape(),
-                  component.getVariableType().getShape());
+                  component.getType().getShape());
 
       auto sliceOp = rewriter.create<TensorBroadcastOp>(
           op.getLoc(),
           op.getTensor().getType().clone(shape).clone(
-              component.getVariableType().getElementType()),
+              component.getType().getElementType()),
           componentValues);
 
       componentsMap[component.getSymName()] = sliceOp;

@@ -7,7 +7,7 @@
 // CHECK:   return %[[result]]
 
 func.func @tensorTensor(%arg0 : tensor<3x4x5x6xi64>, %arg1 : tensor<3x4x5x6xi64>) -> tensor<3x4x5x6xi64> {
-    %0 = bmodelica.div_ew %arg0, %arg1 : (tensor<3x4x5x6xi64>, tensor<3x4x5x6xi64>) -> tensor<3x4x5x6xi64>
+    %0 = bmodelica.div_ew %arg0, %arg1 : tensor<3x4x5x6xi64>, tensor<3x4x5x6xi64> -> tensor<3x4x5x6xi64>
     func.return %0 : tensor<3x4x5x6xi64>
 }
 
@@ -21,7 +21,7 @@ func.func @tensorTensor(%arg0 : tensor<3x4x5x6xi64>, %arg1 : tensor<3x4x5x6xi64>
 // CHECK:   return %[[result]]
 
 func.func @scalarTensor(%arg0 : i64, %arg1 : tensor<3x4x5x6xi64>) -> tensor<3x4x5x6xi64> {
-    %0 = bmodelica.div_ew %arg0, %arg1 : (i64, tensor<3x4x5x6xi64>) -> tensor<3x4x5x6xi64>
+    %0 = bmodelica.div_ew %arg0, %arg1 : i64, tensor<3x4x5x6xi64> -> tensor<3x4x5x6xi64>
     func.return %0 : tensor<3x4x5x6xi64>
 }
 
@@ -35,6 +35,6 @@ func.func @scalarTensor(%arg0 : i64, %arg1 : tensor<3x4x5x6xi64>) -> tensor<3x4x
 // CHECK:   return %[[result]]
 
 func.func @tensorScalar(%arg0 : tensor<3x4x5x6xi64>, %arg1 : i64) -> tensor<3x4x5x6xi64> {
-    %0 = bmodelica.div_ew %arg0, %arg1 : (tensor<3x4x5x6xi64>, i64) -> tensor<3x4x5x6xi64>
+    %0 = bmodelica.div_ew %arg0, %arg1 : tensor<3x4x5x6xi64>, i64 -> tensor<3x4x5x6xi64>
     func.return %0 : tensor<3x4x5x6xi64>
 }

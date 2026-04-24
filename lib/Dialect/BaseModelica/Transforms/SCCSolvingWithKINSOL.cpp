@@ -464,7 +464,7 @@ FunctionsBuilder::createPartialDerTemplateFromEquation(
 
   for (VariableOp variableOp : accessedVariables) {
     VariableType variableType =
-        variableOp.getVariableType().withIOProperty(IOProperty::input);
+        variableOp.getType().withIOProperty(IOProperty::input);
 
     auto clonedVariableOp = rewriter.create<VariableOp>(
         variableOp.getLoc(), variableOp.getSymName(), variableType);
@@ -516,7 +516,7 @@ FunctionsBuilder::createPartialDerTemplateFromEquation(
   for (size_t i = 0, e = originalInductions.size(); i < e; ++i) {
     mlir::Value mappedInduction = rewriter.create<VariableGetOp>(
         inductionVariablesOps[i].getLoc(),
-        inductionVariablesOps[i].getVariableType().unwrap(),
+        inductionVariablesOps[i].getType().unwrap(),
         inductionVariablesOps[i].getSymName());
 
     mapping.map(originalInductions[i], mappedInduction);
@@ -674,7 +674,7 @@ FunctionsBuilder::createPartialDerivativeFunction(
   // Create the function.
   auto jacobianFunction = rewriter.create<mlir::kinsol::JacobianFunctionOp>(
       loc, "kinsol_pder", numOfInductions,
-      independentVariable.getVariableType().getRank(), numOfVars);
+      independentVariable.getType().getRank(), numOfVars);
 
   symbolTables.getSymbolTable(moduleOp).insert(jacobianFunction);
 
@@ -694,7 +694,7 @@ FunctionsBuilder::createPartialDerivativeFunction(
     }
 
     mlir::Value seed = rewriter.create<PoolVariableGetOp>(
-        loc, variableOp.getVariableType().toArrayType(),
+        loc, variableOp.getType().toArrayType(),
         jacobianFunction.getMemoryPool(), jacobianFunction.getADSeeds()[*pos]);
 
     varSeeds[*pos] = seed;
@@ -789,8 +789,7 @@ FunctionsBuilder::getSeedSizes(EquationTemplateOp equationTemplateOp) {
 
     assert(pos && "Variable position not found");
 
-    seedSizes[*pos] =
-        variableOp.getVariableType().toArrayType().getNumElements();
+    seedSizes[*pos] = variableOp.getType().toArrayType().getNumElements();
   }
 
   assert(llvm::none_of(seedSizes, [](int64_t size) { return size == 0; }) &&
@@ -809,10 +808,9 @@ FunctionsBuilder::createProxyPartialDerivativeFunction(
   mlir::Location loc = partiallyWrittenVariable.getLoc();
 
   int64_t partiallyWrittenVariableRank =
-      partiallyWrittenVariable.getVariableType().getRank();
+      partiallyWrittenVariable.getType().getRank();
 
-  int64_t independentVariableRank =
-      independentVariable.getVariableType().getRank();
+  int64_t independentVariableRank = independentVariable.getType().getRank();
 
   // Create the function.
   auto jacobianFunction = builder.create<mlir::kinsol::JacobianFunctionOp>(
@@ -1110,7 +1108,7 @@ mlir::LogicalResult KINSOLInstance::addVariablesToKINSOL(
   // Algebraic variables.
   for (VariableOp variableOp : variables) {
     // Declare the variable inside the KINSOL instance.
-    auto arrayType = variableOp.getVariableType().toArrayType();
+    auto arrayType = variableOp.getType().toArrayType();
     std::vector<int64_t> dimensions = getDimensionsFn(arrayType);
 
     mlir::sundials::VariableGetterOp variableGetter =
@@ -1323,7 +1321,7 @@ mlir::LogicalResult KINSOLInstance::addEquationsToKINSOL(
       // Create the residual function.
       mlir::kinsol::ResidualFunctionOp residualFunction =
           functionsBuilder.getOrCreateZeroResidualFunction(
-              rewriter, variableOp.getVariableType().getRank());
+              rewriter, variableOp.getType().getRank());
 
       rewriter.create<mlir::kinsol::SetResidualOp>(
           loc, identifier, kinsolEquation, residualFunction.getSymName());

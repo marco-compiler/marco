@@ -16,8 +16,9 @@ void StandardFunctionLowerer::declare(
   auto functionOp = builder().create<FunctionOp>(location, function.getName());
 
   mlir::OpBuilder::InsertionGuard guard(builder());
-  builder().createBlock(&functionOp.getBodyRegion());
-  builder().setInsertionPointToStart(functionOp.getBody());
+
+  builder().setInsertionPointToStart(
+      builder().createBlock(&functionOp.getBodyRegion()));
 
   // Declare the inner classes.
   for (const auto &innerClassNode : function.getInnerClasses()) {
@@ -209,7 +210,7 @@ bool StandardFunctionLowerer::lower(
     assert(resultVariables.size() == 1);
 
     mlir::Value record = builder().create<RecordCreateOp>(
-        location, resultVariables[0].getVariableType().unwrap(), args);
+        location, resultVariables[0].getType().unwrap(), args);
 
     builder().create<VariableSetOp>(location, resultVariables[0], record);
     builder().setInsertionPointAfter(algorithmOp);
@@ -313,7 +314,7 @@ bool StandardFunctionLowerer::lowerExternalFunctionCall(
         return false;
       }
 
-      if (!variableOp.isInput() && variableOp.getVariableType().isScalar()) {
+      if (!variableOp.isInput() && variableOp.getType().isScalar()) {
         // Extract the previous value and store it into temporary memory.
         auto loweredArg = lower(*arg->cast<ast::bmodelica::Expression>());
 
@@ -324,7 +325,7 @@ bool StandardFunctionLowerer::lowerExternalFunctionCall(
         mlir::Value currentValue =
             (*loweredArg)[0].get((*loweredArg)[0].getLoc());
 
-        auto allocOp = builder().create<AllocOp>(
+        auto allocOp = builder().create<ArrayAllocOp>(
             currentValue.getLoc(), ArrayType::get({}, currentValue.getType()),
             mlir::ValueRange());
 

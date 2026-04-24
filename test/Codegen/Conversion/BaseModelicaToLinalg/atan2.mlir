@@ -6,6 +6,6 @@
 // CHECK: return %[[map]]
 
 func.func @foo(%arg0: tensor<3x4x5xf64>, %arg1: tensor<3x4x5xf64>) -> (tensor<3x4x5xf64>) {
-    %result = bmodelica.atan2 %arg0, %arg1 : (tensor<3x4x5xf64>, tensor<3x4x5xf64>) -> tensor<3x4x5xf64>
+    %result = bmodelica.atan2 %arg0, %arg1 : tensor<3x4x5xf64>, tensor<3x4x5xf64> -> tensor<3x4x5xf64>
     return %result : tensor<3x4x5xf64>
 }

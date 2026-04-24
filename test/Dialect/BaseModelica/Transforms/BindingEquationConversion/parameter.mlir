@@ -31,13 +31,13 @@ bmodelica.model @arrayParameter {
 
     bmodelica.binding_equation @x {
       %0 = bmodelica.constant #bmodelica<int 0> : !bmodelica.int
-      %1 = bmodelica.tensor_broadcast %0: !bmodelica.int -> tensor<3x!bmodelica.int>
+      %1 = bmodelica.tensor.broadcast %0: !bmodelica.int -> tensor<3x!bmodelica.int>
       bmodelica.yield %1 : tensor<3x!bmodelica.int>
     }
 
     // CHECK:       bmodelica.start @x {
     // CHECK-NEXT:      %[[el:.*]] = bmodelica.constant #bmodelica<int 0>
-    // CHECK-NEXT:      %[[value:.*]] = bmodelica.tensor_broadcast %[[el]]
+    // CHECK-NEXT:      %[[value:.*]] = bmodelica.tensor.broadcast %[[el]]
     // CHECK-NEXT:      bmodelica.yield %[[value]]
     // CHECK-NEXT:  }
     // CHECK-SAME:  each = false

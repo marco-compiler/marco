@@ -79,7 +79,7 @@ getTemplates(llvm::SmallVectorImpl<EquationInstanceOp> &instanceOps) {
 llvm::SmallVector<std::pair<CallOp, std::optional<MultidimensionalRange>>>
 collectCallOps(ModelOp modelOp) {
   llvm::SmallVector<EquationInstanceOp> dynamicEquationOps;
-  modelOp.collectMainEquations(dynamicEquationOps);
+  modelOp.collectDynamicEquations(dynamicEquationOps);
 
   llvm::SmallVector<std::pair<CallOp, std::optional<MultidimensionalRange>>>
       callOpsWithInductionRanges;

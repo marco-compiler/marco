@@ -84,7 +84,7 @@ end outputRealDynamicArray;
 // CHECK-LABEL: @sizeDependingOnIntegerInput
 // CHECK: bmodelica.variable @n : !bmodelica.variable<!bmodelica.int, input>
 // CHECK:       bmodelica.variable @y : !bmodelica.variable<?x!bmodelica.real, output> [fixed] {
-// CHECK-NEXT:      %[[n:.*]] = bmodelica.variable_get @n
+// CHECK-NEXT:      %[[n:.*]] = bmodelica.variable.get @n
 // CHECK-NEXT:      %[[size:.*]] = bmodelica.cast %[[n]] : !bmodelica.int -> index
 // CHECK-NEXT:      bmodelica.yield %[[size]]
 // CHECK-NEXT:  }

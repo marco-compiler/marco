@@ -11,7 +11,7 @@ bmodelica.model @outputDerivedVar der = [<@x, @der_x>] {
 
     // COM: der_x = 1
     %t0 = bmodelica.equation_template inductions = [] attributes {id = "t0"} {
-        %0 = bmodelica.variable_get @der_x : !bmodelica.real
+        %0 = bmodelica.variable.get @der_x : !bmodelica.real
         %1 = bmodelica.constant #bmodelica<real 1.0>
         %2 = bmodelica.equation_side %0 : tuple<!bmodelica.real>
         %3 = bmodelica.equation_side %1 : tuple<!bmodelica.real>
@@ -42,7 +42,7 @@ bmodelica.model @outputDerivativeVar der = [<@x, @der_x>] {
 
     // COM: der_x = 1
     %t0 = bmodelica.equation_template inductions = [] attributes {id = "t0"} {
-        %0 = bmodelica.variable_get @der_x : !bmodelica.real
+        %0 = bmodelica.variable.get @der_x : !bmodelica.real
         %1 = bmodelica.constant #bmodelica<real 1.0>
         %2 = bmodelica.equation_side %0 : tuple<!bmodelica.real>
         %3 = bmodelica.equation_side %1 : tuple<!bmodelica.real>

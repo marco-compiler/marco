@@ -150,9 +150,9 @@ bool isEquivalent(
 } // namespace
 
 namespace {
-struct RangeOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<::RangeOpInterface,
-                                                          RangeOp> {
+struct RangeBoundedOpInterface
+    : public EquationExpressionOpInterface::ExternalModel<
+          ::RangeBoundedOpInterface, RangeBoundedOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -163,7 +163,7 @@ struct RangeOpInterface
     os << ")";
   }
 
-  DEFINE_DEFAULT_IS_EQUIVALENT(RangeOp)
+  DEFINE_DEFAULT_IS_EQUIVALENT(RangeBoundedOp)
 };
 
 struct ReductionOpInterface
@@ -752,26 +752,6 @@ struct TensorInsertOpInterface
   DEFINE_DEFAULT_IS_EQUIVALENT(TensorInsertOp)
 };
 
-struct ArrayFromElementsOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<
-          ::ArrayFromElementsOpInterface, ArrayFromElementsOp> {
-  void printExpression(
-      mlir::Operation *op, llvm::raw_ostream &os,
-      const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
-    auto castedOp = mlir::cast<ArrayFromElementsOp>(op);
-
-    os << "{";
-
-    llvm::interleaveComma(castedOp.getValues(), os, [&](mlir::Value exp) {
-      ::printExpression(os, exp, inductions);
-    });
-
-    os << "}";
-  }
-
-  DEFINE_DEFAULT_IS_EQUIVALENT(ArrayFromElementsOp)
-};
-
 struct ArrayBroadcastOpInterface
     : public EquationExpressionOpInterface::ExternalModel<
           ::ArrayBroadcastOpInterface, ArrayBroadcastOp> {
@@ -782,8 +762,8 @@ struct ArrayBroadcastOpInterface
 
     os << "{";
 
-    for (int64_t i = 0, e = castedOp.getArrayType().getNumElements(); i < e;
-         ++i) {
+    for (int64_t i = 0, e = castedOp.getArray().getType().getNumElements();
+         i < e; ++i) {
       if (i != 0) {
         os << ", ";
       }
@@ -1783,7 +1763,7 @@ struct ProductOpInterface
     auto castedOp = mlir::cast<ProductOp>(op);
 
     os << "product(";
-    ::printExpression(os, castedOp.getArray(), inductions);
+    ::printExpression(os, castedOp.getTensor(), inductions);
     os << ")";
   }
 
@@ -1853,7 +1833,7 @@ struct SizeOpInterface
     auto castedOp = mlir::cast<SizeOp>(op);
 
     os << "size(";
-    ::printExpression(os, castedOp.getArray(), inductions);
+    ::printExpression(os, castedOp.getTensor(), inductions);
 
     if (mlir::Value dimension = castedOp.getDimension()) {
       os << ", ";
@@ -2018,7 +1998,6 @@ void registerEquationExpressionOpInterfaceExternalModels(
     TensorInsertOp::attachInterface<::TensorInsertOpInterface>(*context);
 
     // Array operations.
-    ArrayFromElementsOp::attachInterface<::ArrayFromElementsOpInterface>(*context);
     ArrayBroadcastOp::attachInterface<::ArrayBroadcastOpInterface>(*context);
     ArrayCastOp::attachInterface<::ArrayCastOpInterface>(*context);
     DimOp::attachInterface<::DimOpInterface>(*context);
@@ -2097,7 +2076,7 @@ void registerEquationExpressionOpInterfaceExternalModels(
 
     // Various operations.
     ReductionOp::attachInterface<::ReductionOpInterface>(*context);
-    RangeOp::attachInterface<::RangeOpInterface>(*context);
+    RangeBoundedOp::attachInterface<::RangeBoundedOpInterface>(*context);
     DerOp::attachInterface<::DerOpInterface>(*context);
     TimeOp::attachInterface<::TimeOpInterface>(*context);
     CallOp::attachInterface<::CallOpInterface>(*context);

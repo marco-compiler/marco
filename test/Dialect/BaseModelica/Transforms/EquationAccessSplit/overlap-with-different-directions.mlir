@@ -7,13 +7,13 @@ bmodelica.model @Test {
 
     // x[i + 5] = x[14 - i]
     %t0 = bmodelica.equation_template inductions = [%i] attributes {id = "t0"} {
-        %0 = bmodelica.variable_get @x : tensor<20x!bmodelica.real>
+        %0 = bmodelica.variable.get @x : tensor<20x!bmodelica.real>
         %1 = bmodelica.constant 5 : index
-        %2 = bmodelica.add %i, %1 : (index, index) -> index
-        %3 = bmodelica.tensor_extract %0[%2] : tensor<20x!bmodelica.real>
+        %2 = bmodelica.add %i, %1 : index, index -> index
+        %3 = bmodelica.tensor.extract %0[%2] : tensor<20x!bmodelica.real>
         %4 = bmodelica.constant 14 : index
-        %5 = bmodelica.sub %4, %i : (index, index) -> index
-        %6 = bmodelica.tensor_extract %0[%5] : tensor<20x!bmodelica.real>
+        %5 = bmodelica.sub %4, %i : index, index -> index
+        %6 = bmodelica.tensor.extract %0[%5] : tensor<20x!bmodelica.real>
         %7 = bmodelica.equation_side %3 : tuple<!bmodelica.real>
         %8 = bmodelica.equation_side %6 : tuple<!bmodelica.real>
         bmodelica.equation_sides %7, %8 : tuple<!bmodelica.real>, tuple<!bmodelica.real>

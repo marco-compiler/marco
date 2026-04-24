@@ -2,7 +2,7 @@
 
 // CHECK-LABEL: @foo
 // CHECK: bmodelica.div_trunc
-// CHECK-SAME: (!bmodelica.int, !bmodelica.int) -> !bmodelica.int
+// CHECK-SAME: !bmodelica.int, !bmodelica.int -> !bmodelica.int
 
 function foo
     input Integer x;

@@ -9,7 +9,7 @@ func.func @scalar(%arg0: f64, %arg1: f64) -> f64 {
     // CHECK: %[[condition:.*]] = bmodelica.neq %[[rhs]], %[[zero]]
     // CHECK: bmodelica.yield %[[condition]]
 
-    %0 = bmodelica.div_ew %arg0, %arg1 : (f64, f64) -> f64
+    %0 = bmodelica.div_ew %arg0, %arg1 : f64, f64 -> f64
     func.return %0 : f64
 }
 
@@ -27,12 +27,12 @@ func.func @tensor(%arg0: f64, %arg1: tensor<?x?xf64>) -> tensor<?x?xf64> {
     // CHECK-DAG:   %[[step:.*]] = bmodelica.constant 1 : index
     // CHECK-DAG:   scf.for %[[i0:.*]] = %[[lowerBound]] to %[[upperBound0]] step %[[step]]
     // CHECK-DAG:       scf.for %[[i1:.*]] = %[[lowerBound]] to %[[upperBound1]] step %[[step]]
-    // CHECK:               %[[element:.*]] = bmodelica.tensor_extract %[[rhs]][%[[i0]], %[[i1]]]
+    // CHECK:               %[[element:.*]] = bmodelica.tensor.extract %[[rhs]][%[[i0]], %[[i1]]]
     // CHECK:               bmodelica.assert
     // CHECK:                   %[[zero:.*]] = bmodelica.constant #bmodelica<real 0.000000e+00>
     // CHECK:                   %[[condition:.*]] = bmodelica.neq %[[element]], %[[zero]]
     // CHECK:                   bmodelica.yield %[[condition]]
 
-    %0 = bmodelica.div_ew %arg0, %arg1 : (f64, tensor<?x?xf64>) -> tensor<?x?xf64>
+    %0 = bmodelica.div_ew %arg0, %arg1 : f64, tensor<?x?xf64> -> tensor<?x?xf64>
     func.return %0 : tensor<?x?xf64>
 }

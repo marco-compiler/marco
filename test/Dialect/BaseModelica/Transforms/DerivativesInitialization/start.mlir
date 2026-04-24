@@ -21,7 +21,7 @@ bmodelica.model @ArrayVariable1d der = [<@x, @der_x, {[0,1]}>] {
 
     // CHECK:         bmodelica.start @der_x
     // CHECK-NEXT:      %[[zero:.*]] = bmodelica.constant #bmodelica<real 0.000000e+00>
-    // CHECK-NEXT:      %[[tensor:.*]] = bmodelica.tensor_broadcast %[[zero]] : !bmodelica.real -> tensor<2x!bmodelica.real>
+    // CHECK-NEXT:      %[[tensor:.*]] = bmodelica.tensor.broadcast %[[zero]] : !bmodelica.real -> tensor<2x!bmodelica.real>
     // CHECK-NEXT:      bmodelica.yield %[[tensor]]
 }
 
@@ -35,6 +35,6 @@ bmodelica.model @ArrayVariable2d der = [<@x, @der_x, {[3,5][12,14]}>] {
 
     // CHECK:       bmodelica.start @der_x
     // CHECK-NEXT:      %[[zero:.*]] = bmodelica.constant #bmodelica<real 0.000000e+00>
-    // CHECK-NEXT:      %[[tensor:.*]] = bmodelica.tensor_broadcast %[[zero]] : !bmodelica.real -> tensor<10x20x!bmodelica.real>
+    // CHECK-NEXT:      %[[tensor:.*]] = bmodelica.tensor.broadcast %[[zero]] : !bmodelica.real -> tensor<10x20x!bmodelica.real>
     // CHECK-NEXT:      bmodelica.yield %[[tensor]]
 }

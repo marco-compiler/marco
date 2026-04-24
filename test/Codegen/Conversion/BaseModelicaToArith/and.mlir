@@ -12,7 +12,7 @@
 // CHECK: return %[[result]] : !bmodelica.bool
 
 func.func @Boolean(%arg0 : !bmodelica.bool, %arg1 : !bmodelica.bool) -> !bmodelica.bool {
-    %0 = bmodelica.and %arg0, %arg1 : (!bmodelica.bool, !bmodelica.bool) -> !bmodelica.bool
+    %0 = bmodelica.and %arg0, %arg1 : !bmodelica.bool, !bmodelica.bool -> !bmodelica.bool
     func.return %0 : !bmodelica.bool
 }
 
@@ -30,7 +30,7 @@ func.func @Boolean(%arg0 : !bmodelica.bool, %arg1 : !bmodelica.bool) -> !bmodeli
 // CHECK: return %[[result]] : !bmodelica.bool
 
 func.func @Integer(%arg0 : !bmodelica.int, %arg1 : !bmodelica.int) -> !bmodelica.bool {
-    %0 = bmodelica.and %arg0, %arg1 : (!bmodelica.int, !bmodelica.int) -> !bmodelica.bool
+    %0 = bmodelica.and %arg0, %arg1 : !bmodelica.int, !bmodelica.int -> !bmodelica.bool
     func.return %0 : !bmodelica.bool
 }
 
@@ -48,7 +48,7 @@ func.func @Integer(%arg0 : !bmodelica.int, %arg1 : !bmodelica.int) -> !bmodelica
 // CHECK: return %[[result]] : !bmodelica.bool
 
 func.func @Real(%arg0 : !bmodelica.real, %arg1 : !bmodelica.real) -> !bmodelica.bool {
-    %0 = bmodelica.and %arg0, %arg1 : (!bmodelica.real, !bmodelica.real) -> !bmodelica.bool
+    %0 = bmodelica.and %arg0, %arg1 : !bmodelica.real, !bmodelica.real -> !bmodelica.bool
     func.return %0 : !bmodelica.bool
 }
 
@@ -67,7 +67,7 @@ func.func @Real(%arg0 : !bmodelica.real, %arg1 : !bmodelica.real) -> !bmodelica.
 // CHECK: return %[[result]] : !bmodelica.bool
 
 func.func @IntegerReal(%arg0 : !bmodelica.int, %arg1 : !bmodelica.real) -> !bmodelica.bool {
-    %0 = bmodelica.and %arg0, %arg1 : (!bmodelica.int, !bmodelica.real) -> !bmodelica.bool
+    %0 = bmodelica.and %arg0, %arg1 : !bmodelica.int, !bmodelica.real -> !bmodelica.bool
     func.return %0 : !bmodelica.bool
 }
 
@@ -86,7 +86,7 @@ func.func @IntegerReal(%arg0 : !bmodelica.int, %arg1 : !bmodelica.real) -> !bmod
 // CHECK: return %[[result]] : !bmodelica.bool
 
 func.func @RealInteger(%arg0 : !bmodelica.real, %arg1 : !bmodelica.int) -> !bmodelica.bool {
-    %0 = bmodelica.and %arg0, %arg1 : (!bmodelica.real, !bmodelica.int) -> !bmodelica.bool
+    %0 = bmodelica.and %arg0, %arg1 : !bmodelica.real, !bmodelica.int -> !bmodelica.bool
     func.return %0 : !bmodelica.bool
 }
 
@@ -101,7 +101,7 @@ func.func @RealInteger(%arg0 : !bmodelica.real, %arg1 : !bmodelica.int) -> !bmod
 // CHECK: return %[[result]] : i1
 
 func.func @mlirIndex(%arg0 : index, %arg1 : index) -> i1 {
-    %0 = bmodelica.and %arg0, %arg1 : (index, index) -> i1
+    %0 = bmodelica.and %arg0, %arg1 : index, index -> i1
     func.return %0 : i1
 }
 
@@ -116,7 +116,7 @@ func.func @mlirIndex(%arg0 : index, %arg1 : index) -> i1 {
 // CHECK: return %[[result]] : i1
 
 func.func @mlirInteger(%arg0 : i64, %arg1 : i64) -> i1 {
-    %0 = bmodelica.and %arg0, %arg1 : (i64, i64) -> i1
+    %0 = bmodelica.and %arg0, %arg1 : i64, i64 -> i1
     func.return %0 : i1
 }
 
@@ -131,6 +131,6 @@ func.func @mlirInteger(%arg0 : i64, %arg1 : i64) -> i1 {
 // CHECK: return %[[result]] : i1
 
 func.func @mlirFloat(%arg0 : f64, %arg1 : f64) -> i1 {
-    %0 = bmodelica.and %arg0, %arg1 : (f64, f64) -> i1
+    %0 = bmodelica.and %arg0, %arg1 : f64, f64 -> i1
     func.return %0 : i1
 }

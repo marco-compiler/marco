@@ -26,16 +26,16 @@ bmodelica.function @for {
     bmodelica.variable @z : !bmodelica.variable<i64, input>
 
     bmodelica.algorithm {
-        %0 = bmodelica.variable_get @x : i1
+        %0 = bmodelica.variable.get @x : i1
 
         bmodelica.for condition {
             bmodelica.condition (%0 : i1)
         } body {
-            %1 = bmodelica.variable_get @y : i64
+            %1 = bmodelica.variable.get @y : i64
             bmodelica.print %1 : i64
             bmodelica.yield
         } step {
-            %1 = bmodelica.variable_get @z : i64
+            %1 = bmodelica.variable.get @z : i64
             bmodelica.print %1 : i64
             bmodelica.yield
         }

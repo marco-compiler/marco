@@ -73,7 +73,7 @@ public:
       auto clonedVariableOp = mlir::cast<VariableOp>(
           rewriter.clone(*variableOp.getOperation(), mapping));
 
-      auto originalVariableType = variableOp.getVariableType();
+      auto originalVariableType = variableOp.getType();
 
       clonedVariableOp.setType(
           VariableType::get(originalVariableType.getShape(),
@@ -85,7 +85,7 @@ public:
       auto clonedVariableOp = mlir::cast<VariableOp>(
           rewriter.clone(*variableOp.getOperation(), mapping));
 
-      auto originalVariableType = variableOp.getVariableType();
+      auto originalVariableType = variableOp.getType();
 
       clonedVariableOp.setType(
           VariableType::get(originalVariableType.getShape(),
@@ -114,7 +114,7 @@ public:
         rewriter.setInsertionPoint(yieldOp);
 
         mlir::Value array = rewriter.create<TensorBroadcastOp>(
-            yieldOp.getLoc(), variableOp.getVariableType().unwrap(),
+            yieldOp.getLoc(), variableOp.getType().unwrap(),
             yieldOp.getValues()[0]);
 
         rewriter.replaceOpWithNewOp<YieldOp>(yieldOp, array);
@@ -134,7 +134,7 @@ public:
 
     for (size_t i = 0, e = outputVariables.size(); i < e; ++i) {
       VariableOp outputVariable = outputVariables[i];
-      VariableType variableType = outputVariable.getVariableType();
+      VariableType variableType = outputVariable.getType();
       int64_t rank = variableType.getRank();
 
       if (auto parentOp = mlir::dyn_cast<DynamicOp>(op->getParentOp())) {

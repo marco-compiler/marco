@@ -8,7 +8,7 @@
 
 func.func @scalarVariableGet() -> f64 {
     %0 = bmodelica.raw_variable {name = "x"} : memref<f64>
-    %1 = bmodelica.raw_variable_get %0 : memref<f64> -> f64
+    %1 = bmodelica.raw_variable.get %0 : memref<f64> -> f64
     return %1 : f64
 }
 
@@ -23,7 +23,7 @@ func.func @scalarVariableGet() -> f64 {
 
 func.func @scalarVariableSet(%arg0: f64) {
     %0 = bmodelica.raw_variable {name = "x"} : memref<f64>
-    bmodelica.raw_variable_set %0, %arg0 : memref<f64>, f64
+    bmodelica.raw_variable.set %0, %arg0 : memref<f64>, f64
     return
 }
 
@@ -36,7 +36,7 @@ func.func @scalarVariableSet(%arg0: f64) {
 
 func.func @staticArrayVariableGet() -> memref<3x4xf64> {
     %0 = bmodelica.raw_variable {name = "x"} : memref<3x4xf64>
-    %1 = bmodelica.raw_variable_get %0 : memref<3x4xf64> -> memref<3x4xf64>
+    %1 = bmodelica.raw_variable.get %0 : memref<3x4xf64> -> memref<3x4xf64>
     return %1 : memref<3x4xf64>
 }
 
@@ -51,7 +51,7 @@ func.func @staticArrayVariableGet() -> memref<3x4xf64> {
 
 func.func @staticArrayVariableSet(%arg0: memref<3x4xf64>) {
     %0 = bmodelica.raw_variable {name = "x"} : memref<3x4xf64>
-    bmodelica.raw_variable_set %0, %arg0 : memref<3x4xf64>, memref<3x4xf64>
+    bmodelica.raw_variable.set %0, %arg0 : memref<3x4xf64>, memref<3x4xf64>
     return
 }
 
@@ -68,7 +68,7 @@ func.func @staticArrayVariableSet(%arg0: memref<3x4xf64>) {
 
 func.func @dynamicArrayVariableGet() -> memref<3x?xf64> {
     %0 = bmodelica.raw_variable {name = "x"} : memref<3x?xf64>
-    %1 = bmodelica.raw_variable_get %0 : memref<3x?xf64> -> memref<3x?xf64>
+    %1 = bmodelica.raw_variable.get %0 : memref<3x?xf64> -> memref<3x?xf64>
     return %1 : memref<3x?xf64>
 }
 
@@ -92,6 +92,6 @@ func.func @dynamicArrayVariableGet() -> memref<3x?xf64> {
 
 func.func @dynamicArrayVariableSet(%arg0: memref<3x?xf64>) {
     %0 = bmodelica.raw_variable {name = "x"} : memref<3x?xf64>
-    bmodelica.raw_variable_set %0, %arg0 : memref<3x?xf64>, memref<3x?xf64>
+    bmodelica.raw_variable.set %0, %arg0 : memref<3x?xf64>, memref<3x?xf64>
     return
 }

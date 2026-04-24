@@ -9,9 +9,9 @@
 // CHECK: return %[[res]]
 
 func.func @add(%arg0: !bmodelica.real, %arg1: !bmodelica.real) -> !bmodelica.real {
-    %0 = bmodelica.add %arg0, %arg1 : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
+    %0 = bmodelica.add %arg0, %arg1 : !bmodelica.real, !bmodelica.real -> !bmodelica.real
     %1 = bmodelica.constant #bmodelica<real 2.0>
-    %2 = bmodelica.mul %0, %1 : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
+    %2 = bmodelica.mul %0, %1 : !bmodelica.real, !bmodelica.real -> !bmodelica.real
     return %2 : !bmodelica.real
 }
 
@@ -26,9 +26,9 @@ func.func @add(%arg0: !bmodelica.real, %arg1: !bmodelica.real) -> !bmodelica.rea
 // CHECK: return %[[res]]
 
 func.func @add_ew(%arg0: !bmodelica.real, %arg1: !bmodelica.real) -> !bmodelica.real {
-    %0 = bmodelica.add_ew %arg0, %arg1 : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
+    %0 = bmodelica.add_ew %arg0, %arg1 : !bmodelica.real, !bmodelica.real -> !bmodelica.real
     %1 = bmodelica.constant #bmodelica<real 2.0>
-    %2 = bmodelica.mul %0, %1 : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
+    %2 = bmodelica.mul %0, %1 : !bmodelica.real, !bmodelica.real -> !bmodelica.real
     return %2 : !bmodelica.real
 }
 
@@ -43,9 +43,9 @@ func.func @add_ew(%arg0: !bmodelica.real, %arg1: !bmodelica.real) -> !bmodelica.
 // CHECK: return %[[res]]
 
 func.func @sub(%arg0: !bmodelica.real, %arg1: !bmodelica.real) -> !bmodelica.real {
-    %0 = bmodelica.sub %arg0, %arg1 : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
+    %0 = bmodelica.sub %arg0, %arg1 : !bmodelica.real, !bmodelica.real -> !bmodelica.real
     %1 = bmodelica.constant #bmodelica<real 2.0>
-    %2 = bmodelica.mul %0, %1 : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
+    %2 = bmodelica.mul %0, %1 : !bmodelica.real, !bmodelica.real -> !bmodelica.real
     return %2 : !bmodelica.real
 }
 
@@ -60,9 +60,9 @@ func.func @sub(%arg0: !bmodelica.real, %arg1: !bmodelica.real) -> !bmodelica.rea
 // CHECK: return %[[res]]
 
 func.func @sub_ew(%arg0: !bmodelica.real, %arg1: !bmodelica.real) -> !bmodelica.real {
-    %0 = bmodelica.sub_ew %arg0, %arg1 : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
+    %0 = bmodelica.sub_ew %arg0, %arg1 : !bmodelica.real, !bmodelica.real -> !bmodelica.real
     %1 = bmodelica.constant #bmodelica<real 2.0>
-    %2 = bmodelica.mul %0, %1 : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
+    %2 = bmodelica.mul %0, %1 : !bmodelica.real, !bmodelica.real -> !bmodelica.real
     return %2 : !bmodelica.real
 }
 
@@ -76,9 +76,9 @@ func.func @sub_ew(%arg0: !bmodelica.real, %arg1: !bmodelica.real) -> !bmodelica.
 // CHECK: return %[[res]]
 
 func.func @mul(%arg0: !bmodelica.real, %arg1: !bmodelica.real) -> !bmodelica.real {
-    %0 = bmodelica.mul %arg0, %arg1 : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
+    %0 = bmodelica.mul %arg0, %arg1 : !bmodelica.real, !bmodelica.real -> !bmodelica.real
     %1 = bmodelica.constant #bmodelica<real 2.0>
-    %2 = bmodelica.mul %0, %1 : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
+    %2 = bmodelica.mul %0, %1 : !bmodelica.real, !bmodelica.real -> !bmodelica.real
     return %2 : !bmodelica.real
 }
 
@@ -92,9 +92,9 @@ func.func @mul(%arg0: !bmodelica.real, %arg1: !bmodelica.real) -> !bmodelica.rea
 // CHECK: return %[[res]]
 
 func.func @mul_ew(%arg0: !bmodelica.real, %arg1: !bmodelica.real) -> !bmodelica.real {
-    %0 = bmodelica.mul_ew %arg0, %arg1 : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
+    %0 = bmodelica.mul_ew %arg0, %arg1 : !bmodelica.real, !bmodelica.real -> !bmodelica.real
     %1 = bmodelica.constant #bmodelica<real 2.0>
-    %2 = bmodelica.mul %0, %1 : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
+    %2 = bmodelica.mul %0, %1 : !bmodelica.real, !bmodelica.real -> !bmodelica.real
     return %2 : !bmodelica.real
 }
 
@@ -108,9 +108,9 @@ func.func @mul_ew(%arg0: !bmodelica.real, %arg1: !bmodelica.real) -> !bmodelica.
 // CHECK: return %[[res]]
 
 func.func @div(%arg0: !bmodelica.real, %arg1: !bmodelica.real) -> !bmodelica.real {
-    %0 = bmodelica.div %arg0, %arg1 : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
+    %0 = bmodelica.div %arg0, %arg1 : !bmodelica.real, !bmodelica.real -> !bmodelica.real
     %1 = bmodelica.constant #bmodelica<real 2.0>
-    %2 = bmodelica.mul %0, %1 : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
+    %2 = bmodelica.mul %0, %1 : !bmodelica.real, !bmodelica.real -> !bmodelica.real
     return %2 : !bmodelica.real
 }
 
@@ -124,8 +124,8 @@ func.func @div(%arg0: !bmodelica.real, %arg1: !bmodelica.real) -> !bmodelica.rea
 // CHECK: return %[[res]]
 
 func.func @div_ew(%arg0: !bmodelica.real, %arg1: !bmodelica.real) -> !bmodelica.real {
-    %0 = bmodelica.div_ew %arg0, %arg1 : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
+    %0 = bmodelica.div_ew %arg0, %arg1 : !bmodelica.real, !bmodelica.real -> !bmodelica.real
     %1 = bmodelica.constant #bmodelica<real 2.0>
-    %2 = bmodelica.mul %0, %1 : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
+    %2 = bmodelica.mul %0, %1 : !bmodelica.real, !bmodelica.real -> !bmodelica.real
     return %2 : !bmodelica.real
 }

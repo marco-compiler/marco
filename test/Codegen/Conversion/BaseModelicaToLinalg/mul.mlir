@@ -8,7 +8,7 @@
 // CHECK:   return %[[result]]
 
 func.func @scalarProduct(%arg0 : i64, %arg1 : tensor<3x4xi64>) -> tensor<3x4xi64> {
-    %0 = bmodelica.mul %arg0, %arg1 : (i64, tensor<3x4xi64>) -> tensor<3x4xi64>
+    %0 = bmodelica.mul %arg0, %arg1 : i64, tensor<3x4xi64> -> tensor<3x4xi64>
     func.return %0 : tensor<3x4xi64>
 }
 
@@ -22,7 +22,7 @@ func.func @scalarProduct(%arg0 : i64, %arg1 : tensor<3x4xi64>) -> tensor<3x4xi64
 // CHECK:   return %[[result]]
 
 func.func @crossProduct(%arg0 : tensor<3xi64>, %arg1 : tensor<3xi64>) -> i64 {
-    %0 = bmodelica.mul %arg0, %arg1 : (tensor<3xi64>, tensor<3xi64>) -> i64
+    %0 = bmodelica.mul %arg0, %arg1 : tensor<3xi64>, tensor<3xi64> -> i64
     func.return %0 : i64
 }
 
@@ -35,7 +35,7 @@ func.func @crossProduct(%arg0 : tensor<3xi64>, %arg1 : tensor<3xi64>) -> i64 {
 // CHECK:   return %[[result]]
 
 func.func @vectorMatrix(%arg0 : tensor<3xi64>, %arg1 : tensor<3x2xi64>) -> tensor<2xi64> {
-    %0 = bmodelica.mul %arg0, %arg1 : (tensor<3xi64>, tensor<3x2xi64>) -> tensor<2xi64>
+    %0 = bmodelica.mul %arg0, %arg1 : tensor<3xi64>, tensor<3x2xi64> -> tensor<2xi64>
     func.return %0 : tensor<2xi64>
 }
 
@@ -50,7 +50,7 @@ func.func @vectorMatrix(%arg0 : tensor<3xi64>, %arg1 : tensor<3x2xi64>) -> tenso
 // CHECK:   return %[[result]]
 
 func.func @matrixVector(%arg0 : tensor<3x2xi64>, %arg1 : tensor<2xi64>) -> tensor<3xi64> {
-    %0 = bmodelica.mul %arg0, %arg1 : (tensor<3x2xi64>, tensor<2xi64>) -> tensor<3xi64>
+    %0 = bmodelica.mul %arg0, %arg1 : tensor<3x2xi64>, tensor<2xi64> -> tensor<3xi64>
     func.return %0 : tensor<3xi64>
 }
 
@@ -63,6 +63,6 @@ func.func @matrixVector(%arg0 : tensor<3x2xi64>, %arg1 : tensor<2xi64>) -> tenso
 // CHECK:   return %[[result]]
 
 func.func @matrixMatrix(%arg0 : tensor<3x4xi64>, %arg1 : tensor<4x5xi64>) -> tensor<3x5xi64> {
-    %0 = bmodelica.mul %arg0, %arg1 : (tensor<3x4xi64>, tensor<4x5xi64>) -> tensor<3x5xi64>
+    %0 = bmodelica.mul %arg0, %arg1 : tensor<3x4xi64>, tensor<4x5xi64> -> tensor<3x5xi64>
     func.return %0 : tensor<3x5xi64>
 }

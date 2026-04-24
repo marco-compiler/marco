@@ -36,7 +36,7 @@ func.func @dynamicArray(%arg0: tensor<?x?xi64>) -> tensor<2xindex> {
 // CHECK: return %[[result]]
 
 func.func @staticArrayDimension(%arg0: tensor<3x4xi64>, %arg1: index) -> index {
-    %0 = bmodelica.size %arg0, %arg1 : (tensor<3x4xi64>, index) -> index
+    %0 = bmodelica.size %arg0, %arg1 : tensor<3x4xi64>, index -> index
     func.return %0 : index
 }
 
@@ -48,6 +48,6 @@ func.func @staticArrayDimension(%arg0: tensor<3x4xi64>, %arg1: index) -> index {
 // CHECK: return %[[result]]
 
 func.func @dynamicArrayDimension(%arg0: tensor<?x?xi64>, %arg1: index) -> index {
-    %0 = bmodelica.size %arg0, %arg1 : (tensor<?x?xi64>, index) -> index
+    %0 = bmodelica.size %arg0, %arg1 : tensor<?x?xi64>, index -> index
     func.return %0 : index
 }

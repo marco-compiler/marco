@@ -311,7 +311,7 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp) {
   llvm::SmallVector<EquationInstanceOp> initialEquations;
   llvm::SmallVector<EquationInstanceOp> mainEquations;
   modelOp.collectInitialEquations(initialEquations);
-  modelOp.collectMainEquations(mainEquations);
+  modelOp.collectDynamicEquations(mainEquations);
 
   // Determine the writes map of the 'initial conditions' model. This must be
   // used to avoid having different initial equations writing into the same
@@ -545,7 +545,7 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp) {
 
   for (VariableOp variableOp : promotableVariables) {
     // Change the variable type.
-    auto newVariableType = variableOp.getVariableType().asParameter();
+    auto newVariableType = variableOp.getType().asParameter();
     variableOp.setType(newVariableType);
 
     // Determine the indices of the variable that are currently handled only by

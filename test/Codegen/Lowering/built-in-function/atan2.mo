@@ -2,7 +2,7 @@
 
 // CHECK-LABEL: @foo
 // CHECK: bmodelica.atan2
-// CHECK-SAME: (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
+// CHECK-SAME: !bmodelica.real, !bmodelica.real -> !bmodelica.real
 
 function foo
     input Real y;

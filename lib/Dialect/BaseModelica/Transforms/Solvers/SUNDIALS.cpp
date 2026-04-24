@@ -11,7 +11,7 @@ createGetterFunction(mlir::OpBuilder &builder,
   mlir::OpBuilder::InsertionGuard guard(builder);
   builder.setInsertionPointToEnd(moduleOp.getBody());
 
-  auto variableType = variable.getVariableType();
+  auto variableType = variable.getType();
 
   auto getterOp = builder.create<mlir::sundials::VariableGetterOp>(
       loc, functionName, variableType.getRank());
@@ -83,7 +83,7 @@ createSetterFunction(mlir::OpBuilder &builder,
   mlir::OpBuilder::InsertionGuard guard(builder);
   builder.setInsertionPointToEnd(moduleOp.getBody());
 
-  auto variableType = variable.getVariableType();
+  auto variableType = variable.getType();
 
   auto setterOp = builder.create<mlir::sundials::VariableSetterOp>(
       loc, functionName, variableType.getRank());

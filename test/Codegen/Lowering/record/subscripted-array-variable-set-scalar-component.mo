@@ -5,7 +5,7 @@
 // CHECK-DAG:           %[[one:.*]] = bmodelica.constant #bmodelica<int 1>
 // CHECK-DAG:           %[[minus_one:.*]] = bmodelica.constant -1 : index
 // CHECK-DAG:           %[[subscript:.*]] = bmodelica.add %[[one]], %[[minus_one]]
-// CHECK-DAG:           %[[x:.*]] = bmodelica.variable_get @x : !bmodelica.real
+// CHECK-DAG:           %[[x:.*]] = bmodelica.variable.get @x : !bmodelica.real
 // CHECK-NEXT:          bmodelica.variable_component_set @r[%[[subscript]]]::@x, %[[x]]
 // CHECK-NEXT:      }
 // CHECK-NEXT:  }

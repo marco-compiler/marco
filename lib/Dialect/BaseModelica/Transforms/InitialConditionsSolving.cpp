@@ -59,7 +59,7 @@ createEquationTemplate(mlir::RewriterBase &rewriter,
     return nullptr;
   }
 
-  VariableType variableType = variableOp.getVariableType();
+  VariableType variableType = variableOp.getType();
   int64_t numOfInductions = variableType.getRank();
 
   auto templateOp = rewriter.create<EquationTemplateOp>(startOp.getLoc());

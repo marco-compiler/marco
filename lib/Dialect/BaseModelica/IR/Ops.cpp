@@ -90,28 +90,6 @@ void printModelDerivativesMap(mlir::OpAsmPrinter &printer, mlir::Operation *op,
   }
 }
 
-bool parseAbstractEquationWrittenVars(mlir::OpAsmParser &parser,
-                                      VariablesList &prop) {
-  return parseWrittenVars(parser, prop);
-}
-
-void printAbstractEquationWrittenVars(mlir::OpAsmPrinter &printer,
-                                      mlir::Operation *op,
-                                      const VariablesList &prop) {
-  return printWrittenVars(printer, op, prop);
-}
-
-bool parseAbstractEquationReadVars(mlir::OpAsmParser &parser,
-                                   VariablesList &prop) {
-  return parseReadVars(parser, prop);
-}
-
-void printAbstractEquationReadVars(mlir::OpAsmPrinter &printer,
-                                   mlir::Operation *op,
-                                   const VariablesList &prop) {
-  return printReadVars(printer, op, prop);
-}
-
 bool parseScheduleBlockWrittenVars(mlir::OpAsmParser &parser,
                                    VariablesList &prop) {
   return parseWrittenVars(parser, prop);
@@ -142,6 +120,79 @@ void printEquationCallIndices(mlir::OpAsmPrinter &printer, mlir::Operation *op,
                               const IndexSet &prop) {
   ::mlir::modeling::print(printer, prop);
 }
+
+mlir::ParseResult
+parseVariableDimensionConstraints(mlir::OpAsmParser &parser,
+                                  mlir::ArrayAttr &dimensionConstraints) {
+  if (mlir::failed(parser.parseOptionalLSquare())) {
+    dimensionConstraints = mlir::ArrayAttr::get(parser.getContext(), {});
+    return mlir::success();
+  }
+
+  if (mlir::failed(parser.parseOptionalRSquare())) {
+    llvm::SmallVector<mlir::Attribute> constraints;
+
+    do {
+      if (mlir::succeeded(parser.parseOptionalKeyword("free"))) {
+        constraints.push_back(DimensionConstraintAttr::get(
+            parser.getContext(), DimensionConstraint::Free));
+      } else if (mlir::succeeded(parser.parseOptionalKeyword("fixed"))) {
+        constraints.push_back(DimensionConstraintAttr::get(
+            parser.getContext(), DimensionConstraint::Fixed));
+      } else {
+        return mlir::failure();
+      }
+    } while (mlir::succeeded(parser.parseOptionalComma()));
+
+    dimensionConstraints = parser.getBuilder().getArrayAttr(constraints);
+
+    if (mlir::failed(parser.parseRSquare())) {
+      return mlir::failure();
+    }
+  }
+
+  return mlir::success();
+}
+
+void printVariableDimensionConstraints(mlir::OpAsmPrinter &printer,
+                                       mlir::Operation *op,
+                                       mlir::ArrayAttr dimensionConstraints) {
+  if (!dimensionConstraints.empty()) {
+    printer << "[";
+
+    llvm::interleaveComma(
+        dimensionConstraints, printer, [&](mlir::Attribute constraint) {
+          printer << stringifyEnum(
+              mlir::cast<DimensionConstraintAttr>(constraint).getValue());
+        });
+
+    printer << "]";
+  }
+}
+
+mlir::ParseResult
+parseEquationSideTypes(mlir::OpAsmParser &parser,
+                       llvm::SmallVectorImpl<mlir::Type> &values,
+                       mlir::Type &result) {
+  if (mlir::failed(parser.parseType(result))) {
+    return mlir::failure();
+  }
+
+  auto tupleType = mlir::dyn_cast<mlir::TupleType>(result);
+
+  if (!tupleType) {
+    return mlir::failure();
+  }
+
+  llvm::append_range(values, tupleType.getTypes());
+  return mlir::success();
+}
+
+void printEquationSideTypes(mlir::OpAsmPrinter &printer, mlir::Operation *op,
+                            mlir::TypeRange values, mlir::Type result) {
+  printer << result;
+}
+
 } // namespace
 
 #define GET_OP_CLASSES
@@ -210,10 +261,10 @@ cleanEquationTemplates(mlir::RewriterBase &rewriter,
 //===---------------------------------------------------------------------===//
 
 //===---------------------------------------------------------------------===//
-// RangeOp
+// RangeBoundedOp
 
 namespace mlir::bmodelica {
-mlir::LogicalResult RangeOp::inferReturnTypes(
+mlir::LogicalResult RangeBoundedOp::inferReturnTypes(
     mlir::MLIRContext *context, std::optional<mlir::Location> location,
     mlir::ValueRange operands, mlir::DictionaryAttr attributes,
     mlir::OpaqueProperties properties, mlir::RegionRange regions,
@@ -236,8 +287,8 @@ mlir::LogicalResult RangeOp::inferReturnTypes(
   return mlir::failure();
 }
 
-bool RangeOp::isCompatibleReturnTypes(mlir::TypeRange lhs,
-                                      mlir::TypeRange rhs) {
+bool RangeBoundedOp::isCompatibleReturnTypes(mlir::TypeRange lhs,
+                                             mlir::TypeRange rhs) {
   if (lhs.size() != rhs.size()) {
     return false;
   }
@@ -251,7 +302,7 @@ bool RangeOp::isCompatibleReturnTypes(mlir::TypeRange lhs,
   return true;
 }
 
-mlir::OpFoldResult RangeOp::fold(FoldAdaptor adaptor) {
+mlir::OpFoldResult RangeBoundedOp::fold(FoldAdaptor adaptor) {
   auto lowerBound = adaptor.getLowerBound();
   auto upperBound = adaptor.getUpperBound();
   auto step = adaptor.getStep();
@@ -310,6 +361,22 @@ mlir::OpFoldResult RangeOp::fold(FoldAdaptor adaptor) {
 // RangeBeginOp
 
 namespace mlir::bmodelica {
+mlir::LogicalResult RangeBeginOp::inferReturnTypes(
+    mlir::MLIRContext *context, std::optional<mlir::Location> location,
+    mlir::ValueRange operands, mlir::DictionaryAttr attributes,
+    mlir::OpaqueProperties properties, mlir::RegionRange regions,
+    llvm::SmallVectorImpl<mlir::Type> &returnTypes) {
+  Adaptor adaptor(operands, attributes, properties, regions);
+  auto rangeType = mlir::dyn_cast<RangeType>(adaptor.getRange().getType());
+
+  if (!rangeType) {
+    return mlir::failure();
+  }
+
+  returnTypes.push_back(rangeType.getInductionType());
+  return mlir::success();
+}
+
 mlir::OpFoldResult RangeBeginOp::fold(FoldAdaptor adaptor) {
   auto range = adaptor.getRange();
 
@@ -342,6 +409,22 @@ mlir::OpFoldResult RangeBeginOp::fold(FoldAdaptor adaptor) {
 // RangeEndOp
 
 namespace mlir::bmodelica {
+mlir::LogicalResult RangeEndOp::inferReturnTypes(
+    mlir::MLIRContext *context, std::optional<mlir::Location> location,
+    mlir::ValueRange operands, mlir::DictionaryAttr attributes,
+    mlir::OpaqueProperties properties, mlir::RegionRange regions,
+    llvm::SmallVectorImpl<mlir::Type> &returnTypes) {
+  Adaptor adaptor(operands, attributes, properties, regions);
+  auto rangeType = mlir::dyn_cast<RangeType>(adaptor.getRange().getType());
+
+  if (!rangeType) {
+    return mlir::failure();
+  }
+
+  returnTypes.push_back(rangeType.getInductionType());
+  return mlir::success();
+}
+
 mlir::OpFoldResult RangeEndOp::fold(FoldAdaptor adaptor) {
   auto range = adaptor.getRange();
 
@@ -374,6 +457,22 @@ mlir::OpFoldResult RangeEndOp::fold(FoldAdaptor adaptor) {
 // RangeStepOp
 
 namespace mlir::bmodelica {
+mlir::LogicalResult RangeStepOp::inferReturnTypes(
+    mlir::MLIRContext *context, std::optional<mlir::Location> location,
+    mlir::ValueRange operands, mlir::DictionaryAttr attributes,
+    mlir::OpaqueProperties properties, mlir::RegionRange regions,
+    llvm::SmallVectorImpl<mlir::Type> &returnTypes) {
+  Adaptor adaptor(operands, attributes, properties, regions);
+  auto rangeType = mlir::dyn_cast<RangeType>(adaptor.getRange().getType());
+
+  if (!rangeType) {
+    return mlir::failure();
+  }
+
+  returnTypes.push_back(rangeType.getInductionType());
+  return mlir::success();
+}
+
 mlir::OpFoldResult RangeStepOp::fold(FoldAdaptor adaptor) {
   auto range = adaptor.getRange();
 
@@ -747,11 +846,11 @@ void TensorExtractOp::getCanonicalizationPatterns(
 //===---------------------------------------------------------------------===//
 
 //===---------------------------------------------------------------------===//
-// AllocaOp
+// ArrayAllocaOp
 
 namespace mlir::bmodelica {
-mlir::LogicalResult AllocaOp::verify() {
-  int64_t dynamicDimensionsAmount = getArrayType().getNumDynamicDims();
+mlir::LogicalResult ArrayAllocaOp::verify() {
+  int64_t dynamicDimensionsAmount = getArray().getType().getNumDynamicDims();
   size_t valuesAmount = getDynamicSizes().size();
 
   if (dynamicDimensionsAmount != static_cast<int64_t>(valuesAmount)) {
@@ -763,25 +862,14 @@ mlir::LogicalResult AllocaOp::verify() {
 
   return mlir::success();
 }
-
-void AllocaOp::getEffects(
-    mlir::SmallVectorImpl<
-        mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>
-        &effects) {
-  if (auto arrayType = mlir::dyn_cast<ArrayType>(getResult().getType())) {
-    effects.emplace_back(
-        mlir::MemoryEffects::Allocate::get(), getOperation()->getResult(0),
-        mlir::SideEffects::AutomaticAllocationScopeResource::get());
-  }
-}
 } // namespace mlir::bmodelica
 
 //===---------------------------------------------------------------------===//
-// AllocOp
+// ArrayAllocOp
 
 namespace mlir::bmodelica {
-mlir::LogicalResult AllocOp::verify() {
-  int64_t dynamicDimensionsAmount = getArrayType().getNumDynamicDims();
+mlir::LogicalResult ArrayAllocOp::verify() {
+  int64_t dynamicDimensionsAmount = getArray().getType().getNumDynamicDims();
   size_t valuesAmount = getDynamicSizes().size();
 
   if (dynamicDimensionsAmount != static_cast<int64_t>(valuesAmount)) {
@@ -792,126 +880,6 @@ mlir::LogicalResult AllocOp::verify() {
   }
 
   return mlir::success();
-}
-
-void AllocOp::getEffects(
-    mlir::SmallVectorImpl<
-        mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>
-        &effects) {
-  if (auto arrayType = mlir::dyn_cast<ArrayType>(getResult().getType())) {
-    effects.emplace_back(mlir::MemoryEffects::Allocate::get(),
-                         getOperation()->getResult(0),
-                         mlir::SideEffects::DefaultResource::get());
-  }
-}
-} // namespace mlir::bmodelica
-
-//===---------------------------------------------------------------------===//
-// ArrayFromElementsOp
-
-namespace mlir::bmodelica {
-mlir::LogicalResult ArrayFromElementsOp::verify() {
-  if (!getArrayType().hasStaticShape()) {
-    return emitOpError("the shape must be fixed");
-  }
-
-  int64_t arrayFlatSize = getArrayType().getNumElements();
-  size_t numOfValues = getValues().size();
-
-  if (arrayFlatSize != static_cast<int64_t>(numOfValues)) {
-    return emitOpError("incorrect number of values (expected " +
-                       std::to_string(arrayFlatSize) + ", got " +
-                       std::to_string(numOfValues) + ")");
-  }
-
-  return mlir::success();
-}
-
-mlir::OpFoldResult ArrayFromElementsOp::fold(FoldAdaptor adaptor) {
-  if (llvm::all_of(adaptor.getOperands(),
-                   [](mlir::Attribute attr) { return attr != nullptr; })) {
-    ArrayType arrayType = getArrayType();
-
-    if (!arrayType.hasStaticShape()) {
-      return {};
-    }
-
-    mlir::Type elementType = arrayType.getElementType();
-
-    if (mlir::isa<BooleanType>(elementType)) {
-      llvm::SmallVector<bool> casted;
-
-      if (!getScalarAttributesValues(adaptor.getOperands(), casted)) {
-        return {};
-      }
-
-      return DenseBooleanElementsAttr::get(arrayType, casted);
-    }
-
-    if (mlir::isa<IntegerType>(elementType)) {
-      llvm::SmallVector<int64_t> casted;
-
-      if (!getScalarAttributesValues(adaptor.getOperands(), casted)) {
-        return {};
-      }
-
-      return DenseIntegerElementsAttr::get(arrayType, casted);
-    }
-
-    if (mlir::isa<RealType>(elementType)) {
-      llvm::SmallVector<double> casted;
-
-      if (!getScalarAttributesValues(adaptor.getOperands(), casted)) {
-        return {};
-      }
-
-      return DenseRealElementsAttr::get(arrayType, casted);
-    }
-  }
-
-  return {};
-}
-
-void ArrayFromElementsOp::getEffects(
-    mlir::SmallVectorImpl<
-        mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>
-        &effects) {
-  effects.emplace_back(mlir::MemoryEffects::Allocate::get(),
-                       getOperation()->getResult(0),
-                       mlir::SideEffects::DefaultResource::get());
-
-  effects.emplace_back(mlir::MemoryEffects::Write::get(),
-                       getOperation()->getResult(0),
-                       mlir::SideEffects::DefaultResource::get());
-}
-} // namespace mlir::bmodelica
-
-//===---------------------------------------------------------------------===//
-// ArrayBroadcastOp
-
-namespace mlir::bmodelica {
-void ArrayBroadcastOp::getEffects(
-    mlir::SmallVectorImpl<
-        mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>
-        &effects) {
-  effects.emplace_back(mlir::MemoryEffects::Allocate::get(),
-                       getOperation()->getResult(0),
-                       mlir::SideEffects::DefaultResource::get());
-
-  effects.emplace_back(mlir::MemoryEffects::Write::get(),
-                       getOperation()->getResult(0),
-                       mlir::SideEffects::DefaultResource::get());
-}
-} // namespace mlir::bmodelica
-
-//===---------------------------------------------------------------------===//
-// FreeOp
-
-namespace mlir::bmodelica {
-void FreeOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<
-                            mlir::MemoryEffects::Effect>> &effects) {
-  effects.emplace_back(mlir::MemoryEffects::Free::get(), &getArrayMutable(),
-                       mlir::SideEffects::DefaultResource::get());
 }
 } // namespace mlir::bmodelica
 
@@ -1013,7 +981,7 @@ void LoadOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
 
 mlir::LogicalResult LoadOp::verify() {
   size_t indicesAmount = getIndices().size();
-  int64_t rank = getArrayType().getRank();
+  int64_t rank = getArray().getType().getRank();
 
   if (rank != static_cast<int64_t>(indicesAmount)) {
     return emitOpError() << "incorrect number of indices (expected " << rank
@@ -1028,7 +996,8 @@ mlir::LogicalResult LoadOp::verify() {
           return emitOpError() << "invalid index (" << *index << ")";
         }
 
-        if (int64_t dimSize = getArrayType().getDimSize(i); *index >= dimSize) {
+        if (int64_t dimSize = getArray().getType().getDimSize(i);
+            *index >= dimSize) {
           return emitOpError() << "out of bounds access (index = " << *index
                                << ", dimension = " << dimSize << ")";
         }
@@ -1042,12 +1011,6 @@ mlir::LogicalResult LoadOp::verify() {
 void LoadOp::getCanonicalizationPatterns(mlir::RewritePatternSet &patterns,
                                          mlir::MLIRContext *context) {
   patterns.add<LoadOpMergeSubscriptionPattern>(context);
-}
-
-void LoadOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<
-                            mlir::MemoryEffects::Effect>> &effects) {
-  effects.emplace_back(mlir::MemoryEffects::Read::get(), &getArrayMutable(),
-                       mlir::SideEffects::DefaultResource::get());
 }
 } // namespace mlir::bmodelica
 
@@ -1111,7 +1074,7 @@ void StoreOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
 
 mlir::LogicalResult StoreOp::verify() {
   size_t indicesAmount = getIndices().size();
-  int64_t rank = getArrayType().getRank();
+  int64_t rank = getArray().getType().getRank();
 
   if (rank != static_cast<int64_t>(indicesAmount)) {
     return emitOpError() << "incorrect number of indices (expected " << rank
@@ -1126,7 +1089,8 @@ mlir::LogicalResult StoreOp::verify() {
           return emitOpError() << "invalid index (" << *index << ")";
         }
 
-        if (int64_t dimSize = getArrayType().getDimSize(i); *index >= dimSize) {
+        if (int64_t dimSize = getArray().getType().getDimSize(i);
+            *index >= dimSize) {
           return emitOpError() << "out of bounds access (index = " << *index
                                << ", dimension = " << dimSize << ")";
         }
@@ -1140,14 +1104,6 @@ mlir::LogicalResult StoreOp::verify() {
 void StoreOp::getCanonicalizationPatterns(mlir::RewritePatternSet &patterns,
                                           mlir::MLIRContext *context) {
   patterns.add<StoreOpMergeSubscriptionPattern>(context);
-}
-
-void StoreOp::getEffects(
-    mlir::SmallVectorImpl<
-        mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>
-        &effects) {
-  effects.emplace_back(mlir::MemoryEffects::Write::get(), &getArrayMutable(),
-                       mlir::SideEffects::DefaultResource::get());
 }
 } // namespace mlir::bmodelica
 
@@ -1165,7 +1121,7 @@ struct InferSubscriptionResultTypePattern
     ArrayType inferredResultType = SubscriptionOp::inferResultType(
         op.getSource().getType(), op.getIndices());
 
-    if (inferredResultType != op.getResultArrayType()) {
+    if (inferredResultType != op.getResult().getType()) {
       auto newOp = rewriter.create<SubscriptionOp>(
           op.getLoc(), inferredResultType, op.getSource(), op.getIndices());
 
@@ -1226,8 +1182,8 @@ void SubscriptionOp::build(mlir::OpBuilder &builder,
 }
 
 mlir::LogicalResult SubscriptionOp::verify() {
-  ArrayType sourceType = getSourceArrayType();
-  ArrayType resultType = getResultArrayType();
+  ArrayType sourceType = getSource().getType();
+  ArrayType resultType = getResult().getType();
   ArrayType expectedResultType = inferResultType(sourceType, getIndices());
 
   if (resultType.getRank() != expectedResultType.getRank()) {
@@ -1287,36 +1243,6 @@ ArrayType SubscriptionOp::inferResultType(ArrayType source,
 } // namespace mlir::bmodelica
 
 //===---------------------------------------------------------------------===//
-// ArrayFillOp
-
-namespace mlir::bmodelica {
-void ArrayFillOp::getEffects(
-    mlir::SmallVectorImpl<
-        mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>
-        &effects) {
-  effects.emplace_back(mlir::MemoryEffects::Write::get(), &getArrayMutable(),
-                       mlir::SideEffects::DefaultResource::get());
-}
-} // namespace mlir::bmodelica
-
-//===---------------------------------------------------------------------===//
-// ArrayCopyOp
-
-namespace mlir::bmodelica {
-void ArrayCopyOp::getEffects(
-    mlir::SmallVectorImpl<
-        mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>
-        &effects) {
-  effects.emplace_back(mlir::MemoryEffects::Read::get(), &getSourceMutable(),
-                       mlir::SideEffects::DefaultResource::get());
-
-  effects.emplace_back(mlir::MemoryEffects::Write::get(),
-                       &getDestinationMutable(),
-                       mlir::SideEffects::DefaultResource::get());
-}
-} // namespace mlir::bmodelica
-
-//===---------------------------------------------------------------------===//
 // Variable operations
 //===---------------------------------------------------------------------===//
 
@@ -1325,115 +1251,25 @@ void ArrayCopyOp::getEffects(
 
 namespace mlir::bmodelica {
 void VariableOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
-                       llvm::StringRef name, VariableType variableType) {
-  llvm::SmallVector<mlir::Attribute, 3> constraints(
-      variableType.getNumDynamicDims(),
-      builder.getStringAttr(kDimensionConstraintUnbounded));
+                       llvm::StringRef name, VariableType type) {
+  llvm::SmallVector<DimensionConstraint, 3> constraints(
+      type.getNumDynamicDims(), DimensionConstraint::Free);
 
-  build(builder, state, name, variableType, builder.getArrayAttr(constraints));
+  build(builder, state, name, type, constraints);
 }
 
-mlir::ParseResult VariableOp::parse(mlir::OpAsmParser &parser,
-                                    mlir::OperationState &result) {
-  auto &builder = parser.getBuilder();
+void VariableOp::build(
+    mlir::OpBuilder &builder, mlir::OperationState &state, llvm::StringRef name,
+    VariableType type,
+    llvm::ArrayRef<DimensionConstraint> dimensionConstraints) {
+  auto constraintAttrs = llvm::to_vector<3>(llvm::map_range(
+      dimensionConstraints,
+      [&](DimensionConstraint constraint) -> mlir::Attribute {
+        return DimensionConstraintAttr::get(builder.getContext(), constraint);
+      }));
 
-  // Variable name.
-  mlir::StringAttr nameAttr;
-
-  if (parser.parseSymbolName(nameAttr, mlir::SymbolTable::getSymbolAttrName(),
-                             result.attributes)) {
-    return mlir::failure();
-  }
-
-  // Attributes.
-  if (parser.parseOptionalAttrDict(result.attributes)) {
-    return mlir::failure();
-  }
-
-  // Variable type.
-  mlir::Type type;
-
-  if (parser.parseColonType(type)) {
-    return mlir::failure();
-  }
-
-  result.attributes.append(getTypeAttrName(result.name),
-                           mlir::TypeAttr::get(type));
-
-  // Dimensions constraints.
-  llvm::SmallVector<llvm::StringRef> dimensionsConstraints;
-
-  if (mlir::succeeded(parser.parseOptionalLSquare())) {
-    do {
-      if (mlir::succeeded(
-              parser.parseOptionalKeyword(kDimensionConstraintUnbounded))) {
-        dimensionsConstraints.push_back(kDimensionConstraintUnbounded);
-      } else {
-        if (parser.parseKeyword(kDimensionConstraintFixed)) {
-          return mlir::failure();
-        }
-
-        dimensionsConstraints.push_back(kDimensionConstraintFixed);
-      }
-    } while (mlir::succeeded(parser.parseOptionalComma()));
-
-    if (parser.parseRSquare()) {
-      return mlir::failure();
-    }
-  }
-
-  result.attributes.append(getDimensionsConstraintsAttrName(result.name),
-                           builder.getStrArrayAttr(dimensionsConstraints));
-
-  // Region for the dimensions constraints.
-  mlir::Region *constraintsRegion = result.addRegion();
-
-  mlir::OptionalParseResult constraintsRegionParseResult =
-      parser.parseOptionalRegion(*constraintsRegion);
-
-  if (constraintsRegionParseResult.has_value() &&
-      failed(*constraintsRegionParseResult)) {
-    return mlir::failure();
-  }
-
-  return mlir::success();
-}
-
-void VariableOp::print(mlir::OpAsmPrinter &printer) {
-  printer << " ";
-  printer.printSymbolName(getSymName());
-
-  llvm::SmallVector<llvm::StringRef, 1> elidedAttrs;
-  elidedAttrs.push_back(mlir::SymbolTable::getSymbolAttrName());
-  elidedAttrs.push_back(getTypeAttrName());
-  elidedAttrs.push_back(getDimensionsConstraintsAttrName());
-
-  printer.printOptionalAttrDict(getOperation()->getAttrs(), elidedAttrs);
-
-  printer << " : " << getType();
-
-  auto dimConstraints =
-      getDimensionsConstraints().getAsRange<mlir::StringAttr>();
-
-  if (llvm::any_of(dimConstraints, [](mlir::StringAttr constraint) {
-        return constraint == kDimensionConstraintFixed;
-      })) {
-    printer << " [";
-
-    for (const auto &constraint : llvm::enumerate(dimConstraints)) {
-      if (constraint.index() != 0) {
-        printer << ", ";
-      }
-
-      printer << constraint.value().getValue();
-    }
-
-    printer << "] ";
-  }
-
-  if (mlir::Region &region = getConstraintsRegion(); !region.empty()) {
-    printer.printRegion(region);
-  }
+  build(builder, state, name, mlir::TypeAttr::get(type),
+        builder.getArrayAttr(constraintAttrs));
 }
 
 mlir::LogicalResult VariableOp::verify() {
@@ -1478,40 +1314,40 @@ mlir::LogicalResult VariableOp::verify() {
   return mlir::success();
 }
 
-VariableType VariableOp::getVariableType() {
-  return mlir::cast<VariableType>(getType());
+void VariableOp::setType(VariableType newType) {
+  setTypeAttr(mlir::TypeAttr::get(newType));
 }
 
-bool VariableOp::isInput() { return getVariableType().isInput(); }
+bool VariableOp::isInput() { return getType().isInput(); }
 
-bool VariableOp::isOutput() { return getVariableType().isOutput(); }
+bool VariableOp::isOutput() { return getType().isOutput(); }
 
-bool VariableOp::isDiscrete() { return getVariableType().isDiscrete(); }
+bool VariableOp::isDiscrete() { return getType().isDiscrete(); }
 
-bool VariableOp::isParameter() { return getVariableType().isParameter(); }
+bool VariableOp::isParameter() { return getType().isParameter(); }
 
-bool VariableOp::isConstant() { return getVariableType().isConstant(); }
+bool VariableOp::isConstant() { return getType().isConstant(); }
 
-bool VariableOp::isReadOnly() { return getVariableType().isReadOnly(); }
+bool VariableOp::isReadOnly() { return getType().isReadOnly(); }
 
-size_t VariableOp::getNumOfUnboundedDimensions() {
+size_t VariableOp::getNumOfFreeDimensions() {
   return llvm::count_if(
-      getDimensionsConstraints().getAsRange<mlir::StringAttr>(),
-      [](mlir::StringAttr dimensionConstraint) {
-        return dimensionConstraint.getValue() == kDimensionConstraintUnbounded;
+      getDimensionConstraints().getAsRange<DimensionConstraintAttr>(),
+      [](DimensionConstraintAttr constraint) {
+        return constraint.getValue() == DimensionConstraint::Free;
       });
 }
 
 size_t VariableOp::getNumOfFixedDimensions() {
   return llvm::count_if(
-      getDimensionsConstraints().getAsRange<mlir::StringAttr>(),
-      [](mlir::StringAttr dimensionConstraint) {
-        return dimensionConstraint.getValue() == kDimensionConstraintFixed;
+      getDimensionConstraints().getAsRange<DimensionConstraintAttr>(),
+      [](DimensionConstraintAttr constraint) {
+        return constraint.getValue() == DimensionConstraint::Fixed;
       });
 }
 
 IndexSet VariableOp::getIndices() {
-  VariableType variableType = getVariableType();
+  VariableType variableType = getType();
 
   if (variableType.isScalar()) {
     return {};
@@ -1533,7 +1369,7 @@ IndexSet VariableOp::getIndices() {
 namespace mlir::bmodelica {
 void VariableGetOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
                           VariableOp variableOp) {
-  auto variableType = variableOp.getVariableType();
+  auto variableType = variableOp.getType();
   auto variableName = variableOp.getSymName();
   build(builder, state, variableType.unwrap(), variableName);
 }
@@ -1559,7 +1395,7 @@ mlir::LogicalResult VariableGetOp::verifySymbolUses(
   }
 
   auto variableOp = mlir::cast<VariableOp>(symbol);
-  mlir::Type unwrappedType = variableOp.getVariableType().unwrap();
+  mlir::Type unwrappedType = variableOp.getType().unwrap();
 
   if (unwrappedType != getResult().getType()) {
     return emitOpError() << "result type does not match the variable type";
@@ -1584,76 +1420,6 @@ void VariableSetOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
                           mlir::Value value) {
   auto variableName = variableOp.getSymName();
   build(builder, state, variableName, indices, value);
-}
-
-mlir::ParseResult VariableSetOp::parse(mlir::OpAsmParser &parser,
-                                       mlir::OperationState &result) {
-  auto loc = parser.getCurrentLocation();
-
-  mlir::StringAttr variableAttr;
-  llvm::SmallVector<mlir::OpAsmParser::UnresolvedOperand, 3> indices;
-  mlir::OpAsmParser::UnresolvedOperand value;
-  llvm::SmallVector<mlir::Type, 3> types;
-
-  if (parser.parseSymbolName(variableAttr)) {
-    return mlir::failure();
-  }
-
-  if (variableAttr) {
-    result.getOrAddProperties<VariableSetOp::Properties>().variable =
-        variableAttr;
-  }
-
-  if (mlir::succeeded(parser.parseOptionalLSquare())) {
-    do {
-      if (parser.parseOperand(indices.emplace_back())) {
-        return mlir::failure();
-      }
-    } while (mlir::succeeded(parser.parseOptionalComma()));
-
-    if (parser.parseRSquare()) {
-      return mlir::failure();
-    }
-  }
-
-  if (parser.parseComma() || parser.parseOperand(value) ||
-      parser.parseColonTypeList(types)) {
-    return mlir::failure();
-  }
-
-  if (types.size() != indices.size() + 1) {
-    return mlir::failure();
-  }
-
-  if (!indices.empty()) {
-    if (parser.resolveOperands(indices, llvm::ArrayRef(types).drop_back(), loc,
-                               result.operands)) {
-      return mlir::failure();
-    }
-  }
-
-  if (parser.resolveOperand(value, types.back(), result.operands)) {
-    return mlir::failure();
-  }
-
-  return mlir::success();
-}
-
-void VariableSetOp::print(mlir::OpAsmPrinter &printer) {
-  printer << " ";
-  printer.printSymbolName(getVariable());
-
-  if (auto indices = getIndices(); !indices.empty()) {
-    printer << "[" << indices << "]";
-  }
-
-  printer << ", " << getValue() << " : ";
-
-  if (auto indices = getIndices(); !indices.empty()) {
-    printer << indices.getTypes() << ", ";
-  }
-
-  printer << getValue().getType();
 }
 
 mlir::LogicalResult VariableSetOp::verifySymbolUses(
@@ -1863,7 +1629,7 @@ mlir::LogicalResult ComponentGetOp::verifySymbolUses(
     expectedResultShape.append(componentShape.begin(), componentShape.end());
   }
 
-  mlir::Type expectedResultType = componentVariable.getVariableType().unwrap();
+  mlir::Type expectedResultType = componentVariable.getType().unwrap();
 
   if (!expectedResultShape.empty()) {
     if (auto expectedResultShapedType =
@@ -1950,7 +1716,7 @@ namespace mlir::bmodelica {
 void QualifiedVariableGetOp::build(mlir::OpBuilder &builder,
                                    mlir::OperationState &state,
                                    VariableOp variableOp) {
-  auto variableType = variableOp.getVariableType();
+  auto variableType = variableOp.getType();
   auto qualifiedRef = getSymbolRefFromRoot(variableOp);
   build(builder, state, variableType.unwrap(), qualifiedRef);
 }
@@ -6798,82 +6564,6 @@ bool MaxOp::isCompatibleReturnTypes(mlir::TypeRange lhs, mlir::TypeRange rhs) {
   return true;
 }
 
-mlir::ParseResult MaxOp::parse(mlir::OpAsmParser &parser,
-                               mlir::OperationState &result) {
-  mlir::OpAsmParser::UnresolvedOperand first;
-  mlir::Type firstType;
-
-  mlir::OpAsmParser::UnresolvedOperand second;
-  mlir::Type secondType;
-
-  size_t numOperands = 1;
-
-  if (parser.parseOperand(first)) {
-    return mlir::failure();
-  }
-
-  if (mlir::succeeded(parser.parseOptionalComma())) {
-    numOperands = 2;
-
-    if (parser.parseOperand(second)) {
-      return mlir::failure();
-    }
-  }
-
-  if (parser.parseOptionalAttrDict(result.attributes)) {
-    return mlir::failure();
-  }
-
-  if (parser.parseColon()) {
-    return mlir::failure();
-  }
-
-  if (numOperands == 1) {
-    if (parser.parseType(firstType) ||
-        parser.resolveOperand(first, firstType, result.operands)) {
-      return mlir::failure();
-    }
-  } else {
-    if (parser.parseLParen() || parser.parseType(firstType) ||
-        parser.resolveOperand(first, firstType, result.operands) ||
-        parser.parseComma() || parser.parseType(secondType) ||
-        parser.resolveOperand(second, secondType, result.operands) ||
-        parser.parseRParen()) {
-      return mlir::failure();
-    }
-  }
-
-  mlir::Type resultType;
-
-  if (parser.parseArrow() || parser.parseType(resultType)) {
-    return mlir::failure();
-  }
-
-  result.addTypes(resultType);
-
-  return mlir::success();
-}
-
-void MaxOp::print(mlir::OpAsmPrinter &printer) {
-  printer << getFirst();
-
-  if (getOperation()->getNumOperands() == 2) {
-    printer << ", " << getSecond();
-  }
-
-  printer.printOptionalAttrDict(getOperation()->getAttrs());
-  printer << " : ";
-
-  if (getOperation()->getNumOperands() == 1) {
-    printer << getFirst().getType();
-  } else {
-    printer << "(" << getFirst().getType() << ", " << getSecond().getType()
-            << ")";
-  }
-
-  printer << " -> " << getResult().getType();
-}
-
 mlir::OpFoldResult MaxOp::fold(FoldAdaptor adaptor) {
   if (adaptor.getOperands().size() == 2) {
     auto first = adaptor.getFirst();
@@ -6972,82 +6662,6 @@ bool MinOp::isCompatibleReturnTypes(mlir::TypeRange lhs, mlir::TypeRange rhs) {
   }
 
   return true;
-}
-
-mlir::ParseResult MinOp::parse(mlir::OpAsmParser &parser,
-                               mlir::OperationState &result) {
-  mlir::OpAsmParser::UnresolvedOperand first;
-  mlir::Type firstType;
-
-  mlir::OpAsmParser::UnresolvedOperand second;
-  mlir::Type secondType;
-
-  size_t numOperands = 1;
-
-  if (parser.parseOperand(first)) {
-    return mlir::failure();
-  }
-
-  if (mlir::succeeded(parser.parseOptionalComma())) {
-    numOperands = 2;
-
-    if (parser.parseOperand(second)) {
-      return mlir::failure();
-    }
-  }
-
-  if (parser.parseOptionalAttrDict(result.attributes)) {
-    return mlir::failure();
-  }
-
-  if (parser.parseColon()) {
-    return mlir::failure();
-  }
-
-  if (numOperands == 1) {
-    if (parser.parseType(firstType) ||
-        parser.resolveOperand(first, firstType, result.operands)) {
-      return mlir::failure();
-    }
-  } else {
-    if (parser.parseLParen() || parser.parseType(firstType) ||
-        parser.resolveOperand(first, firstType, result.operands) ||
-        parser.parseComma() || parser.parseType(secondType) ||
-        parser.resolveOperand(second, secondType, result.operands) ||
-        parser.parseRParen()) {
-      return mlir::failure();
-    }
-  }
-
-  mlir::Type resultType;
-
-  if (parser.parseArrow() || parser.parseType(resultType)) {
-    return mlir::failure();
-  }
-
-  result.addTypes(resultType);
-
-  return mlir::success();
-}
-
-void MinOp::print(mlir::OpAsmPrinter &printer) {
-  printer << getFirst();
-
-  if (getOperation()->getNumOperands() == 2) {
-    printer << ", " << getSecond();
-  }
-
-  printer.printOptionalAttrDict(getOperation()->getAttrs());
-  printer << " : ";
-
-  if (getOperation()->getNumOperands() == 1) {
-    printer << getFirst().getType();
-  } else {
-    printer << "(" << getFirst().getType() << ", " << getSecond().getType()
-            << ")";
-  }
-
-  printer << " -> " << getResult().getType();
 }
 
 mlir::OpFoldResult MinOp::fold(FoldAdaptor adaptor) {
@@ -7303,87 +6917,6 @@ mlir::OpFoldResult SinhOp::fold(FoldAdaptor adaptor) {
 } // namespace mlir::bmodelica
 
 //===---------------------------------------------------------------------===//
-// SizeOp
-
-namespace mlir::bmodelica {
-mlir::ParseResult SizeOp::parse(mlir::OpAsmParser &parser,
-                                mlir::OperationState &result) {
-  mlir::OpAsmParser::UnresolvedOperand array;
-  mlir::Type tensorType;
-
-  mlir::OpAsmParser::UnresolvedOperand dimension;
-  mlir::Type dimensionType;
-
-  size_t numOperands = 1;
-
-  if (parser.parseOperand(array)) {
-    return mlir::failure();
-  }
-
-  if (mlir::succeeded(parser.parseOptionalComma())) {
-    numOperands = 2;
-
-    if (parser.parseOperand(dimension)) {
-      return mlir::failure();
-    }
-  }
-
-  if (parser.parseOptionalAttrDict(result.attributes)) {
-    return mlir::failure();
-  }
-
-  if (parser.parseColon()) {
-    return mlir::failure();
-  }
-
-  if (numOperands == 1) {
-    if (parser.parseType(tensorType) ||
-        parser.resolveOperand(array, tensorType, result.operands)) {
-      return mlir::failure();
-    }
-  } else {
-    if (parser.parseLParen() || parser.parseType(tensorType) ||
-        parser.resolveOperand(array, tensorType, result.operands) ||
-        parser.parseComma() || parser.parseType(dimensionType) ||
-        parser.resolveOperand(dimension, dimensionType, result.operands) ||
-        parser.parseRParen()) {
-      return mlir::failure();
-    }
-  }
-
-  mlir::Type resultType;
-
-  if (parser.parseArrow() || parser.parseType(resultType)) {
-    return mlir::failure();
-  }
-
-  result.addTypes(resultType);
-
-  return mlir::success();
-}
-
-void SizeOp::print(mlir::OpAsmPrinter &printer) {
-  printer << " " << getArray();
-
-  if (getOperation()->getNumOperands() == 2) {
-    printer << ", " << getDimension();
-  }
-
-  printer.printOptionalAttrDict(getOperation()->getAttrs());
-  printer << " : ";
-
-  if (getOperation()->getNumOperands() == 1) {
-    printer << getArray().getType();
-  } else {
-    printer << "(" << getArray().getType() << ", " << getDimension().getType()
-            << ")";
-  }
-
-  printer << " -> " << getResult().getType();
-}
-} // namespace mlir::bmodelica
-
-//===---------------------------------------------------------------------===//
 // SqrtOp
 
 namespace mlir::bmodelica {
@@ -7623,61 +7156,6 @@ mlir::Block *ReductionOp::createExpressionBlock(mlir::OpBuilder &builder) {
 //===---------------------------------------------------------------------===//
 
 //===---------------------------------------------------------------------===//
-// PackageOp
-
-namespace mlir::bmodelica {
-void PackageOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
-                      llvm::StringRef name) {
-  state.addRegion()->emplaceBlock();
-
-  state.attributes.push_back(builder.getNamedAttr(
-      mlir::SymbolTable::getSymbolAttrName(), builder.getStringAttr(name)));
-}
-
-mlir::ParseResult PackageOp::parse(mlir::OpAsmParser &parser,
-                                   mlir::OperationState &result) {
-  mlir::StringAttr nameAttr;
-
-  if (parser.parseSymbolName(nameAttr, mlir::SymbolTable::getSymbolAttrName(),
-                             result.attributes) ||
-      parser.parseOptionalAttrDictWithKeyword(result.attributes)) {
-    return mlir::failure();
-  }
-
-  mlir::Region *bodyRegion = result.addRegion();
-
-  if (parser.parseRegion(*bodyRegion)) {
-    return mlir::failure();
-  }
-
-  if (bodyRegion->empty()) {
-    bodyRegion->emplaceBlock();
-  }
-
-  return mlir::success();
-}
-
-void PackageOp::print(mlir::OpAsmPrinter &printer) {
-  printer << " ";
-  printer.printSymbolName(getSymName());
-  printer << " ";
-
-  llvm::SmallVector<llvm::StringRef, 1> elidedAttrs;
-  elidedAttrs.push_back(mlir::SymbolTable::getSymbolAttrName());
-
-  printer.printOptionalAttrDictWithKeyword(getOperation()->getAttrs(),
-                                           elidedAttrs);
-
-  printer.printRegion(getBodyRegion());
-}
-
-mlir::Block *PackageOp::bodyBlock() {
-  assert(getBodyRegion().hasOneBlock());
-  return &getBodyRegion().front();
-}
-} // namespace mlir::bmodelica
-
-//===---------------------------------------------------------------------===//
 // ModelOp
 
 namespace mlir::bmodelica {
@@ -7717,13 +7195,6 @@ mlir::LogicalResult ModelOp::verify() {
   return mlir::success();
 }
 
-void ModelOp::getCanonicalizationPatterns(mlir::RewritePatternSet &patterns,
-                                          mlir::MLIRContext *context) {}
-
-mlir::RegionKind ModelOp::getRegionKind(unsigned index) {
-  return mlir::RegionKind::Graph;
-}
-
 void ModelOp::getCleaningPatterns(mlir::RewritePatternSet &patterns,
                                   mlir::MLIRContext *context) {
   getCanonicalizationPatterns(patterns, context);
@@ -7746,7 +7217,7 @@ void ModelOp::collectInitialAlgorithms(
   }
 }
 
-void ModelOp::collectMainAlgorithms(
+void ModelOp::collectDynamicAlgorithms(
     llvm::SmallVectorImpl<AlgorithmOp> &algorithms) {
   for (DynamicOp dynamicOp : getOps<DynamicOp>()) {
     dynamicOp.collectAlgorithms(algorithms);
@@ -7759,17 +7230,9 @@ void ModelOp::collectInitialSCCs(llvm::SmallVectorImpl<SCCOp> &SCCs) {
   }
 }
 
-void ModelOp::collectMainSCCs(llvm::SmallVectorImpl<SCCOp> &SCCs) {
+void ModelOp::collectDynamicSCCs(llvm::SmallVectorImpl<SCCOp> &SCCs) {
   for (DynamicOp dynamicOp : getOps<DynamicOp>()) {
     dynamicOp.collectSCCs(SCCs);
-  }
-}
-
-void ModelOp::collectSCCGroups(
-    llvm::SmallVectorImpl<SCCGroupOp> &initialSCCGroups,
-    llvm::SmallVectorImpl<SCCGroupOp> &SCCGroups) {
-  for (SCCGroupOp op : getOps<SCCGroupOp>()) {
-    SCCGroups.push_back(op);
   }
 }
 } // namespace mlir::bmodelica
@@ -7924,13 +7387,11 @@ struct EmptyForEquationOpErasePattern
 
 namespace mlir::bmodelica {
 void ForEquationOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
-                          long from, long to, long step) {
+                          int64_t from, int64_t to, int64_t step) {
   mlir::OpBuilder::InsertionGuard guard(builder);
 
   state.addAttribute(getFromAttrName(state.name), builder.getIndexAttr(from));
-
   state.addAttribute(getToAttrName(state.name), builder.getIndexAttr(to));
-
   state.addAttribute(getStepAttrName(state.name), builder.getIndexAttr(step));
 
   mlir::Region *bodyRegion = state.addRegion();
@@ -7944,12 +7405,7 @@ void ForEquationOp::getCanonicalizationPatterns(
   patterns.add<EmptyForEquationOpErasePattern>(context);
 }
 
-mlir::Block *ForEquationOp::bodyBlock() {
-  assert(getBodyRegion().getBlocks().size() == 1);
-  return &getBodyRegion().front();
-}
-
-mlir::Value ForEquationOp::induction() {
+mlir::Value ForEquationOp::getInduction() {
   assert(getBodyRegion().getNumArguments() != 0);
   return getBodyRegion().getArgument(0);
 }
@@ -7996,7 +7452,7 @@ mlir::ParseResult ForEquationOp::parse(mlir::OpAsmParser &parser,
 }
 
 void ForEquationOp::print(mlir::OpAsmPrinter &printer) {
-  printer << " " << induction() << " = " << getFrom() << " to " << getTo();
+  printer << " " << getInduction() << " = " << getFrom() << " to " << getTo();
 
   if (auto step = getStep(); step != 1) {
     printer << " step " << step;
@@ -9825,7 +9281,7 @@ mlir::ParseResult StartEquationInstanceOp::parse(mlir::OpAsmParser &parser,
 }
 
 void StartEquationInstanceOp::print(mlir::OpAsmPrinter &printer) {
-  printer << " " << getTemplate().getResult();
+  printer << " " << getTemplateOp().getResult();
 
   if (const IndexSet &indices = getProperties().indices; !indices.empty()) {
     printer << ", indices = ";
@@ -9849,20 +9305,6 @@ mlir::LogicalResult StartEquationInstanceOp::verify() {
   return mlir::success();
 }
 
-EquationTemplateOp StartEquationInstanceOp::getTemplate() {
-  auto result = getBase().getDefiningOp<EquationTemplateOp>();
-  assert(result != nullptr);
-  return result;
-}
-
-void StartEquationInstanceOp::printInline(llvm::raw_ostream &os) {
-  getTemplate().printInline(os);
-}
-
-mlir::ValueRange StartEquationInstanceOp::getInductionVariables() {
-  return getTemplate().getInductionVariables();
-}
-
 IndexSet StartEquationInstanceOp::getIterationSpace() {
   return getProperties().indices;
 }
@@ -9871,12 +9313,6 @@ std::optional<VariableAccess> StartEquationInstanceOp::getWriteAccess(
     mlir::SymbolTableCollection &symbolTableCollection) {
   return getAccessAtPath(symbolTableCollection,
                          EquationPath(EquationPath::LEFT, 0));
-}
-
-mlir::LogicalResult StartEquationInstanceOp::getAccesses(
-    llvm::SmallVectorImpl<VariableAccess> &result,
-    mlir::SymbolTableCollection &symbolTable) {
-  return getTemplate().getAccesses(result, symbolTable);
 }
 
 mlir::LogicalResult StartEquationInstanceOp::getReadAccesses(
@@ -9904,13 +9340,8 @@ mlir::LogicalResult StartEquationInstanceOp::getReadAccesses(
   Variable writtenVariable(writeAccess->getVariable(),
                            std::move(writtenIndices));
 
-  return getTemplate().getReadAccesses(result, equationIndices, accesses,
-                                       writtenVariable);
-}
-
-std::optional<VariableAccess> StartEquationInstanceOp::getAccessAtPath(
-    mlir::SymbolTableCollection &symbolTable, const EquationPath &path) {
-  return getTemplate().getAccessAtPath(symbolTable, path);
+  return getTemplateOp().getReadAccesses(result, equationIndices, accesses,
+                                         writtenVariable);
 }
 } // namespace mlir::bmodelica
 
@@ -10204,21 +9635,6 @@ mlir::LogicalResult EquationInstanceOp::cloneWithReplacedAccess(
 } // namespace mlir::bmodelica
 
 //===---------------------------------------------------------------------===//
-// SCCGroupOp
-
-namespace mlir::bmodelica {
-mlir::RegionKind SCCGroupOp::getRegionKind(unsigned index) {
-  return mlir::RegionKind::Graph;
-}
-
-void SCCGroupOp::collectSCCs(llvm::SmallVectorImpl<SCCOp> &SCCs) {
-  for (SCCOp scc : getOps<SCCOp>()) {
-    SCCs.push_back(scc);
-  }
-}
-} // namespace mlir::bmodelica
-
-//===---------------------------------------------------------------------===//
 // SCCOp
 
 namespace {
@@ -10241,10 +9657,6 @@ namespace mlir::bmodelica {
 void SCCOp::getCanonicalizationPatterns(mlir::RewritePatternSet &patterns,
                                         mlir::MLIRContext *context) {
   patterns.add<EmptySCCPattern>(context);
-}
-
-mlir::RegionKind SCCOp::getRegionKind(unsigned index) {
-  return mlir::RegionKind::Graph;
 }
 } // namespace mlir::bmodelica
 
@@ -10284,34 +9696,13 @@ struct EquationSideTypePropagationPattern
 } // namespace
 
 namespace mlir::bmodelica {
-mlir::ParseResult EquationSideOp::parse(mlir::OpAsmParser &parser,
-                                        mlir::OperationState &result) {
-  llvm::SmallVector<mlir::OpAsmParser::UnresolvedOperand, 1> values;
-  mlir::Type resultType;
-  auto loc = parser.getCurrentLocation();
-
-  if (parser.parseOperandList(values) || parser.parseColon() ||
-      parser.parseType(resultType)) {
-    return mlir::failure();
-  }
-
-  assert(mlir::isa<mlir::TupleType>(resultType));
-  auto tupleType = mlir::cast<mlir::TupleType>(resultType);
-
-  llvm::SmallVector<mlir::Type, 1> types(tupleType.begin(), tupleType.end());
-  assert(types.size() == values.size());
-
-  if (parser.resolveOperands(values, types, loc, result.operands)) {
-    return mlir::failure();
-  }
-
-  result.addTypes(resultType);
+mlir::LogicalResult EquationSideOp::inferReturnTypes(
+    mlir::MLIRContext *context, std::optional<mlir::Location> location,
+    mlir::ValueRange operands, mlir::DictionaryAttr attributes,
+    mlir::OpaqueProperties properties, mlir::RegionRange regions,
+    llvm::SmallVectorImpl<mlir::Type> &returnTypes) {
+  returnTypes.push_back(mlir::TupleType::get(context, operands.getTypes()));
   return mlir::success();
-}
-
-void EquationSideOp::print(mlir::OpAsmPrinter &printer) {
-  printer.printOptionalAttrDict(getOperation()->getAttrs());
-  printer << " " << getValues() << " : " << getResult().getType();
 }
 
 void EquationSideOp::getCanonicalizationPatterns(
@@ -10366,16 +9757,11 @@ mlir::LogicalResult EquationSidesOp::verify() {
 // FunctionOp
 
 namespace mlir::bmodelica {
-void FunctionOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
-                       llvm::StringRef name) {
-  build(builder, state, name, nullptr);
-}
-
 llvm::SmallVector<mlir::Type> FunctionOp::getArgumentTypes() {
   llvm::SmallVector<mlir::Type> types;
 
   for (VariableOp variableOp : getVariables()) {
-    VariableType variableType = variableOp.getVariableType();
+    VariableType variableType = variableOp.getType();
 
     if (variableType.isInput()) {
       types.push_back(variableType.unwrap());
@@ -10389,7 +9775,7 @@ llvm::SmallVector<mlir::Type> FunctionOp::getResultTypes() {
   llvm::SmallVector<mlir::Type> types;
 
   for (VariableOp variableOp : getVariables()) {
-    VariableType variableType = variableOp.getVariableType();
+    VariableType variableType = variableOp.getType();
 
     if (variableType.isOutput()) {
       types.push_back(variableType.unwrap());
@@ -10404,7 +9790,7 @@ mlir::FunctionType FunctionOp::getFunctionType() {
   llvm::SmallVector<mlir::Type> resultTypes;
 
   for (VariableOp variableOp : getVariables()) {
-    VariableType variableType = variableOp.getVariableType();
+    VariableType variableType = variableOp.getType();
 
     if (variableType.isInput()) {
       argTypes.push_back(variableType.unwrap());
@@ -10660,97 +10046,6 @@ mlir::LogicalResult RawReturnOp::verify() {
 // RawVariableOp
 
 namespace mlir::bmodelica {
-/*
-mlir::ParseResult RawVariableOp::parse(
-    mlir::OpAsmParser& parser, mlir::OperationState& result)
-{
-  auto& builder = parser.getBuilder();
-
-  llvm::SmallVector<mlir::OpAsmParser::UnresolvedOperand> dynamicSizes;
-  mlir::Type variableType;
-
-  if (parser.parseOperandList(dynamicSizes) ||
-      parser.resolveOperands(
-          dynamicSizes, builder.getIndexType(), result.operands)) {
-    return mlir::failure();
-  }
-
-  // Dimensions constraints.
-  llvm::SmallVector<llvm::StringRef> dimensionsConstraints;
-
-  if (mlir::succeeded(parser.parseOptionalLSquare())) {
-    do {
-      if (mlir::succeeded(
-              parser.parseOptionalKeyword(kDimensionConstraintUnbounded))) {
-        dimensionsConstraints.push_back(kDimensionConstraintUnbounded);
-      } else {
-        if (parser.parseKeyword(kDimensionConstraintFixed)) {
-          return mlir::failure();
-        }
-
-        dimensionsConstraints.push_back(kDimensionConstraintFixed);
-      }
-    } while (mlir::succeeded(parser.parseOptionalComma()));
-
-    if (parser.parseRSquare()) {
-      return mlir::failure();
-    }
-  }
-
-  result.attributes.append(
-      getDimensionsConstraintsAttrName(result.name),
-      builder.getStrArrayAttr(dimensionsConstraints));
-
-  // Attributes.
-  if (parser.parseOptionalAttrDict(result.attributes)) {
-    return mlir::failure();
-  }
-
-  // Variable type.
-  if (parser.parseColon() ||
-      parser.parseType(variableType)) {
-    return mlir::failure();
-  }
-
-  result.addTypes(variableType);
-
-  return mlir::success();
-}
-
-void RawVariableOp::print(mlir::OpAsmPrinter& printer)
-{
-  if (auto dynamicSizes = getDynamicSizes(); !dynamicSizes.empty()) {
-    printer << " " << dynamicSizes;
-  }
-
-  auto dimConstraints =
-      getDimensionsConstraints().getAsRange<mlir::StringAttr>();
-
-  if (llvm::any_of(dimConstraints, [](mlir::StringAttr constraint) {
-        return constraint == kDimensionConstraintFixed;
-      })) {
-    printer << " [";
-
-    for (const auto& constraint : llvm::enumerate(dimConstraints)) {
-      if (constraint.index() != 0) {
-        printer << ", ";
-      }
-
-      printer << constraint.value().getValue();
-    }
-
-    printer << "] ";
-  }
-
-  llvm::SmallVector<llvm::StringRef, 1> elidedAttrs;
-  elidedAttrs.push_back(getDimensionsConstraintsAttrName());
-
-  printer.printOptionalAttrDict(getOperation()->getAttrs(), elidedAttrs);
-
-  printer << " : " << getVariable().getType();
-}
-*/
-
 void RawVariableOp::getEffects(
     mlir::SmallVectorImpl<
         mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>
@@ -10770,29 +10065,6 @@ void RawVariableOp::getEffects(
     }
   }
 }
-
-/*
-VariableType RawVariableOp::getVariableType()
-{
-  mlir::Type variableType = getVariable().getType();
-
-  VariabilityProperty variabilityProperty = VariabilityProperty::none;
-  IOProperty ioProperty = IOProperty::none;
-
-  if (getOutput()) {
-    ioProperty = IOProperty::output;
-  }
-
-  if (auto shapedType = mlir::dyn_cast<mlir::ShapedType>(variableType)) {
-    return VariableType::get(
-        shapedType.getShape(), shapedType.getElementType(),
-        variabilityProperty, ioProperty);
-  }
-
-  return VariableType::get(
-      std::nullopt, variableType, variabilityProperty, ioProperty);
-}
- */
 
 bool RawVariableOp::isScalarVariable(mlir::Type variableType) {
   auto variableShapedType = mlir::cast<mlir::ShapedType>(variableType);
@@ -11186,13 +10458,6 @@ void ExternalCallOp::getEffects(
 // ScheduleOp
 
 namespace mlir::bmodelica {
-void ScheduleOp::collectSCCGroups(
-    llvm::SmallVectorImpl<SCCGroupOp> &SCCGroups) {
-  for (SCCGroupOp sccGroup : getOps<SCCGroupOp>()) {
-    SCCGroups.push_back(sccGroup);
-  }
-}
-
 void ScheduleOp::collectSCCs(llvm::SmallVectorImpl<SCCOp> &SCCs) {
   for (SCCOp scc : getOps<SCCOp>()) {
     SCCs.push_back(scc);
@@ -11274,86 +10539,6 @@ mlir::Block *ForOp::stepBlock() {
   assert(!getStepRegion().empty());
   return &getStepRegion().front();
 }
-
-mlir::ParseResult ForOp::parse(mlir::OpAsmParser &parser,
-                               mlir::OperationState &result) {
-  mlir::Region *conditionRegion = result.addRegion();
-
-  if (mlir::succeeded(parser.parseOptionalLParen())) {
-    if (mlir::failed(parser.parseOptionalRParen())) {
-      do {
-        mlir::OpAsmParser::UnresolvedOperand arg;
-        mlir::Type argType;
-
-        if (parser.parseOperand(arg) || parser.parseColonType(argType) ||
-            parser.resolveOperand(arg, argType, result.operands))
-          return mlir::failure();
-      } while (mlir::succeeded(parser.parseOptionalComma()));
-    }
-
-    if (parser.parseRParen()) {
-      return mlir::failure();
-    }
-  }
-
-  if (parser.parseKeyword("condition")) {
-    return mlir::failure();
-  }
-
-  if (parser.parseRegion(*conditionRegion)) {
-    return mlir::failure();
-  }
-
-  if (parser.parseKeyword("body")) {
-    return mlir::failure();
-  }
-
-  mlir::Region *bodyRegion = result.addRegion();
-
-  if (parser.parseRegion(*bodyRegion)) {
-    return mlir::failure();
-  }
-
-  if (parser.parseKeyword("step")) {
-    return mlir::failure();
-  }
-
-  mlir::Region *stepRegion = result.addRegion();
-
-  if (parser.parseRegion(*stepRegion)) {
-    return mlir::failure();
-  }
-
-  if (parser.parseOptionalAttrDictWithKeyword(result.attributes)) {
-    return mlir::failure();
-  }
-
-  return mlir::success();
-}
-
-void ForOp::print(mlir::OpAsmPrinter &printer) {
-  if (auto values = getArgs(); !values.empty()) {
-    printer << "(";
-
-    for (auto arg : llvm::enumerate(values)) {
-      if (arg.index() != 0) {
-        printer << ", ";
-      }
-
-      printer << arg.value() << " : " << arg.value().getType();
-    }
-
-    printer << ")";
-  }
-
-  printer << " condition ";
-  printer.printRegion(getConditionRegion(), true);
-  printer << " body ";
-  printer.printRegion(getBodyRegion(), true);
-  printer << " step ";
-  printer.printRegion(getStepRegion(), true);
-  printer.printOptionalAttrDictWithKeyword(getOperation()->getAttrs());
-}
 } // namespace mlir::bmodelica
 
 //===---------------------------------------------------------------------===//
@@ -11380,90 +10565,12 @@ void IfOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
 mlir::Block *IfOp::thenBlock() { return &getThenRegion().front(); }
 
 mlir::Block *IfOp::elseBlock() { return &getElseRegion().front(); }
-
-mlir::ParseResult IfOp::parse(mlir::OpAsmParser &parser,
-                              mlir::OperationState &result) {
-  mlir::OpAsmParser::UnresolvedOperand condition;
-  mlir::Type conditionType;
-
-  if (parser.parseLParen() || parser.parseOperand(condition) ||
-      parser.parseColonType(conditionType) || parser.parseRParen() ||
-      parser.resolveOperand(condition, conditionType, result.operands)) {
-    return mlir::failure();
-  }
-
-  if (parser.parseOptionalAttrDictWithKeyword(result.attributes)) {
-    return mlir::failure();
-  }
-
-  mlir::Region *thenRegion = result.addRegion();
-
-  if (parser.parseRegion(*thenRegion)) {
-    return mlir::failure();
-  }
-
-  mlir::Region *elseRegion = result.addRegion();
-
-  if (mlir::succeeded(parser.parseOptionalKeyword("else"))) {
-    if (parser.parseRegion(*elseRegion)) {
-      return mlir::failure();
-    }
-  }
-
-  return mlir::success();
-}
-
-void IfOp::print(mlir::OpAsmPrinter &printer) {
-  printer << " (" << getCondition() << " : " << getCondition().getType()
-          << ") ";
-
-  printer.printOptionalAttrDictWithKeyword(getOperation()->getAttrs());
-  printer.printRegion(getThenRegion());
-
-  if (!getElseRegion().empty()) {
-    printer << " else ";
-    printer.printRegion(getElseRegion());
-  }
-}
 } // namespace mlir::bmodelica
 
 //===---------------------------------------------------------------------===//
 // WhileOp
 
 namespace mlir::bmodelica {
-mlir::ParseResult WhileOp::parse(mlir::OpAsmParser &parser,
-                                 mlir::OperationState &result) {
-  mlir::Region *conditionRegion = result.addRegion();
-  mlir::Region *bodyRegion = result.addRegion();
-
-  if (parser.parseRegion(*conditionRegion) || parser.parseKeyword("do") ||
-      parser.parseRegion(*bodyRegion)) {
-    return mlir::failure();
-  }
-
-  if (parser.parseOptionalAttrDictWithKeyword(result.attributes)) {
-    return mlir::failure();
-  }
-
-  if (conditionRegion->empty()) {
-    conditionRegion->emplaceBlock();
-  }
-
-  if (bodyRegion->empty()) {
-    bodyRegion->emplaceBlock();
-  }
-
-  return mlir::success();
-}
-
-void WhileOp::print(mlir::OpAsmPrinter &printer) {
-  printer << " ";
-  printer.printRegion(getConditionRegion(), false);
-  printer << " do ";
-  printer.printRegion(getBodyRegion(), false);
-  printer.printOptionalAttrDictWithKeyword(getOperation()->getAttrs());
-}
-
 llvm::SmallVector<mlir::Region *> WhileOp::getLoopRegions() {
   llvm::SmallVector<mlir::Region *> result;
   result.push_back(&getBodyRegion());

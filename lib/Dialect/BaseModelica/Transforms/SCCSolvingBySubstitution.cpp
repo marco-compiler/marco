@@ -188,7 +188,7 @@ SCCSolvingBySubstitutionPass::processModelOp(ModelOp modelOp) {
   llvm::SmallVector<SCCOp> initialSCCs;
   llvm::SmallVector<SCCOp> mainSCCs;
   modelOp.collectInitialSCCs(initialSCCs);
-  modelOp.collectMainSCCs(mainSCCs);
+  modelOp.collectDynamicSCCs(mainSCCs);
 
   // The symbol table collection to be used for caching.
   mlir::SymbolTableCollection symbolTableCollection;

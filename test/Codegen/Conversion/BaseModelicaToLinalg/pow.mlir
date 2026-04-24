@@ -17,6 +17,6 @@
 // CHECK:       return %[[result]]
 
 func.func @matrixBase(%arg0 : tensor<3x3xf64>, %arg1 : index) -> tensor<3x3xf64> {
-    %0 = bmodelica.pow %arg0, %arg1 : (tensor<3x3xf64>, index) -> tensor<3x3xf64>
+    %0 = bmodelica.pow %arg0, %arg1 : tensor<3x3xf64>, index -> tensor<3x3xf64>
     func.return %0 : tensor<3x3xf64>
 }

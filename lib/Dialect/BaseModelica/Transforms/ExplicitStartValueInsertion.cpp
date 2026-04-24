@@ -58,7 +58,7 @@ ExplicitStartValueInsertionPass::processModelOp(ModelOp modelOp) {
 
   // Create the missing 'start' operations.
   for (VariableOp variableOp : variableOps) {
-    VariableType variableType = variableOp.getVariableType();
+    VariableType variableType = variableOp.getType();
 
     if (startOps.contains(variableOp.getSymName())) {
       // The variable already has a start value.

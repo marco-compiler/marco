@@ -519,7 +519,7 @@ OperationLowerer::range(const ast::bmodelica::Operation &operation) {
   }
 
   mlir::Value result =
-      builder().create<RangeOp>(location, args[0], args[2], args[1]);
+      builder().create<RangeBoundedOp>(location, args[0], args[2], args[1]);
 
   return Reference::ssa(builder(), result);
 }

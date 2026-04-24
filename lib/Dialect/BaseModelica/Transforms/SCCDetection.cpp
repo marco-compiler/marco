@@ -115,7 +115,7 @@ mlir::LogicalResult SCCDetectionPass::processModelOp(ModelOp modelOp) {
   llvm::SmallVector<EquationInstanceOp> mainEquations;
 
   modelOp.collectInitialEquations(initialEquations);
-  modelOp.collectMainEquations(mainEquations);
+  modelOp.collectDynamicEquations(mainEquations);
 
   // The symbol table collection to be used for caching.
   mlir::SymbolTableCollection symbolTableCollection;

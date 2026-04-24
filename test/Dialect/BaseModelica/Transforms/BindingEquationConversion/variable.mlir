@@ -13,7 +13,7 @@ bmodelica.model @scalarVariable {
     }
 
     // CHECK:       %[[t0:.*]] = bmodelica.equation_template
-    // CHECK-DAG:   %[[lhsValue:.*]] = bmodelica.variable_get @x
+    // CHECK-DAG:   %[[lhsValue:.*]] = bmodelica.variable.get @x
     // CHECK-DAG:   %[[rhsValue:.*]] = bmodelica.constant #bmodelica<int 0>
     // CHECK-DAG:   %[[lhs:.*]] = bmodelica.equation_side %[[lhsValue]]
     // CHECK-DAG:   %[[rhs:.*]] = bmodelica.equation_side %[[rhsValue]]
@@ -34,16 +34,16 @@ bmodelica.model @arrayVariable {
 
     bmodelica.binding_equation @x {
       %0 = bmodelica.constant #bmodelica<int 0> : !bmodelica.int
-      %1 = bmodelica.tensor_broadcast %0: !bmodelica.int -> tensor<3x!bmodelica.int>
+      %1 = bmodelica.tensor.broadcast %0: !bmodelica.int -> tensor<3x!bmodelica.int>
       bmodelica.yield %1 : tensor<3x!bmodelica.int>
     }
 
     // CHECK:       %[[t0:.*]] = bmodelica.equation_template inductions = [%[[i0:.*]]]
-    // CHECK-DAG:   %[[x:.*]] = bmodelica.variable_get @x
+    // CHECK-DAG:   %[[x:.*]] = bmodelica.variable.get @x
     // CHECK-DAG:   %[[el:.*]] = bmodelica.constant #bmodelica<int 0>
-    // CHECK-DAG:   %[[tensor:.*]] = bmodelica.tensor_broadcast %[[el]]
-    // CHECK-DAG:   %[[x_extract:.*]] = bmodelica.tensor_extract %[[x]][%[[i0]]]
-    // CHECK-DAG:   %[[tensor_extract:.*]] = bmodelica.tensor_extract %[[tensor]][%[[i0]]]
+    // CHECK-DAG:   %[[tensor:.*]] = bmodelica.tensor.broadcast %[[el]]
+    // CHECK-DAG:   %[[x_extract:.*]] = bmodelica.tensor.extract %[[x]][%[[i0]]]
+    // CHECK-DAG:   %[[tensor_extract:.*]] = bmodelica.tensor.extract %[[tensor]][%[[i0]]]
     // CHECK-DAG:   %[[lhs:.*]] = bmodelica.equation_side %[[x_extract]]
     // CHECK-DAG:   %[[rhs:.*]] = bmodelica.equation_side %[[tensor_extract]]
     // CHECK:       bmodelica.equation_sides %[[lhs]], %[[rhs]]

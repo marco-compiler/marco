@@ -92,7 +92,7 @@ std::optional<FunctionOp> createFunctionPartialDerivative(
     if (clonedVariableOp.isOutput()) {
       // Convert the output variables to protected ones.
       clonedVariableOp.setType(
-          clonedVariableOp.getVariableType().withIOProperty(IOProperty::none));
+          clonedVariableOp.getType().withIOProperty(IOProperty::none));
     }
 
     originalVarsMapping[variableOp] = clonedVariableOp;
@@ -343,7 +343,7 @@ std::optional<FunctionOp> createFunctionTimeDerivative(
     symbolTableCollection.getSymbolTable(derivedFunctionOp)
         .insert(clonedVariableOp);
 
-    VariableType variableType = clonedVariableOp.getVariableType();
+    VariableType variableType = clonedVariableOp.getType();
 
     if (variableType.isOutput()) {
       // Convert the output variables to protected ones.
@@ -365,7 +365,7 @@ std::optional<FunctionOp> createFunctionTimeDerivative(
 
   for (VariableOp variableOp : functionOp.getVariables()) {
     llvm::StringRef name = variableOp.getSymName();
-    VariableType variableType = variableOp.getVariableType();
+    VariableType variableType = variableOp.getType();
 
     if (variableOp.isInput()) {
       if (mlir::isa<RealType>(variableType.getElementType())) {

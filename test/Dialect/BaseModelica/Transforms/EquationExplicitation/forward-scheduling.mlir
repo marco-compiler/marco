@@ -14,8 +14,8 @@
 // CHECK:       scf.for %[[i0:.*]] = %[[lb]] to %[[ub]] step %[[step]] {
 // CHECK:           bmodelica.constant 1 : index
 // CHECK:           %[[var:.*]] = bmodelica.qualified_variable_get @Test::@x
-// CHECK:           %[[subscription:.*]] = bmodelica.subscription %[[var]][%[[i0]]]
-// CHECK:           bmodelica.store %[[subscription]][], %{{.*}}
+// CHECK:           %[[subscription:.*]] = bmodelica.array.subscription %[[var]][%[[i0]]]
+// CHECK:           bmodelica.array.store %[[subscription]][], %{{.*}}
 // CHECK:       }
 // CHECK-NEXT:  bmodelica.yield
 
@@ -24,12 +24,12 @@ bmodelica.model @Test {
 
     // COM: x[i] = x[i - 1]
     %t0 = bmodelica.equation_template inductions = [%i0] attributes {id = "t0"} {
-        %0 = bmodelica.variable_get @x : tensor<10x!bmodelica.int>
-        %1 = bmodelica.tensor_extract %0[%i0] : tensor<10x!bmodelica.int>
-        %2 = bmodelica.variable_get @x : tensor<10x!bmodelica.int>
+        %0 = bmodelica.variable.get @x : tensor<10x!bmodelica.int>
+        %1 = bmodelica.tensor.extract %0[%i0] : tensor<10x!bmodelica.int>
+        %2 = bmodelica.variable.get @x : tensor<10x!bmodelica.int>
         %3 = bmodelica.constant 1 : index
-        %4 = bmodelica.sub %i0, %3 : (index, index) -> index
-        %5 = bmodelica.tensor_extract %2[%4] : tensor<10x!bmodelica.int>
+        %4 = bmodelica.sub %i0, %3 : index, index -> index
+        %5 = bmodelica.tensor.extract %2[%4] : tensor<10x!bmodelica.int>
         %6 = bmodelica.equation_side %1 : tuple<!bmodelica.int>
         %7 = bmodelica.equation_side %5 : tuple<!bmodelica.int>
         bmodelica.equation_sides %6, %7 : tuple<!bmodelica.int>, tuple<!bmodelica.int>

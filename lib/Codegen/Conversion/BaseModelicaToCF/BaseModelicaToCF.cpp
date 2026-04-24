@@ -114,12 +114,12 @@ RawFunctionOp declareRawFunctionOp(FunctionOp functionOp,
   llvm::SmallVector<mlir::Type> resultTypes;
 
   for (VariableOp variableOp : inputVariables) {
-    mlir::Type unwrappedType = variableOp.getVariableType().unwrap();
+    mlir::Type unwrappedType = variableOp.getType().unwrap();
     argTypes.push_back(unwrappedType);
   }
 
   for (VariableOp variableOp : outputVariables) {
-    mlir::Type unwrappedType = variableOp.getVariableType().unwrap();
+    mlir::Type unwrappedType = variableOp.getType().unwrap();
     resultTypes.push_back(unwrappedType);
   }
 
@@ -293,8 +293,8 @@ RawVariableOp BaseModelicaToCFConversionPass::createVariable(
   rewriter.setInsertionPointToStart(variableBlock);
 
   return rewriter.create<RawVariableOp>(
-      variableOp.getLoc(), variableOp.getVariableType().toTensorType(),
-      variableOp.getSymName(), variableOp.getDimensionsConstraints(),
+      variableOp.getLoc(), variableOp.getType().toTensorType(),
+      variableOp.getSymName(), variableOp.getDimensionConstraints(),
       constraints, variableOp.isOutput());
 }
 

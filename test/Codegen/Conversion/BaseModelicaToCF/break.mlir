@@ -20,7 +20,7 @@ bmodelica.function @while {
     bmodelica.variable @x : !bmodelica.variable<i1, input>
 
     bmodelica.algorithm {
-        %0 = bmodelica.variable_get @x : i1
+        %0 = bmodelica.variable.get @x : i1
 
         bmodelica.while {
             bmodelica.condition (%0 : i1)
@@ -60,12 +60,12 @@ bmodelica.function @ifInsideWhile {
     bmodelica.variable @y : !bmodelica.variable<i1, input>
 
     bmodelica.algorithm {
-        %0 = bmodelica.variable_get @x : i1
+        %0 = bmodelica.variable.get @x : i1
 
         bmodelica.while {
             bmodelica.condition (%0 : i1)
         } do {
-            %1 = bmodelica.variable_get @y : i1
+            %1 = bmodelica.variable.get @y : i1
 
             bmodelica.if (%1 : i1) {
                 bmodelica.break
@@ -114,17 +114,17 @@ bmodelica.function @nestedWhile {
     bmodelica.variable @z : !bmodelica.variable<i1, input>
 
     bmodelica.algorithm {
-        %0 = bmodelica.variable_get @x : i1
+        %0 = bmodelica.variable.get @x : i1
 
         bmodelica.while {
             bmodelica.condition (%0 : i1)
         } do {
-            %1 = bmodelica.variable_get @y : i1
+            %1 = bmodelica.variable.get @y : i1
 
             bmodelica.while {
                 bmodelica.condition (%1 : i1)
             } do {
-                %2 = bmodelica.variable_get @z : i1
+                %2 = bmodelica.variable.get @z : i1
 
                 bmodelica.if (%2 : i1) {
                     bmodelica.break
@@ -165,16 +165,16 @@ bmodelica.function @for {
     bmodelica.variable @z : !bmodelica.variable<i64, input>
 
     bmodelica.algorithm {
-        %0 = bmodelica.variable_get @x : i1
+        %0 = bmodelica.variable.get @x : i1
 
         bmodelica.for condition {
             bmodelica.condition (%0 : i1)
         } body {
-            %1 = bmodelica.variable_get @y : i64
+            %1 = bmodelica.variable.get @y : i64
             bmodelica.print %1 : i64
             bmodelica.break
         } step {
-            %1 = bmodelica.variable_get @z : i64
+            %1 = bmodelica.variable.get @z : i64
             bmodelica.print %1 : i64
             bmodelica.yield
         }
@@ -223,17 +223,17 @@ bmodelica.function @ifInsideForInsideWhile {
     bmodelica.variable @t : !bmodelica.variable<i64, input>
 
     bmodelica.algorithm {
-        %0 = bmodelica.variable_get @x : i1
+        %0 = bmodelica.variable.get @x : i1
 
         bmodelica.while {
             bmodelica.condition (%0 : i1)
         } do {
-            %1 = bmodelica.variable_get @y : i1
+            %1 = bmodelica.variable.get @y : i1
 
             bmodelica.for condition {
                 bmodelica.condition (%1 : i1)
             } body {
-                %2 = bmodelica.variable_get @z : i1
+                %2 = bmodelica.variable.get @z : i1
 
                 bmodelica.if (%2 : i1) {
                     bmodelica.break
@@ -242,7 +242,7 @@ bmodelica.function @ifInsideForInsideWhile {
                 bmodelica.print %2 : i1
                 bmodelica.yield
             } step {
-                %2 = bmodelica.variable_get @t : i64
+                %2 = bmodelica.variable.get @t : i64
                 bmodelica.print %2 : i64
                 bmodelica.yield
             }
@@ -299,17 +299,17 @@ bmodelica.function @ifInsideNestedFor {
     bmodelica.variable @l : !bmodelica.variable<i64, input>
 
     bmodelica.algorithm {
-        %0 = bmodelica.variable_get @x : i1
+        %0 = bmodelica.variable.get @x : i1
 
         bmodelica.for condition {
             bmodelica.condition (%0 : i1)
         } body {
-            %1 = bmodelica.variable_get @y : i1
+            %1 = bmodelica.variable.get @y : i1
 
             bmodelica.for condition {
                 bmodelica.condition (%1 : i1)
             } body {
-                %2 = bmodelica.variable_get @z : i1
+                %2 = bmodelica.variable.get @z : i1
 
                 bmodelica.if (%2 : i1) {
                     bmodelica.break
@@ -318,7 +318,7 @@ bmodelica.function @ifInsideNestedFor {
                 bmodelica.print %2 : i1
                 bmodelica.yield
             } step {
-                %2 = bmodelica.variable_get @t : i64
+                %2 = bmodelica.variable.get @t : i64
                 bmodelica.print %2 : i64
                 bmodelica.yield
             }
@@ -326,7 +326,7 @@ bmodelica.function @ifInsideNestedFor {
             bmodelica.print %1 : i1
             bmodelica.yield
         } step {
-            %1 = bmodelica.variable_get @k : i64
+            %1 = bmodelica.variable.get @k : i64
             bmodelica.print %1 : i64
             bmodelica.yield
         }

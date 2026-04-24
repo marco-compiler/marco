@@ -2,7 +2,7 @@
 
 // CHECK:       bmodelica.function @Foo {
 // CHECK:           bmodelica.algorithm {
-// CHECK:               %[[x:.*]] = bmodelica.variable_get @x : !bmodelica.real
+// CHECK:               %[[x:.*]] = bmodelica.variable.get @x : !bmodelica.real
 // CHECK-NEXT:          bmodelica.variable_component_set @r::@x, %[[x]]
 // CHECK-NEXT:      }
 // CHECK-NEXT:  }

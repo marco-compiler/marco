@@ -12,6 +12,6 @@
 // CHECK: return %[[to_tensor]]
 
 func.func @foo(%arg0: index, %arg1: index) -> tensor<?x?xi64> {
-    %0 = bmodelica.zeros %arg0, %arg1 : (index, index) -> tensor<?x?xi64>
+    %0 = bmodelica.zeros %arg0, %arg1 : index, index -> tensor<?x?xi64>
     func.return %0 : tensor<?x?xi64>
 }
