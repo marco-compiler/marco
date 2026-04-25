@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --ida | FileCheck %s
+// RUN: marco-opt %s --split-input-file --ida | FileCheck %s
 
 // CHECK:       ida.residual_function @ida_main_residualFunction_0(%[[time:.*]]: f64) -> f64 {
 // CHECK-DAG:       %[[x:.*]] = bmodelica.qualified_variable_get @scalarEquation::@x : !bmodelica.real

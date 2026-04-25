@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --convert-bmodelica-raw-variables | FileCheck %s
+// RUN: marco-opt %s --split-input-file --convert-bmodelica-raw-variables | FileCheck %s
 
 // CHECK-LABEL: @scalarVariableGet
 // CHECK-NEXT:      %[[alloca:.*]] = memref.alloc() : memref<f64>

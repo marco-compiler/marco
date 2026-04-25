@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --match | FileCheck %s
+// RUN: marco-opt %s --split-input-file --match | FileCheck %s
 
 // COM: i = 1 to 2
 // COM:   x[i - 1] = y[i - 1]

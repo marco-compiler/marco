@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --canonicalize | FileCheck %s
+// RUN: marco-opt %s --split-input-file --canonicalize | FileCheck %s
 
 // CHECK-LABEL: @ZeroExponent
 

@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --generate-runtime-verification | FileCheck %s
+// RUN: marco-opt %s --split-input-file --generate-runtime-verification | FileCheck %s
 
 // CHECK-LABEL: @rangeSubscript
 // CHECK-SAME: (%[[arg0:.*]]: tensor<?xf64>, %[[arg1:.*]]: tensor<?xf64>, %[[arg2:.*]]: !bmodelica<range index>)

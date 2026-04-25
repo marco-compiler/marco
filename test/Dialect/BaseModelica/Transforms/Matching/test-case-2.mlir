@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --match | FileCheck %s
+// RUN: marco-opt %s --split-input-file --match | FileCheck %s
 
 // COM: for i in 0:1
 // COM:   x[i] = 0

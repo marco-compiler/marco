@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --convert-bmodelica-to-cf --canonicalize --cse | FileCheck %s
+// RUN: marco-opt %s --split-input-file --convert-bmodelica-to-cf --canonicalize --cse | FileCheck %s
 
 // CHECK-LABEL: @scalarVariable
 // CHECK-SAME:  (%{{.*}}: !bmodelica.int)

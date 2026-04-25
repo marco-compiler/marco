@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --match | FileCheck %s
+// RUN: marco-opt %s --split-input-file --match | FileCheck %s
 
 // COM: i = 1 to 5
 // COM:   x[i] = 3 - x[2]

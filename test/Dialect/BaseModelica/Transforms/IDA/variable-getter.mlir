@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --ida | FileCheck %s
+// RUN: marco-opt %s --split-input-file --ida | FileCheck %s
 
 // CHECK:       sundials.variable_getter @ida_main_getter_0() -> f64 {
 // CHECK:           %[[get:.*]] = bmodelica.qualified_variable_get @scalarVariables::@x : !bmodelica.real

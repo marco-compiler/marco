@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --canonicalize | FileCheck %s
+// RUN: marco-opt %s --split-input-file --canonicalize | FileCheck %s
 
 // CHECK-LABEL: @staticDimension
 // CHECK-SAME: %[[arg0:.*]]: !bmodelica.array<7x?x9x!bmodelica.int>

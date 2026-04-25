@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --convert-runtime-model-metadata | FileCheck %s
+// RUN: marco-opt %s --split-input-file --convert-runtime-model-metadata | FileCheck %s
 
 // CHECK:   llvm.mlir.global internal constant @modelName("Test\00")
 

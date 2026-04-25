@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --convert-runtime-to-func | FileCheck %s
+// RUN: marco-opt %s --convert-runtime-to-func | FileCheck %s
 
 // COM: Both StartTimeOp and EndTimeOp with values.
 

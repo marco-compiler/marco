@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --create-equation-templates --canonicalize | FileCheck %s
+// RUN: marco-opt %s --split-input-file --create-equation-templates --canonicalize | FileCheck %s
 
 bmodelica.model @Test {
     bmodelica.variable @x : !bmodelica.variable<!bmodelica.int>

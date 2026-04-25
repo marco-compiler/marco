@@ -77,7 +77,7 @@ tool_dirs = [
 
 tools = [
     "marco",
-    "modelica-opt"
+    "marco-opt"
 ]
 
 # Search for OMC.

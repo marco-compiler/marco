@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --ida | FileCheck %s
+// RUN: marco-opt %s --split-input-file --ida | FileCheck %s
 
 // CHECK:       sundials.variable_setter @ida_main_setter_0(%[[value:.*]]: f64) {
 // CHECK:           %[[cast:.*]] = bmodelica.cast %[[value]] : f64 -> !bmodelica.real

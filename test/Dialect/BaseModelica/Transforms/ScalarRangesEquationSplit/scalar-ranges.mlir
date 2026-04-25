@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --mlir-disable-threading --scalar-ranges-equation-split | FileCheck %s
+// RUN: marco-opt %s --split-input-file --mlir-disable-threading --scalar-ranges-equation-split | FileCheck %s
 
 // CHECK-LABEL: @Rank1
 

@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --der-chain-rule | FileCheck %s
+// RUN: marco-opt %s --split-input-file --der-chain-rule | FileCheck %s
 
 // CHECK-LABEL: @sin_der
 // CHECK:       bmodelica.algorithm {

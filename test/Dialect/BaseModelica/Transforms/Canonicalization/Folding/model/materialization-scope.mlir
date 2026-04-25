@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --canonicalize | FileCheck %s
+// RUN: marco-opt %s --canonicalize | FileCheck %s
 
 // CHECK-LABEL: @equation
 

@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --convert-bmodelica-to-cf | FileCheck %s
+// RUN: marco-opt %s --split-input-file --convert-bmodelica-to-cf | FileCheck %s
 
 // CHECK-LABEL: @scalarVariableGet
 // CHECK-SAME:  () -> i64

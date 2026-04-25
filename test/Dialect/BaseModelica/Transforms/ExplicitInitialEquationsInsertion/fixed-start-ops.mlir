@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --insert-explicit-initial-equations | FileCheck %s
+// RUN: marco-opt %s --split-input-file --insert-explicit-initial-equations | FileCheck %s
 
 // COM: Scalar variable with fixed start value.
 

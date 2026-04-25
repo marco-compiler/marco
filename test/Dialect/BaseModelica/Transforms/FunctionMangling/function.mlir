@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --function-mangling | FileCheck %s
+// RUN: marco-opt %s --split-input-file --function-mangling | FileCheck %s
 
 // CHECK: bmodelica.function @_Mfoo
 // CHECK-NOT: bmodelica.function @foo

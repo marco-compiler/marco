@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --canonicalize | FileCheck %s
+// RUN: marco-opt %s --split-input-file --canonicalize | FileCheck %s
 
 // CHECK-LABEL: @LoadFromArraySubscript
 // CHECK-SAME: (%[[array:.*]]: !bmodelica.array<10x20xf64>, %[[i:.*]]: index, %[[j:.*]]: index)

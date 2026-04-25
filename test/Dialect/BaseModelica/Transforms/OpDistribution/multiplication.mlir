@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --distribute-mul --canonicalize | FileCheck %s
+// RUN: marco-opt %s --split-input-file --distribute-mul --canonicalize | FileCheck %s
 
 // CHECK-LABEL: @add
 // CHECK-SAME: (%[[arg0:.*]]: !bmodelica.real, %[[arg1:.*]]: !bmodelica.real) -> !bmodelica.real

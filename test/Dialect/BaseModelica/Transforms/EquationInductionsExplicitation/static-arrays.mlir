@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --explicitate-equation-inductions | FileCheck %s
+// RUN: marco-opt %s --split-input-file --explicitate-equation-inductions | FileCheck %s
 
 // CHECK-LABEL: @array3d
 

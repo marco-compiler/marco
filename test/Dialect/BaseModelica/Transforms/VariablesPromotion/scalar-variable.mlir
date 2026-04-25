@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --promote-variables-to-parameters --canonicalize | FileCheck %s
+// RUN: marco-opt %s --split-input-file --promote-variables-to-parameters --canonicalize | FileCheck %s
 
 // CHECK-LABEL: @promotableSCC
 

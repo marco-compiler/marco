@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --variables-pruning | FileCheck %s
+// RUN: marco-opt %s --split-input-file --variables-pruning | FileCheck %s
 
 // CHECK-LABEL: @Test
 

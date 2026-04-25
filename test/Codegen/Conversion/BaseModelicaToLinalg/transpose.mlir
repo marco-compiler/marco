@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --convert-bmodelica-to-linalg | FileCheck %s
+// RUN: marco-opt %s --split-input-file --convert-bmodelica-to-linalg | FileCheck %s
 
 // CHECK-LABEL: @staticTensors
 // CHECK-SAME:  (%[[arg0:.*]]: tensor<3x4xi64>) -> tensor<4x3xi64>

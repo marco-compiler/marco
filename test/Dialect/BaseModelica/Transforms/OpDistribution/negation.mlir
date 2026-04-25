@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --distribute-neg --cse | FileCheck %s
+// RUN: marco-opt %s --split-input-file --distribute-neg --cse | FileCheck %s
 
 // CHECK-LABEL: @neg
 // CHECK-SAME: (%[[arg0:.*]]: !bmodelica.real) -> !bmodelica.real

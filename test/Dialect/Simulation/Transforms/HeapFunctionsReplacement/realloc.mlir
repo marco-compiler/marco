@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --heap-functions-replacement | FileCheck %s
+// RUN: marco-opt %s --split-input-file --heap-functions-replacement | FileCheck %s
 
 // CHECK-DAG: llvm.func @marco_realloc(!llvm.ptr, i64) -> !llvm.ptr
 // CHECK-DAG: llvm.call @marco_realloc

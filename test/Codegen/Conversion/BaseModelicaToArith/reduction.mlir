@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --convert-bmodelica-to-arith --canonicalize | FileCheck %s
+// RUN: marco-opt %s --split-input-file --convert-bmodelica-to-arith --canonicalize | FileCheck %s
 
 // CHECK-LABEL: @add1D
 // CHECK-DAG: %[[lowerBound:.*]] = bmodelica.constant 23 : index

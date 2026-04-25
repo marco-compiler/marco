@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --convert-bmodelica-to-tensor | FileCheck %s
+// RUN: marco-opt %s --split-input-file --convert-bmodelica-to-tensor | FileCheck %s
 
 // CHECK-LABEL: @noSubscripts
 // CHECK-SAME:  (%[[source:.*]]: tensor<10x20xi64>, %[[destination:.*]]: tensor<10x20xi64>) -> tensor<10x20xi64>

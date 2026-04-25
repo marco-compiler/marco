@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --convert-bmodelica-to-runtime | FileCheck %s
+// RUN: marco-opt %s --split-input-file --convert-bmodelica-to-runtime | FileCheck %s
 
 // CHECK:   runtime.deinit_function {
 // CHECK:       runtime.yield

@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --derivatives-materialization | FileCheck %s
+// RUN: marco-opt %s --split-input-file --derivatives-materialization | FileCheck %s
 
 // CHECK-LABEL: @ScalarVariable
 

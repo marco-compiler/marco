@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --convert-bmodelica-to-llvm | FileCheck %s
+// RUN: marco-opt %s --split-input-file --convert-bmodelica-to-llvm | FileCheck %s
 
 // CHECK-LABEL: @foo
 // CHECK-SAME: (%[[arg0:.*]]: !bmodelica.int, %[[arg1:.*]]: !bmodelica.int, %[[arg2:.*]]: !bmodelica.int)

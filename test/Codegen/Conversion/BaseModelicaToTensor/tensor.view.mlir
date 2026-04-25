@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --convert-bmodelica-to-tensor | FileCheck %s
+// RUN: marco-opt %s --split-input-file --convert-bmodelica-to-tensor | FileCheck %s
 
 // CHECK-LABEL: @scalarSubscripts
 // CHECK-SAME: (%[[arg0:.*]]: tensor<4x3x2xi64>, %[[arg1:.*]]: index) -> tensor<3x2xi64>

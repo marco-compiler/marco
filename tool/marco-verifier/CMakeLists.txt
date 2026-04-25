@@ -1,14 +1,16 @@
 set(SOURCES
-    modelica-opt.cpp)
+    Verifier.cpp)
 
-marco_add_tool(modelica-opt ${SOURCES})
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
+
+marco_add_tool(marco-verifier ${SOURCES})
 
 get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
 get_property(extension_libs GLOBAL PROPERTY MLIR_EXTENSION_LIBS)
 get_property(conversion_libs GLOBAL PROPERTY MLIR_CONVERSION_LIBS)
 
 set(LIBS
-    marco::frontend
+    marco::JIT
     ${dialect_libs}
     ${extension_libs}
     ${conversion_libs}
@@ -18,5 +20,4 @@ set(LIBS
     MLIRRegisterAllPasses
     MLIRToLLVMIRTranslationRegistration)
 
-target_link_libraries(modelica-opt PRIVATE ${LIBS})
-mlir_check_all_link_libraries(modelica-opt)
+target_link_libraries(marco-verifier PRIVATE ${LIBS})

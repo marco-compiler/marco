@@ -1,4 +1,4 @@
-//RUN: modelica-opt %s --call-cse | FileCheck %s
+//RUN: marco-opt %s --call-cse | FileCheck %s
 
 // CHECK-LABEL: @Test
 module @Test {

@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --function-unwrap | FileCheck %s
+// RUN: marco-opt %s --split-input-file --function-unwrap | FileCheck %s
 
 // CHECK:       bmodelica.model @M1 {
 // CHECK-NEXT:  }

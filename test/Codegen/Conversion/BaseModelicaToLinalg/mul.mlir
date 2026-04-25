@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --convert-bmodelica-to-linalg | FileCheck %s
+// RUN: marco-opt %s --split-input-file --convert-bmodelica-to-linalg | FileCheck %s
 
 // CHECK-LABEL: @scalarProduct
 // CHECK-SAME:  (%[[arg0:.*]]: i64, %[[arg1:.*]]: tensor<3x4xi64>) -> tensor<3x4xi64>

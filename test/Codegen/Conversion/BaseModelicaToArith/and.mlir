@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --convert-bmodelica-to-arith --cse | FileCheck %s
+// RUN: marco-opt %s --split-input-file --convert-bmodelica-to-arith --cse | FileCheck %s
 
 // CHECK-LABEL: @Boolean
 // CHECK-SAME: (%[[arg0:.*]]: !bmodelica.bool, %[[arg1:.*]]: !bmodelica.bool) -> !bmodelica.bool

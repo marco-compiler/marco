@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --single-valued-induction-elimination | FileCheck %s
+// RUN: marco-opt %s --split-input-file --single-valued-induction-elimination | FileCheck %s
 
 bmodelica.model @Test {
     bmodelica.variable @x : !bmodelica.variable<2x3x!bmodelica.real>

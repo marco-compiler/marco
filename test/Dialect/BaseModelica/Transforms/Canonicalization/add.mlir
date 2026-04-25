@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --canonicalize | FileCheck %s
+// RUN: marco-opt %s --split-input-file --canonicalize | FileCheck %s
 
 // CHECK-LABEL: @rangeScalar
 // CHECK-SAME: (%[[arg0:.*]]: !bmodelica<range !bmodelica.int>, %[[arg1:.*]]: !bmodelica.int) -> !bmodelica<range !bmodelica.int>

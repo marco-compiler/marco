@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --convert-bmodelica-to-linalg | FileCheck %s
+// RUN: marco-opt %s --split-input-file --convert-bmodelica-to-linalg | FileCheck %s
 
 // CHECK: #[[map:.*]] = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 

@@ -1,6 +1,6 @@
-// RUN: modelica-opt %s --split-input-file --convert-runtime-model-metadata | FileCheck %s --check-prefix="CHECK-VAR-UNKNOWN"
-// RUN: modelica-opt %s --split-input-file --convert-runtime-model-metadata | FileCheck %s --check-prefix="CHECK-VAR-0"
-// RUN: modelica-opt %s --split-input-file --convert-runtime-model-metadata | FileCheck %s --check-prefix="CHECK-VAR-1"
+// RUN: marco-opt %s --split-input-file --convert-runtime-model-metadata | FileCheck %s --check-prefix="CHECK-VAR-UNKNOWN"
+// RUN: marco-opt %s --split-input-file --convert-runtime-model-metadata | FileCheck %s --check-prefix="CHECK-VAR-0"
+// RUN: marco-opt %s --split-input-file --convert-runtime-model-metadata | FileCheck %s --check-prefix="CHECK-VAR-1"
 
 // CHECK-VAR-UNKNOWN: llvm.mlir.global internal constant @[[var:.*]]("\00")
 

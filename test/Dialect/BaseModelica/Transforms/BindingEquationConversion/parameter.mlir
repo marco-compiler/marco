@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --convert-binding-equations | FileCheck %s
+// RUN: marco-opt %s --split-input-file --convert-binding-equations | FileCheck %s
 
 // COM: Binding equation for a scalar parameter.
 

@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --convert-bmodelica-to-memref | FileCheck %s
+// RUN: marco-opt %s --split-input-file --convert-bmodelica-to-memref | FileCheck %s
 
 // CHECK: memref.global "private" constant @[[global:.*]] : memref<2xi1> = dense<[false, true]>
 

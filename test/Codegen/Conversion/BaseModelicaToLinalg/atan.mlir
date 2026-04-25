@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --convert-bmodelica-to-linalg | FileCheck %s
+// RUN: marco-opt %s --split-input-file --convert-bmodelica-to-linalg | FileCheck %s
 
 // CHECK: @foo(%[[arg0:.*]]: tensor<3x4x5xf64>)
 // CHECK: %[[destination:.*]] = tensor.empty() : tensor<3x4x5xf64>
