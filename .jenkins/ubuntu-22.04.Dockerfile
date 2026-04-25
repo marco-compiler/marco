@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1
+
 FROM ubuntu:22.04
 
 LABEL org.opencontainers.image.source="https://github.com/marco-compiler/marco"
@@ -12,8 +14,6 @@ COPY ./setup_venv.sh /tmp/
 RUN chmod +x /tmp/setup_venv.sh && /tmp/setup_venv.sh
 
 # Install LLVM.
-ARG LLVM_PARALLEL_COMPILE_JOBS=4
-ARG LLVM_PARALLEL_LINK_JOBS=1
 ARG LLVM_BUILD_TYPE=Release
 ARG LLVM_ENABLE_ASSERTIONS=OFF
 ARG LLVM_SANITIZER=""
@@ -23,7 +23,9 @@ ARG LLVM_LINK_LLVM_DYLIB=OFF
 COPY ./version_llvm.txt /tmp/
 COPY ./install_llvm.sh /tmp/
 
-RUN chmod +x /tmp/install_llvm.sh && \
+RUN --mount=type=secret,id=LLVM_PARALLEL_COMPILE_JOBS,env=LLVM_PARALLEL_COMPILE_JOBS \
+    --mount=type=secret,id=LLVM_PARALLEL_LINK_JOBS,env=LLVM_PARALLEL_LINK_JOBS \
+    chmod +x /tmp/install_llvm.sh && \
     cd /root && \
     LLVM_COMMIT=$(cat /tmp/version_llvm.txt) \
     /tmp/install_llvm.sh
