@@ -3311,7 +3311,7 @@ def BaseModelica_BindingEquationOp : BaseModelica_Op<"binding_equation", [
 }
 
 def BaseModelica_EquationOp : BaseModelica_Op<"equation", [
-        ParentOneOf<["DynamicOp", "InitialOp", "ForEquationOp"]>,
+        ParentOneOf<["DynamicOp", "InitialOp", "ForEquationOp", "IfEquationOp"]>,
         SingleBlock
     ]>
 {
@@ -3366,6 +3366,64 @@ def BaseModelica_ForEquationOp : BaseModelica_Op<"for_equation", [
 
     let extraClassDeclaration = [{
         ::mlir::Value getInduction();
+    }];
+}
+
+def BaseModelica_IfEquationOp : BaseModelica_Op<"if_equation",
+    [ParentOneOf<["DynamicOp", "InitialOp", "IfEquationOp"]>,
+    NoTerminator]>
+{
+    let summary = "Conditional equation construct.";
+
+    let description = [{
+        The if equation is a modeling construct that conditionally activates
+        sets of equations depending on a boolean condition. Unlike the
+        algorithmic if statement, this changes the model structure rather than
+        the control flow.
+
+        ElseIf branches are represented by nesting another `if_equation` inside
+        the `elseRegion`.
+
+        Example:
+
+        ```mlir
+        %cond = ... : !modelica.bool
+
+        modelica.if_equation(%cond : !modelica.bool) {
+            modelica.equation {
+                ...
+            }
+        } else {
+            modelica.equation {
+                ...
+            }
+        }
+        ```
+    }];
+
+    let arguments = (ins BooleanType:$condition);
+    let results = (outs);
+
+    let regions = (region
+      SizedRegion<1>:$thenRegion,
+      SizedRegion<1>:$elseRegion
+    );
+
+    let builders = [
+        OpBuilder<(ins "::mlir::Value":$condition)>
+    ];
+
+    let assemblyFormat = [{
+        `if` `(` $condition `:` type($condition) `)`
+            $thenRegion
+        `else`
+            $elseRegion
+        attr-dict
+    }];
+
+    let extraClassDeclaration = [{
+        ::mlir::Block* thenBlock() { return &getThenRegion().front(); }
+        ::mlir::Block* elseBlock() { return &getElseRegion().front(); }
     }];
 }
 

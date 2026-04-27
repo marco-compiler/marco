@@ -7467,6 +7467,23 @@ void ForEquationOp::print(mlir::OpAsmPrinter &printer) {
 } // namespace mlir::bmodelica
 
 //===---------------------------------------------------------------------===//
+// IfEquationOp
+
+namespace mlir::bmodelica {
+void IfEquationOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+                         mlir::Value condition) {
+  mlir::OpBuilder::InsertionGuard guard(builder);
+  state.addOperands(condition);
+
+  mlir::Region *thenRegion = state.addRegion();
+  builder.createBlock(thenRegion);
+
+  mlir::Region *elseRegion = state.addRegion();
+  builder.createBlock(elseRegion);
+}
+} // namespace mlir::bmodelica
+
+//===---------------------------------------------------------------------===//
 // EquationTemplateOp
 
 namespace {
