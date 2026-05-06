@@ -26,8 +26,8 @@ node {
     String dockerMARCOImageName = 'marco-compiler/marco-dev-' + configName
 
     String dockerArgs =
-        " --build-arg LLVM_PARALLEL_COMPILE_JOBS=${LLVM_PARALLEL_COMPILE_JOBS}" +
-        " --build-arg LLVM_PARALLEL_LINK_JOBS=${LLVM_PARALLEL_LINK_JOBS}" +
+        " --secret type=env,id=LLVM_PARALLEL_COMPILE_JOBS" +
+        " --secret type=env,id=LLVM_PARALLEL_LINK_JOBS" +
         " --build-arg LLVM_BUILD_TYPE=Release" +
         " --build-arg LLVM_ENABLE_ASSERTIONS=ON" +
         " --build-arg LLVM_SANITIZER=Address" +
@@ -38,7 +38,13 @@ node {
         " " + marcoSrcPath + "/.jenkins";
 
     stage("Docker image") {
-        dockerImage = docker.build(dockerMARCOImageName + ":" + env.GIT_COMMIT[0..6], dockerArgs)
+        withEnv([
+            "DOCKER_BUILDKIT=1",
+            "LLVM_PARALLEL_COMPILE_JOBS=${env.LLVM_PARALLEL_COMPILE_JOBS ?: '1'}",
+            "LLVM_PARALLEL_LINK_JOBS=${env.LLVM_PARALLEL_LINK_JOBS ?: '1'}"
+        ]) {
+            dockerImage = docker.build(dockerMARCOImageName + ":" + env.GIT_COMMIT[0..6], dockerArgs)
+        }
     }
 
     dockerImage.inside() {

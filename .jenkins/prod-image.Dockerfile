@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 ARG BASE_IMAGE=marco-compiler/marco-dev-release-debian-12:latest
 FROM $BASE_IMAGE
 

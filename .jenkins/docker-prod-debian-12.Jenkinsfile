@@ -22,8 +22,8 @@ node {
     String dockerDevImageName = 'marco-compiler/marco-dev-release-' + configName + ":" + env.GIT_COMMIT[0..6]
 
     String dockerDevArgs =
-        " --build-arg LLVM_PARALLEL_COMPILE_JOBS=${LLVM_PARALLEL_COMPILE_JOBS}" +
-        " --build-arg LLVM_PARALLEL_LINK_JOBS=${LLVM_PARALLEL_LINK_JOBS}" +
+        " --secret type=env,id=LLVM_PARALLEL_COMPILE_JOBS" +
+        " --secret type=env,id=LLVM_PARALLEL_LINK_JOBS" +
         " --build-arg LLVM_BUILD_TYPE=Release" +
         " --build-arg LLVM_ENABLE_ASSERTIONS=OFF" +
         " --build-arg LLVM_BUILD_LLVM_DYLIB=ON" +
@@ -41,8 +41,14 @@ node {
         " " + marcoSrcPath + "/.jenkins";
 
     stage('Build') {
-        docker.build(dockerDevImageName, dockerDevArgs)
-        dockerImage = docker.build(dockerProdImageName, dockerProdArgs)
+        withEnv([
+            "DOCKER_BUILDKIT=1",
+            "LLVM_PARALLEL_COMPILE_JOBS=${env.LLVM_PARALLEL_COMPILE_JOBS ?: '1'}",
+            "LLVM_PARALLEL_LINK_JOBS=${env.LLVM_PARALLEL_LINK_JOBS ?: '1'}"
+        ]) {
+            docker.build(dockerDevImageName, dockerDevArgs)
+            dockerImage = docker.build(dockerProdImageName, dockerProdArgs)
+        }
     }
 
     docker.withRegistry('https://ghcr.io', 'marco-ci') {
