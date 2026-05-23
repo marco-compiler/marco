@@ -1,8 +1,20 @@
 include_guard()
+include(LLVMDistributionSupport)
+
+macro(set_marco_windows_version_resource_properties name)
+  if (DEFINED windows_resource_file)
+    set_windows_version_resource_properties(${name} ${windows_resource_file}
+      VERSION_MAJOR ${MARCO_VERSION_MAJOR}
+      VERSION_MINOR ${MARCO_VERSION_MINOR}
+      VERSION_PATCHLEVEL ${MARCO_VERSION_PATCHLEVEL}
+      VERSION_STRING "${MARCO_VERSION}"
+      PRODUCT_NAME "marco")
+  endif()
+endmacro()
 
 # Convert the "friendly" name of a variable into its target name.
 # For example: utils -> MARCOUtils
-function(marco_canonize_library_name canonical_name name)
+function(marco_canonicalize_library_name canonical_name name)
   # Get first letter and capitalize.
   string(SUBSTRING ${name} 0 1 first-letter)
   string(TOUPPER ${first-letter} first-letter)
@@ -16,31 +28,92 @@ function(marco_canonize_library_name canonical_name name)
   set(${canonical_name} "MARCO${first-letter}${rest}" PARENT_SCOPE)
 endfunction()
 
-# Declare a MARCO library
+# Declare a MARCO library.
 macro(marco_add_library name)
-  marco_canonize_library_name(canonized_name ${name})
-  set_property(GLOBAL APPEND PROPERTY MARCO_LIBS ${canonized_name})
+  cmake_parse_arguments(ARG
+    ""
+    ""
+    "CLANG_LIBS MLIR_LIBS"
+    ${ARGN})
 
-  llvm_add_library(${name} OUTPUT_NAME ${canonized_name} ${MARCO_LIB_TYPE} ${ARGN})
-  add_library(marco::${name} ALIAS ${name})
+  marco_canonicalize_library_name(canonical_name ${name})
+  set_property(GLOBAL APPEND PROPERTY MARCO_LIBS ${canonical_name})
 
-  install(TARGETS ${name}
-      COMPONENT ${name}
-      LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-      PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+  add_mlir_library(${canonical_name} OUTPUT_NAME ${canonical_name} ${MARCO_LIB_TYPE} ${ARG_UNPARSED_ARGUMENTS})
+  add_library(marco::${name} ALIAS ${canonical_name})
 
-  install(TARGETS ${name} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
+  if (ARG_CLANG_LIBS)
+    clang_target_link_libraries(${canonical_name} PRIVATE ${ARG_CLANG_LIBS})
+  endif()
+
+  if (ARG_MLIR_LIBS)
+    mlir_target_link_libraries(${canonical_name} PRIVATE ${ARG_MLIR_LIBS})
+  endif()
+
+  mlir_check_all_link_libraries(${canonical_name})
+  set_marco_windows_version_resource_properties(${canonical_name})
+
+  #install(TARGETS ${name}
+  #    COMPONENT ${name}
+  #    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  #    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 endmacro()
 
-# Declare a MARCO tool
-macro(marco_add_tool name)
-  add_llvm_executable(${name} ${ARGN})
-  add_executable(marco::${name} ALIAS ${name})
-  add_dependencies(MARCO-Tools ${name})
+# Declare a MARCO executable.
+macro(marco_add_executable name)
+  cmake_parse_arguments(ARG
+    ""
+    ""
+    "CLANG_LIBS MLIR_LIBS"
+    ${ARGN})
 
+  add_llvm_executable(${name} ${ARG_UNPARSED_ARGUMENTS})
   llvm_update_compile_flags(${name})
 
-  install(TARGETS ${name} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+  if (ARG_CLANG_LIBS)
+    clang_target_link_libraries(${name} PRIVATE ${ARG_CLANG_LIBS})
+  endif()
+
+  if (ARG_MLIR_LIBS)
+    mlir_target_link_libraries(${name} PRIVATE ${ARG_MLIR_LIBS})
+  endif()
+
+  mlir_check_all_link_libraries(${name})
+  set_marco_windows_version_resource_properties(${name})
+endmacro()
+
+# Declare a MARCO tool.
+macro(marco_add_tool name)
+  if (NOT MARCO_BUILD_TOOLS)
+    set(EXCLUDE_FROM_ALL ON)
+  endif()
+
+  marco_add_executable(${name} ${ARGN})
+  add_dependencies(MARCO-Tools ${name})
+
+  if (MARCO_BUILD_TOOLS)
+    get_target_export_arg(${name} MARCO export_to_marcotargets)
+
+    install(TARGETS ${name}
+      ${export_to_marcotargets}
+      RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+      COMPONENT ${name})
+
+    if (NOT LLVM_ENABLE_IDE)
+      add_llvm_install_targets(install-${name}
+                               DEPENDS ${name}
+                               COMPONENT ${name})
+    endif()
+    
+    set_property(GLOBAL APPEND PROPERTY MARCO_EXPORTS ${name})
+  endif()
+endmacro()
+
+# Declare a symlink to a MARCO tool.
+macro(marco_add_symlink name dest)
+  llvm_add_tool_symlink(MARCO ${name} ${dest} ALWAYS_GENERATE)
+  # Always generate install targets
+  llvm_install_symlink(MARCO ${name} ${dest} ALWAYS_GENERATE)
 endmacro()
 
 # Declare a MARCO unit test leveraging Google Test

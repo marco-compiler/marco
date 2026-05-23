@@ -76,10 +76,16 @@ endif()
 # MARCO test suites
 #-------------------------------------------------------------------------------
 
-add_lit_testsuite(check "Running the regression tests"
+set(REGRESSION_TEST_TARGET check)
+
+if (NOT MARCO_STANDALONE_BUILD)
+    set(REGRESSION_TEST_TARGET check-marco)
+endif()
+
+add_lit_testsuite(${REGRESSION_TEST_TARGET} "Running the regression tests"
     ${CMAKE_CURRENT_BINARY_DIR}
     DEPENDS ${MARCO_TEST_DEPENDS})
 
-set_target_properties(check PROPERTIES FOLDER "Tests")
+set_target_properties(${REGRESSION_TEST_TARGET} PROPERTIES FOLDER "Tests")
 
 add_lit_testsuites(MARCO ${CMAKE_CURRENT_SOURCE_DIR} DEPENDS ${MARCO_TEST_DEPENDS})

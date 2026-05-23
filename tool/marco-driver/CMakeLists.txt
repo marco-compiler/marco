@@ -18,18 +18,20 @@ get_property(conversion_libs GLOBAL PROPERTY MLIR_CONVERSION_LIBS)
 
 target_link_libraries(marco
     PRIVATE
-    marco::frontend
+    marco::Frontend
+
+    MLIR_LIBS
     ${dialect_libs}
     ${extension_libs}
     ${conversion_libs}
     MLIRRegisterAllDialects
     MLIRRegisterAllExtensions
     MLIRRegisterAllPasses
-    MLIRToLLVMIRTranslationRegistration)
-
-clang_target_link_libraries(marco
-    PRIVATE
+    MLIRToLLVMIRTranslationRegistration
+    
+    CLANG_LIBS
     clangDriver
     clangBasic
     clangFrontend
-    clangFrontendTool)
+    clangFrontendTool
+)

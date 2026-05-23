@@ -18,17 +18,21 @@ get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
 get_property(extension_libs GLOBAL PROPERTY MLIR_EXTENSION_LIBS)
 get_property(conversion_libs GLOBAL PROPERTY MLIR_CONVERSION_LIBS)
 
-set(MLIR_LIBS
+marco_add_library(Frontend
+    ${SOURCES}
+
+    CLANG_LIBS
+    clangBasic
+    clangDriver
+
+    MLIR_LIBS
     ${dialect_libs}
     ${extension_libs}
     ${conversion_libs}
     MLIRExecutionEngine
     MLIRLLVMToLLVMIRTranslation
     MLIROpenMPToLLVMIRTranslation
-    MLIRTargetLLVMIRImport)
-
-marco_add_library(frontend
-    ${SOURCES}
+    MLIRTargetLLVMIRImport
 
     LINK_LIBS
     marco::ASTBaseModelica
@@ -36,7 +40,6 @@ marco_add_library(frontend
     marco::IO
     marco::Lowering
     marco::variableFilter
-    ${MLIR_LIBS}
 
     LINK_COMPONENTS
     Option
@@ -44,10 +47,3 @@ marco_add_library(frontend
 
     DEPENDS
     MLIRFrontendPassesIncGen)
-
-clang_target_link_libraries(frontend
-    PRIVATE
-    clangBasic
-    clangDriver)
-
-mlir_check_all_link_libraries(frontend)

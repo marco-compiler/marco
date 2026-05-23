@@ -47,36 +47,66 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin)
 # LLVM / MLIR configuration
 #------------------------------------------------------------------------------
 
-if (DEFINED LLVM_PATH)
-	get_filename_component(LLVM_ABS_PATH ${LLVM_PATH} ABSOLUTE)
-	set(LLVM_DIR "${LLVM_ABS_PATH}/lib/cmake/llvm")
-	set(MLIR_DIR "${LLVM_ABS_PATH}/lib/cmake/mlir")
-	set(Clang_DIR "${LLVM_ABS_PATH}/lib/cmake/clang")
+if (CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+	# Out-of-tree build.
+	message(STATUS "MARCO: standalone build")
+	set(MARCO_STANDALONE_BUILD ON)
+
+	# If LLVM_PATH is set, use it to find the LLVM, MLIR, and Clang CMake configuration files.
+	if (DEFINED LLVM_PATH)
+		get_filename_component(LLVM_ABS_PATH ${LLVM_PATH} ABSOLUTE)
+		set(LLVM_DIR "${LLVM_ABS_PATH}/lib/cmake/llvm")
+		set(MLIR_DIR "${LLVM_ABS_PATH}/lib/cmake/mlir")
+		set(Clang_DIR "${LLVM_ABS_PATH}/lib/cmake/clang")
+	endif()
+
+	find_package(LLVM REQUIRED CONFIG)
+	message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
+
+	find_package(MLIR REQUIRED CONFIG)
+	message(STATUS "Using MLIRConfig.cmake in: ${MLIR_DIR}")
+
+	find_package(Clang REQUIRED CONFIG)
+	message(STATUS "Using ClangConfig.cmake in: ${Clang_DIR}")
+
+	list(APPEND CMAKE_MODULE_PATH "${LLVM_CMAKE_DIR}")
+	list(APPEND CMAKE_MODULE_PATH "${MLIR_CMAKE_DIR}")
+	list(APPEND CMAKE_MODULE_PATH "${Clang_DIR}")
+
+	include(HandleLLVMOptions)
+	include(TableGen)
+	include(AddLLVM)
+	include(AddMLIR)
+	include(AddClang)
+else()
+  # In-tree build.
+	message(STATUS "MARCO: in-tree build")
+	set(MARCO_STANDALONE_BUILD OFF)
+
+	set(MLIR_BINARY_DIR ${CMAKE_BINARY_DIR})
+	set(MLIR_MAIN_SRC_DIR ${LLVM_MAIN_SRC_DIR}/../mlir)
+	set(MLIR_INCLUDE_DIR ${MLIR_MAIN_SRC_DIR}/include)
+	set(MLIR_GENERATED_INCLUDE_DIR ${LLVM_BINARY_DIR}/tools/mlir/include)
+	set(MLIR_INCLUDE_DIRS "${MLIR_INCLUDE_DIR};${MLIR_GENERATED_INCLUDE_DIR}")
+
+	set(CLANG_BINARY_DIR ${CMAKE_BINARY_DIR})
+	set(CLANG_MAIN_SRC_DIR ${LLVM_MAIN_SRC_DIR}/../clang)
+	set(CLANG_INCLUDE_DIR ${CLANG_MAIN_SRC_DIR}/include)
+	set(CLANG_GENERATED_INCLUDE_DIR ${LLVM_BINARY_DIR}/tools/clang/include)
+	set(CLANG_INCLUDE_DIRS "${CLANG_INCLUDE_DIR};${CLANG_GENERATED_INCLUDE_DIR}")
+
+	list(APPEND CMAKE_MODULE_PATH "${LLVM_MAIN_SRC_DIR}/cmake/modules")
+	list(APPEND CMAKE_MODULE_PATH "${MLIR_MAIN_SRC_DIR}/cmake/modules")
+	list(APPEND CMAKE_MODULE_PATH "${CLANG_MAIN_SRC_DIR}/cmake/modules")
 endif()
 
 find_package(Python3 REQUIRED)
-find_package(LLVM REQUIRED CONFIG)
-find_package(MLIR REQUIRED CONFIG)
-find_package(Clang REQUIRED CONFIG)
-
-message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
-message(STATUS "Using MLIRConfig.cmake in: ${MLIR_DIR}")
-message(STATUS "Using ClangConfig.cmake in: ${Clang_DIR}")
 
 # These are a bit of a hack, because we're hijacking a lot of LLVM machinery.
 set(LLVM_LIBRARY_OUTPUT_INTDIR ${CMAKE_BINARY_DIR}/lib)
 set(LLVM_RUNTIME_OUTPUT_INTDIR ${CMAKE_BINARY_DIR}/bin)
 set(MLIR_BINARY_DIR ${CMAKE_BINARY_DIR})
-
-list(APPEND CMAKE_MODULE_PATH "${LLVM_CMAKE_DIR}")
-list(APPEND CMAKE_MODULE_PATH "${MLIR_CMAKE_DIR}")
-list(APPEND CMAKE_MODULE_PATH "${Clang_DIR}")
-
-include(HandleLLVMOptions)
-include(TableGen)
-include(AddLLVM)
-include(AddMLIR)
-include(AddClang)
+set(CLANG_BINARY_DIR ${CMAKE_BINARY_DIR})
 
 link_directories(${LLVM_BUILD_LIBRARY_DIR})
 #add_definitions(${LLVM_DEFINITIONS})
@@ -214,7 +244,13 @@ set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 add_subdirectory(include)
 add_subdirectory(lib)
-add_subdirectory(tool)
+
+option(MARCO_INCLUDE_TOOLS "Generate build targets for the MARCO tools." ON)
+option(MARCO_BUILD_TOOLS "Build the MARCO tools. If OFF, just generate build targets." ON)
+
+if (MARCO_INCLUDE_TOOLS)
+	add_subdirectory(tool)
+endif()
 
 install(DIRECTORY ${MARCO_INCLUDE_DIR}/marco
 		DESTINATION include
