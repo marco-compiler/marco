@@ -585,16 +585,29 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseEquation() {
   }
 
   TRY(lhs, parseExpression());
-  EXPECT(TokenKind::EqualityOperator);
-  TRY(rhs, parseExpression());
+
+  if (lookahead[0].isa<TokenKind::EqualityOperator>()) {
+    EXPECT(TokenKind::EqualityOperator);
+    TRY(rhs, parseExpression());
+    accept<TokenKind::String>();
+
+    SourceRange loc = (*lhs)->getLocation();
+    loc.end = getLocation().end;
+
+    auto result = std::make_unique<EqualityEquation>(loc);
+    result->setLhsExpression(std::move(*lhs));
+    result->setRhsExpression(std::move(*rhs));
+    return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
+  }
+
+  // Function call (e.g., assertion).
   accept<TokenKind::String>();
 
   SourceRange loc = (*lhs)->getLocation();
   loc.end = getLocation().end;
 
-  auto result = std::make_unique<EqualityEquation>(loc);
-  result->setLhsExpression(std::move(*lhs));
-  result->setRhsExpression(std::move(*rhs));
+  auto result = std::make_unique<CallEquation>(loc);
+  result->setCall(std::move(*lhs));
   return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
 }
 

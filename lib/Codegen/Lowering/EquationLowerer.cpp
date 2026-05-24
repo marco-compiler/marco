@@ -8,6 +8,10 @@ namespace marco::codegen::lowering::bmodelica {
 EquationLowerer::EquationLowerer(BridgeInterface *bridge) : Lowerer(bridge) {}
 
 bool EquationLowerer::lower(const ast::bmodelica::Equation &equation) {
+  if (auto casted = equation.dyn_cast<ast::bmodelica::CallEquation>()) {
+    return lower(*casted);
+  }
+
   if (auto casted = equation.dyn_cast<ast::bmodelica::EqualityEquation>()) {
     return lower(*casted);
   }

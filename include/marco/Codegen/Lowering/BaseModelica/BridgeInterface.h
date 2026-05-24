@@ -105,6 +105,9 @@ public:
   lower(const ast::bmodelica::Equation &equation) = 0;
 
   [[nodiscard]] virtual bool
+  lower(const ast::bmodelica::CallEquation &equation) = 0;
+
+  [[nodiscard]] virtual bool
   lower(const ast::bmodelica::EqualityEquation &equation) = 0;
 
   [[nodiscard]] virtual bool

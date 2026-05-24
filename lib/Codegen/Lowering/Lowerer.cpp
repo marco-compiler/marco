@@ -335,6 +335,10 @@ bool Lowerer::lower(const ast::bmodelica::Equation &node) {
   return bridge->lower(node);
 }
 
+bool Lowerer::lower(const ast::bmodelica::CallEquation &node) {
+  return bridge->lower(node);
+}
+
 bool Lowerer::lower(const ast::bmodelica::EqualityEquation &node) {
   return bridge->lower(node);
 }

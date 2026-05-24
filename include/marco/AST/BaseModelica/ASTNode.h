@@ -26,6 +26,7 @@ enum class ASTNodeKind : int32_t {
   ClassModification,
   ComponentReferenceEntry,
   Equation,
+  Equation_Call,
   Equation_Equality,
   Equation_For,
   Equation_If,

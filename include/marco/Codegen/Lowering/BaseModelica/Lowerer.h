@@ -191,6 +191,9 @@ protected:
   lower(const ast::bmodelica::Equation &equation) override;
 
   [[nodiscard]] virtual bool
+  lower(const ast::bmodelica::CallEquation &equation) override;
+
+  [[nodiscard]] virtual bool
   lower(const ast::bmodelica::EqualityEquation &equation) override;
 
   [[nodiscard]] virtual bool

@@ -354,7 +354,7 @@ TEST(Parser, algorithm_statementsCount) {
   EXPECT_EQ((*node)->cast<Algorithm>()->getStatements().size(), 3);
 }
 
-TEST(Parser, equalityEquation) {
+TEST(Parser, equation_equality) {
   auto str = R"(y = x)";
 
   auto parser = StringParser::get(str);
@@ -383,6 +383,26 @@ TEST(Parser, equalityEquation) {
   EXPECT_EQ(rhs->cast<ComponentReference>()->getElement(0)->getName(), "x");
   EXPECT_EQ(
       rhs->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+}
+
+TEST(Parser, equation_call) {
+  auto str = R"(foo(arg1, arg2))";
+
+  auto parser = StringParser::get(str);
+
+  auto node = parser->parseEquation();
+  ASSERT_TRUE(node.has_value());
+
+  EXPECT_EQ((*node)->getLocation().begin.line, 1);
+  EXPECT_EQ((*node)->getLocation().begin.column, 1);
+
+  EXPECT_EQ((*node)->getLocation().end.line, 1);
+  EXPECT_EQ((*node)->getLocation().end.column, 15);
+
+  ASSERT_TRUE((*node)->isa<CallEquation>());
+
+  auto call = (*node)->cast<CallEquation>()->getCall();
+  ASSERT_TRUE(call->isa<Call>());
 }
 
 TEST(Parser, statement_assignment) {
