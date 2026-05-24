@@ -14,6 +14,7 @@
 #include "marco/AST/BaseModelica/AssignmentStatement.h"
 #include "marco/AST/BaseModelica/BreakStatement.h"
 #include "marco/AST/BaseModelica/Call.h"
+#include "marco/AST/BaseModelica/CallEquation.h"
 #include "marco/AST/BaseModelica/Class.h"
 #include "marco/AST/BaseModelica/ComponentReference.h"
 #include "marco/AST/BaseModelica/ComponentReferenceEntry.h"

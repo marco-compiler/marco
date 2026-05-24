@@ -8,6 +8,7 @@ set(AST_NODES
     AssignmentStatement.cpp
     BreakStatement.cpp
     Call.cpp
+    CallEquation.cpp
     CallStatement.cpp
     Class.cpp
     ComponentReference.cpp

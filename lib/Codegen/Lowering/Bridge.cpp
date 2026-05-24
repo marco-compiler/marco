@@ -4,6 +4,7 @@
 #include "marco/Codegen/Lowering/BaseModelica/AssignmentStatementLowerer.h"
 #include "marco/Codegen/Lowering/BaseModelica/BreakStatementLowerer.h"
 #include "marco/Codegen/Lowering/BaseModelica/BridgeInterface.h"
+#include "marco/Codegen/Lowering/BaseModelica/CallEquationLowerer.h"
 #include "marco/Codegen/Lowering/BaseModelica/CallLowerer.h"
 #include "marco/Codegen/Lowering/BaseModelica/CallStatementLowerer.h"
 #include "marco/Codegen/Lowering/BaseModelica/ClassLowerer.h"
@@ -128,6 +129,8 @@ public:
 
   [[nodiscard]] bool lower(const Equation &node) override;
 
+  [[nodiscard]] bool lower(const CallEquation &node) override;
+
   [[nodiscard]] bool lower(const EqualityEquation &node) override;
 
   [[nodiscard]] bool lower(const IfEquation &node) override;
@@ -184,6 +187,7 @@ private:
   std::unique_ptr<SubscriptLowerer> subscriptLowerer;
   std::unique_ptr<EquationSectionLowerer> equationSectionLowerer;
   std::unique_ptr<EquationLowerer> equationLowerer;
+  std::unique_ptr<CallEquationLowerer> callEquationLowerer;
   std::unique_ptr<EqualityEquationLowerer> equalityEquationLowerer;
   std::unique_ptr<ForEquationLowerer> forEquationLowerer;
   std::unique_ptr<IfEquationLowerer> ifEquationLowerer;
@@ -234,6 +238,7 @@ Bridge::Impl::Impl(mlir::MLIRContext &context) {
   this->equationSectionLowerer = std::make_unique<EquationSectionLowerer>(this);
 
   this->equationLowerer = std::make_unique<EquationLowerer>(this);
+  this->callEquationLowerer = std::make_unique<CallEquationLowerer>(this);
 
   this->equalityEquationLowerer =
       std::make_unique<EqualityEquationLowerer>(this);
@@ -466,7 +471,7 @@ std::optional<Results> Bridge::Impl::lower(const Subscript &subscript) {
 }
 
 bool Bridge::Impl::lower(const EquationSection &equationSection) {
-  assert(equationLowerer != nullptr);
+  assert(equationSectionLowerer != nullptr);
   return equationSectionLowerer->lower(equationSection);
 }
 
@@ -475,23 +480,28 @@ bool Bridge::Impl::lower(const Equation &equation) {
   return equationLowerer->lower(equation);
 }
 
+bool Bridge::Impl::lower(const CallEquation &equation) {
+  assert(callEquationLowerer != nullptr);
+  return callEquationLowerer->lower(equation);
+}
+
 bool Bridge::Impl::lower(const EqualityEquation &equation) {
-  assert(equationLowerer != nullptr);
+  assert(equalityEquationLowerer != nullptr);
   return equalityEquationLowerer->lower(equation);
 }
 
 bool Bridge::Impl::lower(const ForEquation &forEquation) {
-  assert(equationLowerer != nullptr);
+  assert(forEquationLowerer != nullptr);
   return forEquationLowerer->lower(forEquation);
 }
 
 bool Bridge::Impl::lower(const IfEquation &equation) {
-  assert(equationLowerer != nullptr);
+  assert(ifEquationLowerer != nullptr);
   return ifEquationLowerer->lower(equation);
 }
 
 bool Bridge::Impl::lower(const WhenEquation &equation) {
-  assert(equationLowerer != nullptr);
+  assert(whenEquationLowerer != nullptr);
   return whenEquationLowerer->lower(equation);
 }
 

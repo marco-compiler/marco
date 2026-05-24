@@ -4,6 +4,7 @@ set(SOURCES
     AssignmentStatementLowerer.cpp
     BreakStatementLowerer.cpp
     Bridge.cpp
+    CallEquationLowerer.cpp
     CallLowerer.cpp
     CallStatementLowerer.cpp
     ClassDependencyGraph.cpp
