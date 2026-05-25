@@ -180,7 +180,7 @@ mlir::LogicalResult removeDerOps(mlir::Region &region, ModelOp modelOp,
 
     if (auto tensorType =
             mlir::dyn_cast<mlir::TensorType>(replacement.getType());
-        tensorType && tensorType.hasRank()) {
+        tensorType && tensorType.getRank() == 0) {
       replacement = rewriter.create<TensorExtractOp>(
           derOp.getLoc(), replacement, mlir::ValueRange());
     }
