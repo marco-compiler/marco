@@ -16,7 +16,9 @@
 #include "marco/Frontend/Passes.h"
 #include "marco/IO/Command.h"
 #include "marco/Parser/BaseModelica/Parser.h"
-#include "marco/Transforms/Passes.h"
+#ifdef MARCO_HAS_DRCOMPILER
+#include "drcompiler/Transforms/Passes.h"
+#endif
 #include "mlir/Conversion/Passes.h"
 #include "mlir/Dialect/Affine/Passes.h"
 #include "mlir/Dialect/Bufferization/Pipelines/Passes.h"
@@ -1118,7 +1120,34 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
   if (ci.getCodeGenOptions().loopHoisting) {
     pm.addNestedPass<mlir::func::FuncOp>(createAggressiveLICMPass());
   }
-  pm.addPass(mlir::createDataRecomputationPass());
+#ifdef MARCO_HAS_DRCOMPILER
+  if (ci.getCodeGenOptions().dataRecomputation) {
+    const auto &cg = ci.getCodeGenOptions();
+    mlir::DataRecomputationPassOptions drOpts;
+    drOpts.drRecompute = true;
+    drOpts.drCostModel = cg.drCostModel;
+    drOpts.cpuCostModelFile = cg.drCpuCostModelFile;
+    drOpts.drSummary = cg.drSummary;
+    drOpts.drDebug = cg.drDebug;
+    drOpts.drPartialRemat = cg.drPartialRemat;
+    drOpts.drBufferElim = cg.drBufferElim;
+    drOpts.drEraseElimBuffers = cg.drEraseEliminatedBuffers;
+    drOpts.drFootprintAnalysis = cg.drFootprintAnalysis;
+    drOpts.drPartialMaxLeaves = cg.drPartialMaxLeaves;
+    drOpts.drL1Size = cg.drL1Size;
+    drOpts.drL2Size = cg.drL2Size;
+    drOpts.drL3Size = cg.drL3Size;
+    drOpts.drL1Latency = cg.drL1Latency;
+    drOpts.drL2Latency = cg.drL2Latency;
+    drOpts.drL3Latency = cg.drL3Latency;
+    drOpts.drMemLatency = cg.drMemLatency;
+    drOpts.drCacheLineSize = cg.drCacheLineSize;
+    drOpts.drRegBudget = cg.drRegBudget;
+    drOpts.drSpillCycles = cg.drSpillCycles;
+    drOpts.drIcacheSoftBudget = cg.drIcacheSoftBudget;
+    pm.addPass(mlir::createDataRecomputationPass(drOpts));
+  }
+#endif
 
   pm.addNestedPass<mlir::func::FuncOp>(mlir::createLowerAffinePass());
   pm.addNestedPass<mlir::func::FuncOp>(mlir::createSCFToControlFlowPass());

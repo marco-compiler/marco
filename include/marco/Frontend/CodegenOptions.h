@@ -36,6 +36,28 @@ struct CodegenOptions : public clang::CodeGenOptions {
   bool loopTiling = false;
   bool runtimeVerification = true;
 
+  bool dataRecomputation = false;
+  bool drCostModel = false;
+  std::string drCpuCostModelFile;
+  bool drSummary = false;
+  bool drDebug = false;
+  bool drPartialRemat = false;
+  bool drBufferElim = false;
+  bool drEraseEliminatedBuffers = false;
+  bool drFootprintAnalysis = false;
+  unsigned drPartialMaxLeaves = 4;
+  unsigned drL1Size = 32768;
+  unsigned drL2Size = 262144;
+  unsigned drL3Size = 0;
+  unsigned drL1Latency = 4;
+  unsigned drL2Latency = 12;
+  unsigned drL3Latency = 40;
+  unsigned drMemLatency = 200;
+  unsigned drCacheLineSize = 64;
+  unsigned drRegBudget = 32;
+  unsigned drSpillCycles = 4;
+  unsigned drIcacheSoftBudget = 128;
+
   uint64_t bitWidth = 64;
 
   std::string cpu = "generic";

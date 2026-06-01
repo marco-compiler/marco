@@ -16,13 +16,15 @@ set(LIBS
     ${dialect_libs}
     ${extension_libs}
     ${conversion_libs}
-    # DataRecomputation
-    MLIRCustomTransforms
     MLIROptLib
     MLIRRegisterAllDialects
     MLIRRegisterAllExtensions
     MLIRRegisterAllPasses
     MLIRToLLVMIRTranslationRegistration)
+
+if (DRCompiler_FOUND)
+    list(APPEND LIBS drcompiler::DRCompTransforms)
+endif()
 
 target_link_libraries(modelica-opt PRIVATE ${LIBS})
 mlir_check_all_link_libraries(modelica-opt)

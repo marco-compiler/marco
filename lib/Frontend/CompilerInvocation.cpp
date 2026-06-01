@@ -654,6 +654,62 @@ static void parseCodegenArgs(marco::frontend::CodegenOptions &options,
 
   // Enable loop tiling only if the equations are statically scheduled.
   options.loopTiling &= !options.equationsRuntimeScheduling;
+
+  options.dataRecomputation =
+      args.hasFlag(options::OPT_fdata_recomputation,
+                   options::OPT_fno_data_recomputation,
+                   options.dataRecomputation);
+
+  options.drCostModel = args.hasFlag(options::OPT_dr_cost_model,
+                                     options::OPT_no_dr_cost_model,
+                                     options.drCostModel);
+
+  if (const llvm::opt::Arg *arg =
+          args.getLastArg(options::OPT_dr_cpu_cost_model_file)) {
+    options.drCpuCostModelFile = arg->getValue();
+  }
+
+  options.drSummary = args.hasFlag(options::OPT_dr_summary,
+                                   options::OPT_no_dr_summary,
+                                   options.drSummary);
+  options.drDebug = args.hasFlag(options::OPT_dr_debug,
+                                 options::OPT_no_dr_debug, options.drDebug);
+  options.drPartialRemat = args.hasFlag(options::OPT_dr_partial_remat,
+                                        options::OPT_no_dr_partial_remat,
+                                        options.drPartialRemat);
+  options.drBufferElim = args.hasFlag(options::OPT_dr_buffer_elim,
+                                      options::OPT_no_dr_buffer_elim,
+                                      options.drBufferElim);
+  options.drEraseEliminatedBuffers =
+      args.hasFlag(options::OPT_dr_erase_eliminated_buffers,
+                   options::OPT_no_dr_erase_eliminated_buffers,
+                   options.drEraseEliminatedBuffers);
+  options.drFootprintAnalysis =
+      args.hasFlag(options::OPT_dr_footprint_analysis,
+                   options::OPT_no_dr_footprint_analysis,
+                   options.drFootprintAnalysis);
+
+  auto parseUInt = [&](llvm::opt::OptSpecifier id, unsigned &dst) {
+    if (const llvm::opt::Arg *arg = args.getLastArg(id)) {
+      llvm::StringRef v = arg->getValue();
+      unsigned parsed;
+      if (!v.getAsInteger(0, parsed)) {
+        dst = parsed;
+      }
+    }
+  };
+  parseUInt(options::OPT_dr_partial_max_leaves, options.drPartialMaxLeaves);
+  parseUInt(options::OPT_dr_l1_size, options.drL1Size);
+  parseUInt(options::OPT_dr_l2_size, options.drL2Size);
+  parseUInt(options::OPT_dr_l3_size, options.drL3Size);
+  parseUInt(options::OPT_dr_l1_latency, options.drL1Latency);
+  parseUInt(options::OPT_dr_l2_latency, options.drL2Latency);
+  parseUInt(options::OPT_dr_l3_latency, options.drL3Latency);
+  parseUInt(options::OPT_dr_mem_latency, options.drMemLatency);
+  parseUInt(options::OPT_dr_cache_line_size, options.drCacheLineSize);
+  parseUInt(options::OPT_dr_reg_budget, options.drRegBudget);
+  parseUInt(options::OPT_dr_spill_cycles, options.drSpillCycles);
+  parseUInt(options::OPT_dr_icache_soft_budget, options.drIcacheSoftBudget);
 }
 
 static void parseSimulationArgs(marco::frontend::SimulationOptions &options,

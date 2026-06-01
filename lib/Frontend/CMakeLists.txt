@@ -27,6 +27,10 @@ set(MLIR_LIBS
     MLIROpenMPToLLVMIRTranslation
     MLIRTargetLLVMIRImport)
 
+if (DRCompiler_FOUND)
+    list(APPEND MLIR_LIBS drcompiler::DRCompTransforms)
+endif()
+
 marco_add_library(frontend
     ${SOURCES}
 

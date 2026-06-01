@@ -105,6 +105,24 @@ else()
 endif()
 
 #------------------------------------------------------------------------------
+# DRCompiler (out-of-tree DataRecomputation pass)
+#------------------------------------------------------------------------------
+
+if (DEFINED DRCompiler_PATH)
+	get_filename_component(DRCompiler_ABS_PATH ${DRCompiler_PATH} ABSOLUTE)
+	set(DRCompiler_DIR "${DRCompiler_ABS_PATH}/${CMAKE_INSTALL_LIBDIR}/cmake/DRCompiler")
+endif()
+
+find_package(DRCompiler CONFIG)
+
+if (DRCompiler_FOUND)
+	message(STATUS "Using DRCompilerConfig.cmake in: ${DRCompiler_DIR}")
+	add_compile_definitions(MARCO_HAS_DRCOMPILER)
+else()
+	message(STATUS "DRCompiler not found — DataRecomputation pass disabled")
+endif()
+
+#------------------------------------------------------------------------------
 # MARCO configuration
 #------------------------------------------------------------------------------
 
