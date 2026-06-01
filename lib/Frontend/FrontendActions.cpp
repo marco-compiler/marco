@@ -1142,8 +1142,8 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
     drOpts.drL3Latency = cg.drL3Latency;
     drOpts.drMemLatency = cg.drMemLatency;
     drOpts.drCacheLineSize = cg.drCacheLineSize;
-    drOpts.drRegBudget = cg.drRegBudget;
-    drOpts.drSpillCycles = cg.drSpillCycles;
+    drOpts.drRegBudgetGp = cg.drRegBudget;
+    drOpts.drSpillReload = cg.drSpillCycles;
     drOpts.drIcacheSoftBudget = cg.drIcacheSoftBudget;
     pm.addPass(mlir::createDataRecomputationPass(drOpts));
   }
