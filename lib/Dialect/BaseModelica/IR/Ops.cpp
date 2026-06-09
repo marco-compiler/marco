@@ -7470,10 +7470,12 @@ void ForEquationOp::print(mlir::OpAsmPrinter &printer) {
 // IfEquationOp
 
 namespace mlir::bmodelica {
-void IfEquationOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
-                         mlir::Value condition) {
+void IfEquationOp::build(mlir::OpBuilder &builder,
+                         mlir::OperationState &state) {
   mlir::OpBuilder::InsertionGuard guard(builder);
-  state.addOperands(condition);
+
+  mlir::Region *conditionRegion = state.addRegion();
+  builder.createBlock(conditionRegion);
 
   mlir::Region *thenRegion = state.addRegion();
   builder.createBlock(thenRegion);

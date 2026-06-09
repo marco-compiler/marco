@@ -3371,6 +3371,7 @@ def BaseModelica_ForEquationOp : BaseModelica_Op<"for_equation", [
 
 def BaseModelica_IfEquationOp : BaseModelica_Op<"if_equation",
     [ParentOneOf<["DynamicOp", "InitialOp", "IfEquationOp"]>,
+    IsolatedFromAbove,
     NoTerminator]>
 {
     let summary = "Conditional equation construct.";
@@ -3381,15 +3382,19 @@ def BaseModelica_IfEquationOp : BaseModelica_Op<"if_equation",
         algorithmic if statement, this changes the model structure rather than
         the control flow.
 
+        The condition is computed inside the `conditionRegion`, which must be
+        terminated by a `bmodelica.yield` yielding a single boolean value.
+
         ElseIf branches are represented by nesting another `if_equation` inside
         the `elseRegion`.
 
         Example:
 
         ```mlir
-        %cond = ... : !modelica.bool
-
-        modelica.if_equation(%cond : !modelica.bool) {
+        modelica.if_equation if {
+            %cond = ... : !bmodelica.bool
+            bmodelica.yield %cond : !bmodelica.bool
+        } then {
             modelica.equation {
                 ...
             }
@@ -3401,27 +3406,28 @@ def BaseModelica_IfEquationOp : BaseModelica_Op<"if_equation",
         ```
     }];
 
-    let arguments = (ins BooleanType:$condition);
+    let arguments = (ins);
     let results = (outs);
 
     let regions = (region
+      SizedRegion<1>:$conditionRegion,
       SizedRegion<1>:$thenRegion,
       SizedRegion<1>:$elseRegion
     );
 
     let builders = [
-        OpBuilder<(ins "::mlir::Value":$condition)>
+        OpBuilder<(ins)>
     ];
 
     let assemblyFormat = [{
-        `if` `(` $condition `:` type($condition) `)`
-            $thenRegion
-        `else`
-            $elseRegion
+        `if` $conditionRegion
+        `then` $thenRegion
+        `else` $elseRegion
         attr-dict
     }];
 
     let extraClassDeclaration = [{
+        ::mlir::Block* conditionBlock() { return &getConditionRegion().front(); }
         ::mlir::Block* thenBlock() { return &getThenRegion().front(); }
         ::mlir::Block* elseBlock() { return &getElseRegion().front(); }
     }];
