@@ -166,10 +166,6 @@ bool ArrayGeneratorLowerer::lowerValues(
 
 std::optional<Results>
 ArrayGeneratorLowerer::lower(const ast::bmodelica::ArrayConstant &array) {
-  // TODO determine minimum required type
-  mlir::Type elementType = RealType::get(builder().getContext());
-  ;
-
   // Determine the shape.
   llvm::SmallVector<int64_t, 3> shape;
   computeShape(array, shape);
@@ -178,6 +174,16 @@ ArrayGeneratorLowerer::lower(const ast::bmodelica::ArrayConstant &array) {
   llvm::SmallVector<mlir::Value> values;
   if (!lowerValues(array, values)) {
     return std::nullopt;
+  }
+
+  mlir::Type elementType = RealType::get(builder().getContext());
+
+  if (!values.empty()) {
+    elementType = values.front().getType();
+  }
+
+  for (size_t i = 1, e = values.size(); i < e; ++i) {
+    elementType = getMostGenericScalarType(elementType, values[i].getType());
   }
 
   auto tensorType = mlir::RankedTensorType::get(shape, elementType);
@@ -191,15 +197,11 @@ ArrayGeneratorLowerer::lower(const ast::bmodelica::ArrayConstant &array) {
 
 std::optional<Results>
 ArrayGeneratorLowerer::lower(const ast::bmodelica::ArrayForGenerator &array) {
-  // TODO determine minimum required type
-  mlir::Type elementType = RealType::get(builder().getContext());
-
   // Determine the shape.
   llvm::SmallVector<int64_t, 3> shape;
   computeShape(array, shape);
 
   mlir::Location location = loc(array.getLocation());
-
   const ast::bmodelica::Expression *topLevel = array.getValue();
 
   if (!topLevel->isa<ast::bmodelica::ArrayGenerator>()) {
@@ -221,6 +223,16 @@ ArrayGeneratorLowerer::lower(const ast::bmodelica::ArrayForGenerator &array) {
   llvm::SmallVector<mlir::Value> values;
   if (!lowerValues(array, values)) {
     return std::nullopt;
+  }
+
+  mlir::Type elementType = RealType::get(builder().getContext());
+
+  if (!values.empty()) {
+    elementType = values.front().getType();
+  }
+
+  for (size_t i = 1, e = values.size(); i < e; ++i) {
+    elementType = getMostGenericScalarType(elementType, values[i].getType());
   }
 
   auto tensorType = mlir::RankedTensorType::get(shape, elementType);
