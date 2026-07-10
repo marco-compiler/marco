@@ -1164,7 +1164,8 @@ private:
     }
 
     if (auto realAttribute = mlir::dyn_cast<RealAttr>(attribute)) {
-      return builder.getFloatAttr(resultType, realAttribute.getValue());
+      return builder.getFloatAttr(resultType,
+                                  realAttribute.getValue().convertToDouble());
     }
 
     return {};
