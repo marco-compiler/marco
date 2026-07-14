@@ -1159,13 +1159,20 @@ private:
     }
 
     if (auto integerAttribute = mlir::dyn_cast<IntegerAttr>(attribute)) {
-      return builder.getIntegerAttr(resultType,
-                                    integerAttribute.getValue().getSExtValue());
+      llvm::APInt value = integerAttribute.getValue();
+      value = value.sextOrTrunc(resultType.getIntOrFloatBitWidth());
+      return builder.getIntegerAttr(resultType, value);
     }
 
     if (auto realAttribute = mlir::dyn_cast<RealAttr>(attribute)) {
-      return builder.getFloatAttr(resultType,
-                                  realAttribute.getValue().convertToDouble());
+      unsigned int bitWidth = resultType.getIntOrFloatBitWidth();
+      llvm::APFloat floatValue = realAttribute.getValue();
+      bool losesInfo;
+
+      floatValue.convert(getFloatSemantics(bitWidth),
+                         llvm::APFloat::rmNearestTiesToEven, &losesInfo);
+
+      return builder.getFloatAttr(resultType, floatValue);
     }
 
     return {};
@@ -1198,6 +1205,26 @@ private:
     }
 
     return {};
+  }
+
+  static const llvm::fltSemantics &getFloatSemantics(unsigned int bitWidth) {
+    if (bitWidth <= 16) {
+      return llvm::APFloat::IEEEhalf();
+    }
+
+    if (bitWidth <= 32) {
+      return llvm::APFloat::IEEEsingle();
+    }
+
+    if (bitWidth <= 64) {
+      return llvm::APFloat::IEEEdouble();
+    }
+
+    if (bitWidth <= 80) {
+      return llvm::APFloat::x87DoubleExtended();
+    }
+
+    return llvm::APFloat::IEEEquad();
   }
 };
 

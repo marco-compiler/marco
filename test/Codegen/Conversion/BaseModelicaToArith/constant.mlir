@@ -109,13 +109,13 @@ func.func @mlirFloat() -> f64 {
 // -----
 
 // CHECK-LABEL: @IntegerTo16BitInteger
-// CHECK: %[[cst:.*]] = arith.constant 0 : i16
+// CHECK: %[[cst:.*]] = arith.constant -1 : i16
 // CHECK: %[[result:.*]] = builtin.unrealized_conversion_cast %[[cst]] : i16 to !bmodelica.int
 // CHECK: return %[[result]]
 
 module attributes {dlti.dl_spec = #dlti.dl_spec<!bmodelica.int = ["size", 16]>} {
     func.func @IntegerTo16BitInteger() -> !bmodelica.int {
-        %0 = bmodelica.constant #bmodelica<int 0>
+        %0 = bmodelica.constant #bmodelica<int -1>
         func.return %0 : !bmodelica.int
     }
 }
@@ -123,13 +123,13 @@ module attributes {dlti.dl_spec = #dlti.dl_spec<!bmodelica.int = ["size", 16]>} 
 // -----
 
 // CHECK-LABEL: @IntegerTo32BitInteger
-// CHECK: %[[cst:.*]] = arith.constant 0 : i32
+// CHECK: %[[cst:.*]] = arith.constant -1 : i32
 // CHECK: %[[result:.*]] = builtin.unrealized_conversion_cast %[[cst]] : i32 to !bmodelica.int
 // CHECK: return %[[result]]
 
 module attributes {dlti.dl_spec = #dlti.dl_spec<!bmodelica.int = ["size", 32]>} {
     func.func @IntegerTo32BitInteger() -> !bmodelica.int {
-        %0 = bmodelica.constant #bmodelica<int 0>
+        %0 = bmodelica.constant #bmodelica<int -1>
         func.return %0 : !bmodelica.int
     }
 }
@@ -137,13 +137,13 @@ module attributes {dlti.dl_spec = #dlti.dl_spec<!bmodelica.int = ["size", 32]>} 
 // -----
 
 // CHECK-LABEL: @IntegerTo64BitInteger
-// CHECK: %[[cst:.*]] = arith.constant 0 : i64
+// CHECK: %[[cst:.*]] = arith.constant -1 : i64
 // CHECK: %[[result:.*]] = builtin.unrealized_conversion_cast %[[cst]] : i64 to !bmodelica.int
 // CHECK: return %[[result]]
 
 module attributes {dlti.dl_spec = #dlti.dl_spec<!bmodelica.int = ["size", 64]>} {
     func.func @IntegerTo64BitInteger() -> !bmodelica.int {
-        %0 = bmodelica.constant #bmodelica<int 0>
+        %0 = bmodelica.constant #bmodelica<int -1>
         func.return %0 : !bmodelica.int
     }
 }
@@ -151,13 +151,13 @@ module attributes {dlti.dl_spec = #dlti.dl_spec<!bmodelica.int = ["size", 64]>} 
 // -----
 
 // CHECK-LABEL: @IntegerTo80BitInteger
-// CHECK: %[[cst:.*]] = arith.constant 0 : i80
+// CHECK: %[[cst:.*]] = arith.constant -1 : i80
 // CHECK: %[[result:.*]] = builtin.unrealized_conversion_cast %[[cst]] : i80 to !bmodelica.int
 // CHECK: return %[[result]]
 
 module attributes {dlti.dl_spec = #dlti.dl_spec<!bmodelica.int = ["size", 80]>} {
     func.func @IntegerTo80BitInteger() -> !bmodelica.int {
-        %0 = bmodelica.constant #bmodelica<int 0>
+        %0 = bmodelica.constant #bmodelica<int -1>
         func.return %0 : !bmodelica.int
     }
 }
@@ -165,13 +165,13 @@ module attributes {dlti.dl_spec = #dlti.dl_spec<!bmodelica.int = ["size", 80]>} 
 // -----
 
 // CHECK-LABEL: @IntegerTo128BitInteger
-// CHECK: %[[cst:.*]] = arith.constant 0 : i128
+// CHECK: %[[cst:.*]] = arith.constant -1 : i128
 // CHECK: %[[result:.*]] = builtin.unrealized_conversion_cast %[[cst]] : i128 to !bmodelica.int
 // CHECK: return %[[result]]
 
 module attributes {dlti.dl_spec = #dlti.dl_spec<!bmodelica.int = ["size", 128]>} {
     func.func @IntegerTo128BitInteger() -> !bmodelica.int {
-        %0 = bmodelica.constant #bmodelica<int 0>
+        %0 = bmodelica.constant #bmodelica<int -1>
         func.return %0 : !bmodelica.int
     }
 }
@@ -179,13 +179,13 @@ module attributes {dlti.dl_spec = #dlti.dl_spec<!bmodelica.int = ["size", 128]>}
 // -----
 
 // CHECK-LABEL: @RealTo16BitFloat
-// CHECK: %[[cst:.*]] = arith.constant 0.000000e+00 : f16
+// CHECK: %[[cst:.*]] = arith.constant -1.000000e+00 : f16
 // CHECK: %[[result:.*]] = builtin.unrealized_conversion_cast %[[cst]] : f16 to !bmodelica.real
 // CHECK: return %[[result]]
 
 module attributes {dlti.dl_spec = #dlti.dl_spec<!bmodelica.real = ["size", 16]>} {
     func.func @RealTo16BitFloat() -> !bmodelica.real {
-        %0 = bmodelica.constant #bmodelica<real 0.0>
+        %0 = bmodelica.constant #bmodelica<real -1.0>
         func.return %0 : !bmodelica.real
     }
 }
@@ -193,13 +193,13 @@ module attributes {dlti.dl_spec = #dlti.dl_spec<!bmodelica.real = ["size", 16]>}
 // -----
 
 // CHECK-LABEL: @RealTo32BitFloat
-// CHECK: %[[cst:.*]] = arith.constant 0.000000e+00 : f32
+// CHECK: %[[cst:.*]] = arith.constant -1.000000e+00 : f32
 // CHECK: %[[result:.*]] = builtin.unrealized_conversion_cast %[[cst]] : f32 to !bmodelica.real
 // CHECK: return %[[result]]
 
 module attributes {dlti.dl_spec = #dlti.dl_spec<!bmodelica.real = ["size", 32]>} {
     func.func @RealTo32BitFloat() -> !bmodelica.real {
-        %0 = bmodelica.constant #bmodelica<real 0.0>
+        %0 = bmodelica.constant #bmodelica<real -1.0>
         func.return %0 : !bmodelica.real
     }
 }
@@ -207,13 +207,13 @@ module attributes {dlti.dl_spec = #dlti.dl_spec<!bmodelica.real = ["size", 32]>}
 // -----
 
 // CHECK-LABEL: @RealTo64BitFloat
-// CHECK: %[[cst:.*]] = arith.constant 0.000000e+00 : f64
+// CHECK: %[[cst:.*]] = arith.constant -1.000000e+00 : f64
 // CHECK: %[[result:.*]] = builtin.unrealized_conversion_cast %[[cst]] : f64 to !bmodelica.real
 // CHECK: return %[[result]]
 
 module attributes {dlti.dl_spec = #dlti.dl_spec<!bmodelica.real = ["size", 64]>} {
     func.func @RealTo64BitFloat() -> !bmodelica.real {
-        %0 = bmodelica.constant #bmodelica<real 0.0>
+        %0 = bmodelica.constant #bmodelica<real -1.0>
         func.return %0 : !bmodelica.real
     }
 }
@@ -221,13 +221,13 @@ module attributes {dlti.dl_spec = #dlti.dl_spec<!bmodelica.real = ["size", 64]>}
 // -----
 
 // CHECK-LABEL: @RealTo80BitFloat
-// CHECK: %[[cst:.*]] = arith.constant 0.000000e+00 : f80
+// CHECK: %[[cst:.*]] = arith.constant -1.000000e+00 : f80
 // CHECK: %[[result:.*]] = builtin.unrealized_conversion_cast %[[cst]] : f80 to !bmodelica.real
 // CHECK: return %[[result]]
 
 module attributes {dlti.dl_spec = #dlti.dl_spec<!bmodelica.real = ["size", 80]>} {
     func.func @RealTo80BitFloat() -> !bmodelica.real {
-        %0 = bmodelica.constant #bmodelica<real 0.0>
+        %0 = bmodelica.constant #bmodelica<real -1.0>
         func.return %0 : !bmodelica.real
     }
 }
@@ -235,13 +235,13 @@ module attributes {dlti.dl_spec = #dlti.dl_spec<!bmodelica.real = ["size", 80]>}
 // -----
 
 // CHECK-LABEL: @RealTo128BitFloat
-// CHECK: %[[cst:.*]] = arith.constant 0.000000e+00 : f128
+// CHECK: %[[cst:.*]] = arith.constant -1.000000e+00 : f128
 // CHECK: %[[result:.*]] = builtin.unrealized_conversion_cast %[[cst]] : f128 to !bmodelica.real
 // CHECK: return %[[result]]
 
 module attributes {dlti.dl_spec = #dlti.dl_spec<!bmodelica.real = ["size", 128]>} {
     func.func @RealTo128BitFloat() -> !bmodelica.real {
-        %0 = bmodelica.constant #bmodelica<real 0.0>
+        %0 = bmodelica.constant #bmodelica<real -1.0>
         func.return %0 : !bmodelica.real
     }
 }
