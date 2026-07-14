@@ -245,3 +245,143 @@ module attributes {dlti.dl_spec = #dlti.dl_spec<!bmodelica.real = ["size", 128]>
         func.return %0 : !bmodelica.real
     }
 }
+
+// -----
+
+// CHECK-LABEL: @ArrayOfIntegersTo16BitIntegers
+// CHECK: %[[cst:.*]] = arith.constant dense<[-2, -1, 0, 1, 2]> : tensor<5xi16>
+// CHECK: %[[result:.*]] = builtin.unrealized_conversion_cast %[[cst]] : tensor<5xi16> to tensor<5x!bmodelica.int>
+// CHECK: return %[[result]]
+
+module attributes {dlti.dl_spec = #dlti.dl_spec<!bmodelica.int = ["size", 16]>} {
+    func.func @ArrayOfIntegersTo16BitIntegers() -> tensor<5x!bmodelica.int> {
+        %0 = bmodelica.constant #bmodelica<dense_int <[-2, -1, 0, 1, 2]>>
+        func.return %0 : tensor<5x!bmodelica.int>
+    }
+}
+
+// -----
+
+// CHECK-LABEL: @ArrayOfIntegersTo32BitIntegers
+// CHECK: %[[cst:.*]] = arith.constant dense<[-2, -1, 0, 1, 2]> : tensor<5xi32>
+// CHECK: %[[result:.*]] = builtin.unrealized_conversion_cast %[[cst]] : tensor<5xi32> to tensor<5x!bmodelica.int>
+// CHECK: return %[[result]]
+
+module attributes {dlti.dl_spec = #dlti.dl_spec<!bmodelica.int = ["size", 32]>} {
+    func.func @ArrayOfIntegersTo32BitIntegers() -> tensor<5x!bmodelica.int> {
+        %0 = bmodelica.constant #bmodelica<dense_int <[-2, -1, 0, 1, 2]>>
+        func.return %0 : tensor<5x!bmodelica.int>
+    }
+}
+
+// -----
+
+// CHECK-LABEL: @ArrayOfIntegersTo64BitIntegers
+// CHECK: %[[cst:.*]] = arith.constant dense<[-2, -1, 0, 1, 2]> : tensor<5xi64>
+// CHECK: %[[result:.*]] = builtin.unrealized_conversion_cast %[[cst]] : tensor<5xi64> to tensor<5x!bmodelica.int>
+// CHECK: return %[[result]]
+
+module attributes {dlti.dl_spec = #dlti.dl_spec<!bmodelica.int = ["size", 64]>} {
+    func.func @ArrayOfIntegersTo64BitIntegers() -> tensor<5x!bmodelica.int> {
+        %0 = bmodelica.constant #bmodelica<dense_int <[-2, -1, 0, 1, 2]>>
+        func.return %0 : tensor<5x!bmodelica.int>
+    }
+}
+
+// -----
+
+// CHECK-LABEL: @ArrayOfIntegersTo80BitIntegers
+// CHECK: %[[cst:.*]] = arith.constant dense<[-2, -1, 0, 1, 2]> : tensor<5xi80>
+// CHECK: %[[result:.*]] = builtin.unrealized_conversion_cast %[[cst]] : tensor<5xi80> to tensor<5x!bmodelica.int>
+// CHECK: return %[[result]]
+
+module attributes {dlti.dl_spec = #dlti.dl_spec<!bmodelica.int = ["size", 80]>} {
+    func.func @ArrayOfIntegersTo80BitIntegers() -> tensor<5x!bmodelica.int> {
+        %0 = bmodelica.constant #bmodelica<dense_int <[-2, -1, 0, 1, 2]>>
+        func.return %0 : tensor<5x!bmodelica.int>
+    }
+}
+
+// -----
+
+// CHECK-LABEL: @ArrayOfIntegersTo128BitIntegers
+// CHECK: %[[cst:.*]] = arith.constant dense<[-2, -1, 0, 1, 2]> : tensor<5xi128>
+// CHECK: %[[result:.*]] = builtin.unrealized_conversion_cast %[[cst]] : tensor<5xi128> to tensor<5x!bmodelica.int>
+// CHECK: return %[[result]]
+
+module attributes {dlti.dl_spec = #dlti.dl_spec<!bmodelica.int = ["size", 128]>} {
+    func.func @ArrayOfIntegersTo128BitIntegers() -> tensor<5x!bmodelica.int> {
+        %0 = bmodelica.constant #bmodelica<dense_int <[-2, -1, 0, 1, 2]>>
+        func.return %0 : tensor<5x!bmodelica.int>
+    }
+}
+
+// -----
+
+// CHECK-LABEL: @ArrayOfRealsTo16BitFloats
+// CHECK: %[[cst:.*]] = arith.constant dense<[-2.000000e+00, -1.000000e+00, 0.000000e+00, 1.000000e+00, 2.000000e+00]> : tensor<5xf16>
+// CHECK: %[[result:.*]] = builtin.unrealized_conversion_cast %[[cst]] : tensor<5xf16> to tensor<5x!bmodelica.real>
+// CHECK: return %[[result]]
+
+module attributes {dlti.dl_spec = #dlti.dl_spec<!bmodelica.real = ["size", 16]>} {
+    func.func @ArrayOfRealsTo16BitFloats() -> tensor<5x!bmodelica.real> {
+        %0 = bmodelica.constant #bmodelica<dense_real <[-2.0, -1.0, 0.0, 1.0, 2.0]>>
+        func.return %0 : tensor<5x!bmodelica.real>
+    }
+}
+
+// -----
+
+// CHECK-LABEL: @ArrayOfRealsTo32BitFloats
+// CHECK: %[[cst:.*]] = arith.constant dense<[-2.000000e+00, -1.000000e+00, 0.000000e+00, 1.000000e+00, 2.000000e+00]> : tensor<5xf32>
+// CHECK: %[[result:.*]] = builtin.unrealized_conversion_cast %[[cst]] : tensor<5xf32> to tensor<5x!bmodelica.real>
+// CHECK: return %[[result]]
+
+module attributes {dlti.dl_spec = #dlti.dl_spec<!bmodelica.real = ["size", 32]>} {
+    func.func @ArrayOfRealsTo32BitFloats() -> tensor<5x!bmodelica.real> {
+        %0 = bmodelica.constant #bmodelica<dense_real <[-2.0, -1.0, 0.0, 1.0, 2.0]>>
+        func.return %0 : tensor<5x!bmodelica.real>
+    }
+}
+
+// -----
+
+// CHECK-LABEL: @ArrayOfRealsTo64BitFloats
+// CHECK: %[[cst:.*]] = arith.constant dense<[-2.000000e+00, -1.000000e+00, 0.000000e+00, 1.000000e+00, 2.000000e+00]> : tensor<5xf64>
+// CHECK: %[[result:.*]] = builtin.unrealized_conversion_cast %[[cst]] : tensor<5xf64> to tensor<5x!bmodelica.real>
+// CHECK: return %[[result]]
+
+module attributes {dlti.dl_spec = #dlti.dl_spec<!bmodelica.real = ["size", 64]>} {
+    func.func @ArrayOfRealsTo64BitFloats() -> tensor<5x!bmodelica.real> {
+        %0 = bmodelica.constant #bmodelica<dense_real <[-2.0, -1.0, 0.0, 1.0, 2.0]>>
+        func.return %0 : tensor<5x!bmodelica.real>
+    }
+}
+
+// -----
+
+// CHECK-LABEL: @ArrayOfRealsTo80BitFloats
+// CHECK: %[[cst:.*]] = arith.constant dense<[-2.000000e+00, -1.000000e+00, 0.000000e+00, 1.000000e+00, 2.000000e+00]> : tensor<5xf80>
+// CHECK: %[[result:.*]] = builtin.unrealized_conversion_cast %[[cst]] : tensor<5xf80> to tensor<5x!bmodelica.real>
+// CHECK: return %[[result]]
+
+module attributes {dlti.dl_spec = #dlti.dl_spec<!bmodelica.real = ["size", 80]>} {
+    func.func @ArrayOfRealsTo80BitFloats() -> tensor<5x!bmodelica.real> {
+        %0 = bmodelica.constant #bmodelica<dense_real <[-2.0, -1.0, 0.0, 1.0, 2.0]>>
+        func.return %0 : tensor<5x!bmodelica.real>
+    }
+}
+
+// -----
+
+// CHECK-LABEL: @ArrayOfRealsTo128BitFloats
+// CHECK: %[[cst:.*]] = arith.constant dense<[-2.000000e+00, -1.000000e+00, 0.000000e+00, 1.000000e+00, 2.000000e+00]> : tensor<5xf128>
+// CHECK: %[[result:.*]] = builtin.unrealized_conversion_cast %[[cst]] : tensor<5xf128> to tensor<5x!bmodelica.real>
+// CHECK: return %[[result]]
+
+module attributes {dlti.dl_spec = #dlti.dl_spec<!bmodelica.real = ["size", 128]>} {
+    func.func @ArrayOfRealsTo128BitFloats() -> tensor<5x!bmodelica.real> {
+        %0 = bmodelica.constant #bmodelica<dense_real <[-2.0, -1.0, 0.0, 1.0, 2.0]>>
+        func.return %0 : tensor<5x!bmodelica.real>
+    }
+}
