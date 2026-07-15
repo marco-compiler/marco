@@ -1159,13 +1159,20 @@ private:
     }
 
     if (auto integerAttribute = mlir::dyn_cast<IntegerAttr>(attribute)) {
-      return builder.getIntegerAttr(resultType,
-                                    integerAttribute.getValue().getSExtValue());
+      llvm::APInt value = integerAttribute.getValue();
+      value = value.sextOrTrunc(resultType.getIntOrFloatBitWidth());
+      return builder.getIntegerAttr(resultType, value);
     }
 
     if (auto realAttribute = mlir::dyn_cast<RealAttr>(attribute)) {
-      return builder.getFloatAttr(resultType,
-                                  realAttribute.getValue().convertToDouble());
+      unsigned int bitWidth = resultType.getIntOrFloatBitWidth();
+      llvm::APFloat floatValue = realAttribute.getValue();
+      bool losesInfo;
+
+      floatValue.convert(getFloatSemantics(bitWidth),
+                         llvm::APFloat::rmNearestTiesToEven, &losesInfo);
+
+      return builder.getFloatAttr(resultType, floatValue);
     }
 
     return {};
@@ -1174,6 +1181,9 @@ private:
   mlir::TypedAttr convertTensorTypedAttribute(mlir::OpBuilder &builder,
                                               mlir::Type resultType,
                                               mlir::TypedAttr attribute) const {
+    auto tensorType = mlir::cast<mlir::TensorType>(resultType);
+    mlir::Type elementType = tensorType.getElementType();
+
     if (mlir::isa<mlir::DenseIntOrFPElementsAttr>(attribute)) {
       return attribute;
     }
@@ -1187,17 +1197,58 @@ private:
 
     if (auto denseIntegerAttr =
             mlir::dyn_cast<DenseIntegerElementsAttr>(attribute)) {
+      llvm::SmallVector<llvm::APInt, 4> intValues;
+      unsigned int bitWidth = elementType.getIntOrFloatBitWidth();
+
+      for (int64_t value : denseIntegerAttr.getValues()) {
+        llvm::APInt &newValue = intValues.emplace_back(64, value, true);
+
+        if (newValue.getBitWidth() != bitWidth) {
+          newValue = newValue.sextOrTrunc(bitWidth);
+        }
+      }
+
       return mlir::DenseElementsAttr::get(
-          mlir::cast<mlir::ShapedType>(resultType),
-          denseIntegerAttr.getValues());
+          mlir::cast<mlir::ShapedType>(resultType), intValues);
     }
 
     if (auto denseRealAttr = mlir::dyn_cast<DenseRealElementsAttr>(attribute)) {
+      llvm::SmallVector<llvm::APFloat, 4> floatValues;
+      unsigned int bitWidth = elementType.getIntOrFloatBitWidth();
+
+      for (const llvm::APFloat &value : denseRealAttr.getValues()) {
+        llvm::APFloat &newValue = floatValues.emplace_back(value);
+        bool losesInfo;
+
+        newValue.convert(getFloatSemantics(bitWidth),
+                         llvm::APFloat::rmNearestTiesToEven, &losesInfo);
+      }
+
       return mlir::DenseElementsAttr::get(
-          mlir::cast<mlir::ShapedType>(resultType), denseRealAttr.getValues());
+          mlir::cast<mlir::ShapedType>(resultType), floatValues);
     }
 
     return {};
+  }
+
+  static const llvm::fltSemantics &getFloatSemantics(unsigned int bitWidth) {
+    if (bitWidth <= 16) {
+      return llvm::APFloat::IEEEhalf();
+    }
+
+    if (bitWidth <= 32) {
+      return llvm::APFloat::IEEEsingle();
+    }
+
+    if (bitWidth <= 64) {
+      return llvm::APFloat::IEEEdouble();
+    }
+
+    if (bitWidth <= 80) {
+      return llvm::APFloat::x87DoubleExtended();
+    }
+
+    return llvm::APFloat::IEEEquad();
   }
 };
 
