@@ -1,4 +1,10 @@
 #include "marco/Codegen/Lowering/BaseModelica/IfEquationLowerer.h"
+#include "marco/AST/BaseModelica/Constant.h"
+#include "marco/AST/BaseModelica/Equation.h"
+#include "marco/AST/BaseModelica/Expression.h"
+#include "marco/Dialect/BaseModelica/IR/Ops.h"
+#include <cassert>
+#include <functional>
 
 using namespace ::marco;
 using namespace ::marco::codegen;
@@ -31,16 +37,40 @@ bool IfEquationLowerer::lower(const ast::bmodelica::IfEquation &equation) {
     }
   }
 
-  assert(equation.getNumOfElseIfConditions() == 0 &&
-         "else-if chains are not supported");
+  // OMC lowers the `else` branch into an `elseif true then` branch, so the else
+  // equations may arrive in the (single) else-if bucket with a `true`
+  // condition. Select the source of the else equations accordingly.
+  std::function<const ast::bmodelica::Equation *(size_t)> getElseEquation;
+  if (equation.getNumOfElseEquations() != numberOfEquations) {
+    assert(equation.getNumOfElseIfConditions() == 1 &&
+           equation.getNumOfElseIfEquations(0) == numberOfEquations &&
+           "Number of equations of else clause must match number of equations "
+           "in the if clause.");
 
-  assert(equation.getNumOfElseEquations() == numberOfEquations &&
-         "Number of equaitons of else clause must match number of equations in "
-         "the if clause.");
+    const ast::bmodelica::Expression *elseIfCondition =
+        equation.getElseIfCondition(0);
+    assert(elseIfCondition->isa<ast::bmodelica::Constant>() &&
+           elseIfCondition->cast<ast::bmodelica::Constant>()->as<bool>() &&
+           "else-if chains are not supported in if-equations; the only "
+           "accepted else-if condition is the literal 'true' introduced by the "
+           "frontend for a plain else branch.");
+
+    getElseEquation =
+        [&equation](size_t equationNumber) -> const ast::bmodelica::Equation * {
+      return equation.getElseIfEquation(0, equationNumber);
+    };
+  } else {
+    assert(equation.getNumOfElseIfConditions() == 0 &&
+           "else-if statements are not supported in if-equations.");
+    getElseEquation =
+        [&equation](size_t equationNumber) -> const ast::bmodelica::Equation * {
+      return equation.getElseEquation(equationNumber);
+    };
+  }
 
   builder().setInsertionPointToStart(ifEquationOp.elseBlock());
-  for (size_t i = 0, e = equation.getNumOfElseEquations(); i < e; ++i) {
-    if (!lower(*equation.getElseEquation(i))) {
+  for (size_t i = 0; i < numberOfEquations; ++i) {
+    if (!lower(*getElseEquation(i))) {
       return false;
     }
   }

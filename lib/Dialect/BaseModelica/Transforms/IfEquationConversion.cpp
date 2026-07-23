@@ -3,6 +3,8 @@
 #include "marco/Dialect/BaseModelica/IR/Ops.h"
 #include "mlir/IR/Block.h"
 #include "mlir/IR/Operation.h"
+#include "mlir/IR/OperationSupport.h"
+#include "mlir/Interfaces/SideEffectInterfaces.h"
 
 namespace mlir::bmodelica {
 #define GEN_PASS_DEF_IFEQUATIONCONVERSIONPASS
@@ -12,6 +14,29 @@ namespace mlir::bmodelica {
 using namespace ::mlir::bmodelica;
 
 namespace {
+
+bool areAccessesEquivalent(mlir::Value a, mlir::Value b) {
+  if (a == b)
+    return true;
+
+  auto aResult = mlir::dyn_cast<mlir::OpResult>(a);
+  auto bResult = mlir::dyn_cast<mlir::OpResult>(b);
+
+  // Block arguments (no defining op) are equivalent only when identical, which
+  // is already handled above.
+  if (!aResult || !bResult)
+    return false;
+
+  if (aResult.getResultNumber() != bResult.getResultNumber())
+    return false;
+
+  return mlir::OperationEquivalence::isEquivalentTo(
+      aResult.getOwner(), bResult.getOwner(),
+      [](mlir::Value a, mlir::Value b) {
+        return areAccessesEquivalent(a, b) ? mlir::success() : mlir::failure();
+      },
+      nullptr, mlir::OperationEquivalence::IgnoreLocations);
+}
 
 class IfEquationConversionPass
     : public impl::IfEquationConversionPassBase<IfEquationConversionPass> {
@@ -77,22 +102,12 @@ IfEquationConversionPass::convertIfEquationOp(mlir::IRRewriter &rewriter,
     return ifEqOp.emitError(
         "expected exactly one LHS value in each branch equation");
 
-  // --- Assertion 2: both branches must write to the same variable ---
-  VariableGetOp thenLhsGet = mlir::dyn_cast_if_present<VariableGetOp>(
-      thenSides.getLhsValues()[0].getDefiningOp());
-  VariableGetOp elseLhsGet = mlir::dyn_cast_if_present<VariableGetOp>(
-      elseSides.getLhsValues()[0].getDefiningOp());
-
-  if (!thenLhsGet || !elseLhsGet)
-    return ifEqOp.emitError(
-        "LHS of each branch equation must be a direct variable.get");
-
-  if (thenLhsGet.getVariable() != elseLhsGet.getVariable())
+  // --- Assertion 2: both branches must write to the same left-hand side ---
+  if (!areAccessesEquivalent(thenSides.getLhsValues()[0],
+                             elseSides.getLhsValues()[0]))
     return ifEqOp.emitError()
-           << "all branches of if_equation must write to the same variable; "
-           << "then-branch writes to '" << thenLhsGet.getVariable()
-           << "' but else-branch writes to '" << elseLhsGet.getVariable()
-           << "'";
+           << "all branches of an if_equation must write to the same "
+              "left-hand side";
 
   // --- Transformation ---
   mlir::Location loc = ifEqOp.getLoc();
@@ -113,7 +128,6 @@ IfEquationConversionPass::convertIfEquationOp(mlir::IRRewriter &rewriter,
   mlir::Operation *elseRhsSideOp = elseSides.getRhs().getDefiningOp();
   rewriter.eraseOp(elseSides);
   rewriter.eraseOp(elseLhsSideOp);
-  rewriter.eraseOp(elseLhsGet); // no duplicate LHS variable get
   rewriter.eraseOp(elseRhsSideOp);
 
   rewriter.setInsertionPoint(ifEqOp);
@@ -145,6 +159,18 @@ IfEquationConversionPass::convertIfEquationOp(mlir::IRRewriter &rewriter,
   mlir::Value rhsSide =
       rewriter.create<EquationSideOp>(loc, mlir::ValueRange{selectedRhs});
   rewriter.create<EquationSidesOp>(loc, lhsSide, rhsSide);
+
+  bool erasedDeadOp = true;
+  while (erasedDeadOp) {
+    erasedDeadOp = false;
+    for (mlir::Operation &op :
+         llvm::make_early_inc_range(llvm::reverse(*eqBody))) {
+      if (mlir::isOpTriviallyDead(&op)) {
+        rewriter.eraseOp(&op);
+        erasedDeadOp = true;
+      }
+    }
+  }
 
   rewriter.eraseOp(ifEqOp);
   return mlir::success();

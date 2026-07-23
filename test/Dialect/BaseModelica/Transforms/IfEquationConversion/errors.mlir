@@ -7,7 +7,7 @@ bmodelica.model @DifferentLHS {
     bmodelica.variable @y : !bmodelica.variable<!bmodelica.int>
 
     bmodelica.dynamic {
-        // expected-error @below {{all branches of if_equation must write to the same variable; then-branch writes to 'x' but else-branch writes to 'y'}}
+        // expected-error @below {{all branches of an if_equation must write to the same left-hand side}}
         bmodelica.if_equation if {
             %cond = bmodelica.constant #bmodelica<bool true> : !bmodelica.bool
             bmodelica.yield %cond : !bmodelica.bool
@@ -280,7 +280,7 @@ bmodelica.model @NonVariableGetLHSInElse {
     bmodelica.variable @x : !bmodelica.variable<!bmodelica.int>
 
     bmodelica.dynamic {
-        // expected-error @below {{LHS of each branch equation must be a direct variable.get}}
+        // expected-error @below {{all branches of an if_equation must write to the same left-hand side}}
         bmodelica.if_equation if {
             %cond = bmodelica.constant #bmodelica<bool true> : !bmodelica.bool
             bmodelica.yield %cond : !bmodelica.bool
@@ -306,14 +306,14 @@ bmodelica.model @NonVariableGetLHSInElse {
 
 // -----
 
-// COM: An equation whose LHS is not a direct variable.get must be rejected.
+// COM: An equation whose LHS is not a variable.get or der(variable.get) must be rejected.
 // COM: Variant: the non-variable.get is in the then-branch.
 
 bmodelica.model @NonVariableGetLHS {
     bmodelica.variable @x : !bmodelica.variable<!bmodelica.int>
 
     bmodelica.dynamic {
-        // expected-error @below {{LHS of each branch equation must be a direct variable.get}}
+        // expected-error @below {{all branches of an if_equation must write to the same left-hand side}}
         bmodelica.if_equation if {
             %cond = bmodelica.constant #bmodelica<bool true> : !bmodelica.bool
             bmodelica.yield %cond : !bmodelica.bool
