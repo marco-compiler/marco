@@ -156,8 +156,8 @@ const Equation *IfEquation::getElseIfEquation(size_t condition,
 
 void IfEquation::setElseIfEquations(
     size_t condition, llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes) {
-  if (condition > ifEquations.size()) {
-    ifEquations.resize(condition + 1);
+  if (condition + 1 > elseIfEquations.size()) {
+    elseIfEquations.resize(condition + 1);
   }
 
   elseIfEquations[condition].clear();
