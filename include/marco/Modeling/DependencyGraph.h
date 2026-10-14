@@ -89,6 +89,7 @@ public:
     assert(n <= equations.size());
 
     Path result;
+    result.closed = closed;
     auto it = equations.begin();
 
     for (size_t i = 0, e = equations.size() - n; i < e; ++i) {
@@ -99,8 +100,14 @@ public:
     return result;
   }
 
+  /// Whether the last equation of the path depends on the first one.
+  [[nodiscard]] bool isClosed() const { return closed; }
+
+  void setClosed(bool value) { closed = value; }
+
 private:
   Container equations;
+  bool closed{true};
 };
 
 template <typename EquationDescriptor, typename Access>
@@ -366,18 +373,26 @@ public:
       }
 
       llvm::SmallVector<Path, 3> cycles;
+      llvm::SmallVector<Path, 3> openPaths;
       llvm::DenseMap<EquationDescriptor, IndexSet> visitedEquationIndices;
 
       for (const EquationDescriptor &equationDescriptor : scc) {
         getEquationsCycles(cycles, writesMap, cachedWriteAccesses,
                            cachedReadAccesses, visitedEquationIndices,
-                           equationDescriptor);
+                           equationDescriptor, &openPaths);
       }
 
       llvm::SmallVector<Path, 3> partitionedCycles;
 
       for (Path &cycle : cycles) {
         addCycleAndSplit(partitionedCycles, std::move(cycle));
+      }
+
+      // The paths reaching already visited equations are not cycles on their
+      // own, but their edges may connect different cycles. Adding them to the
+      // partitions graph allows to merge such cycles into a unique SCC.
+      for (Path &openPath : openPaths) {
+        addCycleAndSplit(partitionedCycles, std::move(openPath));
       }
 
       assert(checkEquationsPartitioning(partitionedCycles) &&
@@ -415,7 +430,9 @@ public:
           source = std::move(destination);
         }
 
-        partitionsGraph.addEdge(partitionsMap[source], partitionsMap[first]);
+        if (path.isClosed()) {
+          partitionsGraph.addEdge(partitionsMap[source], partitionsMap[first]);
+        }
       }
 
       // Create the cyclic SCCs.
@@ -441,11 +458,20 @@ public:
       }
 
       // Create the SCCs for the remaining indices.
+      llvm::DenseMap<EquationDescriptor, IndexSet> partitionedEquationIndices;
+
+      for (const Path &path : partitionedCycles) {
+        for (const PathDependency &pathDependency : path) {
+          partitionedEquationIndices[pathDependency.equation] +=
+              pathDependency.equationIndices;
+        }
+      }
+
       for (const EquationDescriptor &equation : scc) {
         IndexSet remainingEquationIndices =
             arrayDependencyGraph.getEquation(equation).getIterationRanges();
 
-        remainingEquationIndices -= visitedEquationIndices[equation];
+        remainingEquationIndices -= partitionedEquationIndices[equation];
 
         if (!remainingEquationIndices.empty()) {
           std::lock_guard<std::mutex> lock(resultMutex);
@@ -492,11 +518,17 @@ private:
     return true;
   }
 
+  /// Search for the cycles starting from the given equation.
+  /// If 'openPaths' is provided, it is populated with the paths whose
+  /// traversal has been interrupted because of reaching indices of equations
+  /// already belonging to a cycle. Such paths may lead to cycles spanning
+  /// multiple of the discovered ones.
   void getEquationsCycles(
       llvm::SmallVectorImpl<Path> &cycles, const WritesMap &writesMap,
       CachedAccesses &cachedWriteAccesses, CachedAccesses &cachedReadAccesses,
       llvm::DenseMap<EquationDescriptor, IndexSet> &visitedEquationIndices,
-      EquationDescriptor equation) const {
+      EquationDescriptor equation,
+      llvm::SmallVectorImpl<Path> *openPaths = nullptr) const {
     // The first equation starts with the full range, as it has no
     // predecessors.
     IndexSet equationIndices(
@@ -511,15 +543,15 @@ private:
 
     getEquationsCycles(cycles, writesMap, cachedWriteAccesses,
                        cachedReadAccesses, visitedEquationIndices, equation,
-                       unvisitedEquationIndices, {});
+                       unvisitedEquationIndices, {}, openPaths);
   }
 
   void getEquationsCycles(
       llvm::SmallVectorImpl<Path> &cycles, const WritesMap &writesMap,
       CachedAccesses &cachedWriteAccesses, CachedAccesses &cachedReadAccesses,
       llvm::DenseMap<EquationDescriptor, IndexSet> &visitedEquationIndices,
-      EquationDescriptor equation, const IndexSet &equationIndices,
-      Path path) const {
+      EquationDescriptor equation, const IndexSet &equationIndices, Path path,
+      llvm::SmallVectorImpl<Path> *openPaths) const {
     // Visit all the write accesses. When the indices of the equation get
     // restricted, the written indices may differ and even not overlap anymore.
     // We keep track of the visited indices to avoid going through access
@@ -616,6 +648,28 @@ private:
                     writingEquation, cachedWriteAccesses[writingEquation],
                     variableIndicesIntersection);
 
+                // Append the current equation to the traversal path.
+                PathDependency currentDependency(
+                    equation, equationIndices, currentEquationWriteAccess,
+                    currentEquationWrittenIndices, readAccess,
+                    variableIndicesIntersection);
+
+                // The indices already belonging to a cycle are not visited
+                // again, but the path reaching them may still be part of a
+                // cycle passing through the already discovered ones.
+                if (openPaths) {
+                  IndexSet alreadyVisitedIndices =
+                      writingEquationIndices.intersect(
+                          visitedEquationIndices[writingEquation]);
+
+                  if (!alreadyVisitedIndices.empty()) {
+                    addOpenPaths(*openPaths, path, currentDependency,
+                                 writingEquation,
+                                 cachedWriteAccesses[writingEquation],
+                                 alreadyVisitedIndices);
+                  }
+                }
+
                 // Avoid visiting the same indices multiple times.
                 writingEquationIndices -=
                     visitedEquationIndices[writingEquation];
@@ -624,13 +678,7 @@ private:
                   return;
                 }
 
-                // Append the current equation to the traversal path.
-                Path extendedPath =
-                    path + PathDependency(equation, equationIndices,
-                                          currentEquationWriteAccess,
-                                          currentEquationWrittenIndices,
-                                          readAccess,
-                                          variableIndicesIntersection);
+                Path extendedPath = path + std::move(currentDependency);
 
                 // Visit the path backwards and restrict the equation indices,
                 // if necessary.
@@ -652,10 +700,47 @@ private:
                 getEquationsCycles(cycles, writesMap, cachedWriteAccesses,
                                    cachedReadAccesses, visitedEquationIndices,
                                    writingEquation, writingEquationIndices,
-                                   std::move(extendedPath));
+                                   std::move(extendedPath), openPaths);
               });
         }
       }
+    }
+  }
+
+  /// Create the open paths obtained by appending the given dependency and
+  /// the writing equation (restricted to the given indices) to a path.
+  void addOpenPaths(llvm::SmallVectorImpl<Path> &openPaths, const Path &path,
+                    const PathDependency &dependency,
+                    EquationDescriptor writingEquation,
+                    llvm::ArrayRef<Access> writingEquationWriteAccesses,
+                    const IndexSet &writingEquationIndices) const {
+    for (const Access &writeAccess : writingEquationWriteAccesses) {
+      IndexSet equationIndices = writeAccess.getAccessFunction().inverseMap(
+          dependency.readVariableIndices, writingEquationIndices);
+
+      equationIndices = equationIndices.intersect(writingEquationIndices);
+
+      if (equationIndices.empty()) {
+        continue;
+      }
+
+      IndexSet writtenIndices =
+          writeAccess.getAccessFunction().map(equationIndices);
+
+      Path openPath(path);
+      openPath += dependency;
+      openPath.setClosed(false);
+      
+      openPath.back().readVariableIndices =
+          writtenIndices.intersect(dependency.readVariableIndices);
+
+      // The last equation has no successor, so its read access is never
+      // used to propagate indices. The write access is used as placeholder.
+      openPath += PathDependency(writingEquation, equationIndices, writeAccess,
+                                 writtenIndices, writeAccess, writtenIndices);
+
+      restrictPathIndicesBackward(openPath, openPath.size() - 1);
+      openPaths.push_back(std::move(openPath));
     }
   }
 
