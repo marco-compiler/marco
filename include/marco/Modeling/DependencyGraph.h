@@ -7,6 +7,7 @@
 #include "marco/Modeling/SCC.h"
 #include "mlir/IR/Threading.h"
 #include "llvm/ADT/DenseMapInfo.h"
+#include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/Hashing.h"
 #include "llvm/ADT/SCCIterator.h"
 
@@ -236,6 +237,9 @@ public:
   using CachedAccesses =
       llvm::DenseMap<EquationDescriptor, llvm::SmallVector<Access>>;
 
+  using PathsByEquation =
+      llvm::DenseMap<EquationDescriptor, llvm::SmallVector<size_t, 4>>;
+
 private:
   mlir::MLIRContext *context;
   ArrayDependencyGraph arrayDependencyGraph;
@@ -383,16 +387,21 @@ public:
       }
 
       llvm::SmallVector<Path, 3> partitionedCycles;
+      PathsByEquation partitionedCyclesIndex;
 
       for (Path &cycle : cycles) {
-        addCycleAndSplit(partitionedCycles, std::move(cycle));
+        addCycleAndSplit(partitionedCycles, partitionedCyclesIndex,
+                         std::move(cycle));
       }
 
       // The paths reaching already visited equations are not cycles on their
       // own, but their edges may connect different cycles. Adding them to the
       // partitions graph allows to merge such cycles into a unique SCC.
-      for (Path &openPath : openPaths) {
-        addCycleAndSplit(partitionedCycles, std::move(openPath));
+      // The open paths share most of their edges, as all of them start from
+      // the root of the traversal. Each edge is thus added only once.
+      for (Path &openEdge : getUniqueEdges(openPaths)) {
+        addCycleAndSplit(partitionedCycles, partitionedCyclesIndex,
+                         std::move(openEdge));
       }
 
       assert(checkEquationsPartitioning(partitionedCycles) &&
@@ -882,26 +891,183 @@ private:
     return std::nullopt;
   }
 
+  /// Decompose the given paths into the edges connecting their consecutive
+  /// equations. Each edge is returned as an open path with two elements, and
+  /// duplicate edges are discarded.
+  llvm::SmallVector<Path, 3> getUniqueEdges(llvm::ArrayRef<Path> paths) const {
+    llvm::SmallVector<Path, 3> edges;
+
+    llvm::DenseMap<std::pair<EquationView, EquationView>,
+                   llvm::SmallVector<size_t, 1>>
+        edgesMap;
+
+    auto isSameAccess = [](const Access &first, const Access &second) {
+      return first.getVariable() == second.getVariable() &&
+             first.getAccessFunction() == second.getAccessFunction();
+    };
+
+    for (const Path &path : paths) {
+      for (size_t i = 1, e = path.size(); i < e; ++i) {
+        const PathDependency &source = path[i - 1];
+        const PathDependency &destination = path[i];
+
+        auto &candidates = edgesMap[std::make_pair(
+            EquationView(source.equation, source.equationIndices),
+            EquationView(destination.equation, destination.equationIndices))];
+
+        bool isDuplicate = llvm::any_of(candidates, [&](size_t edgeIndex) {
+          const Path &edge = edges[edgeIndex];
+
+          return isSameAccess(edge[0].readAccess, source.readAccess) &&
+                 isSameAccess(edge[1].writeAccess, destination.writeAccess);
+        });
+
+        if (isDuplicate) {
+          continue;
+        }
+
+        Path edge;
+        edge.setClosed(false);
+        edge += source;
+        edge += destination;
+
+        candidates.push_back(edges.size());
+        edges.push_back(std::move(edge));
+      }
+    }
+
+    return edges;
+  }
+
+  /// Add the positions of a path to the index of the paths containing each
+  /// equation.
+  void indexPath(PathsByEquation &index, const Path &path,
+                 size_t position) const {
+    llvm::SmallVector<EquationDescriptor, 3> equations;
+
+    for (const PathDependency &pathDependency : path) {
+      if (!llvm::is_contained(equations, pathDependency.equation)) {
+        equations.push_back(pathDependency.equation);
+        index[pathDependency.equation].push_back(position);
+      }
+    }
+  }
+
+  /// Check if splitting a path according to the equations of another one
+  /// would lead to a modification.
+  bool needsSplit(const Path &path, const Path &other) const {
+    for (const PathDependency &pathDependency : path) {
+      for (const PathDependency &otherDependency : other) {
+        if (pathDependency.equation == otherDependency.equation &&
+            pathDependency.equationIndices.overlaps(
+                otherDependency.equationIndices) &&
+            !otherDependency.equationIndices.contains(
+                pathDependency.equationIndices)) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
+  /// Add a cycle to the given list, after having split the existing cycles
+  /// and the new one so that each of their equations either exactly match or
+  /// do not overlap.
+  /// The index of the cycles containing each equation is used to restrict the
+  /// splitting to the cycles involving the equations of the new one. The
+  /// order of the cycles is preserved.
   void addCycleAndSplit(llvm::SmallVectorImpl<Path> &cycles,
-                        Path newCycle) const {
-    // Split the existing cycles.
+                        PathsByEquation &index, Path newCycle) const {
+    llvm::SmallVector<EquationDescriptor, 3> newCycleEquations;
+
     for (const PathDependency &pathDependency : newCycle) {
+      if (!llvm::is_contained(newCycleEquations, pathDependency.equation)) {
+        newCycleEquations.push_back(pathDependency.equation);
+      }
+    }
+
+    auto getCandidates = [&]() {
+      llvm::SmallVector<size_t> candidates;
+
+      for (EquationDescriptor equation : newCycleEquations) {
+        if (auto it = index.find(equation); it != index.end()) {
+          llvm::append_range(candidates, it->getSecond());
+        }
+      }
+
+      llvm::sort(candidates);
+      candidates.erase(llvm::unique(candidates), candidates.end());
+      return candidates;
+    };
+
+    // Split the existing cycles.
+    llvm::DenseMap<size_t, llvm::SmallVector<Path, 3>> splitCycles;
+
+    for (size_t candidate : getCandidates()) {
+      if (!needsSplit(cycles[candidate], newCycle)) {
+        continue;
+      }
+
+      llvm::SmallVector<Path, 3> pieces;
+      pieces.push_back(std::move(cycles[candidate]));
+
+      for (const PathDependency &pathDependency : newCycle) {
+        llvm::SmallVector<Path, 3> split;
+
+        for (Path &piece : pieces) {
+          splitCycle(split, std::move(piece), pathDependency.equation,
+                     pathDependency.equationIndices);
+        }
+
+        pieces = std::move(split);
+      }
+
+      splitCycles[candidate] = std::move(pieces);
+    }
+
+    if (!splitCycles.empty()) {
+      // Replace the split cycles with their pieces, keeping the order.
       llvm::SmallVector<Path, 3> newCycles;
 
-      for (Path &existingCycle : cycles) {
-        splitCycle(newCycles, std::move(existingCycle), pathDependency.equation,
-                   pathDependency.equationIndices);
+      for (size_t i = 0, e = cycles.size(); i < e; ++i) {
+        if (auto it = splitCycles.find(i); it != splitCycles.end()) {
+          for (Path &piece : it->getSecond()) {
+            newCycles.push_back(std::move(piece));
+          }
+        } else {
+          newCycles.push_back(std::move(cycles[i]));
+        }
       }
 
       cycles = std::move(newCycles);
+      index.clear();
+
+      for (size_t i = 0, e = cycles.size(); i < e; ++i) {
+        indexPath(index, cycles[i], i);
+      }
     }
 
-    // Split the new cycle.
+    // Split the new cycle. Splitting according to an equation not belonging
+    // to the new cycle, or multiple times according to the same indices of an
+    // equation, has no effect.
     llvm::SmallVector<Path, 3> newCycles;
     newCycles.push_back(std::move(newCycle));
+    llvm::DenseSet<EquationView> splitViews;
 
-    for (const Path &cycle : cycles) {
-      for (const PathDependency &pathDependency : cycle) {
+    for (size_t candidate : getCandidates()) {
+      for (const PathDependency &pathDependency : cycles[candidate]) {
+        if (!llvm::is_contained(newCycleEquations, pathDependency.equation)) {
+          continue;
+        }
+
+        if (!splitViews
+                 .insert(EquationView(pathDependency.equation,
+                                      pathDependency.equationIndices))
+                 .second) {
+          continue;
+        }
+
         llvm::SmallVector<Path, 3> split;
 
         for (Path &currentNewCycle : newCycles) {
@@ -913,7 +1079,10 @@ private:
       }
     }
 
-    llvm::append_range(cycles, std::move(newCycles));
+    for (Path &cycle : newCycles) {
+      indexPath(index, cycle, cycles.size());
+      cycles.push_back(std::move(cycle));
+    }
   }
 
   /// Split a cycle so that its components either exactly match or do not
