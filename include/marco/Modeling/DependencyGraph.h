@@ -727,19 +727,39 @@ private:
       IndexSet writtenIndices =
           writeAccess.getAccessFunction().map(equationIndices);
 
-      Path openPath(path);
-      openPath += dependency;
-      openPath.setClosed(false);
-      
-      openPath.back().readVariableIndices =
+      // Restrict the dependency to the indices reading the ones written by the
+      // writing equation.
+      PathDependency restrictedDependency(dependency);
+
+      restrictedDependency.readVariableIndices =
           writtenIndices.intersect(dependency.readVariableIndices);
+
+      restrictedDependency.equationIndices =
+          dependency.readAccess.getAccessFunction().inverseMap(
+              restrictedDependency.readVariableIndices,
+              dependency.equationIndices);
+
+      if (restrictedDependency.equationIndices.empty()) {
+        continue;
+      }
+
+      restrictedDependency.writtenVariableIndices =
+          dependency.writeAccess.getAccessFunction().map(
+              restrictedDependency.equationIndices);
+
+      // Propagate the restriction to the rest of the path. The backward
+      // restriction must start from the restricted dependency, as it stops at
+      // the first equation whose indices are not modified.
+      Path openPath(path);
+      openPath += std::move(restrictedDependency);
+      openPath.setClosed(false);
+      restrictPathIndicesBackward(openPath, openPath.size() - 1);
 
       // The last equation has no successor, so its read access is never
       // used to propagate indices. The write access is used as placeholder.
       openPath += PathDependency(writingEquation, equationIndices, writeAccess,
                                  writtenIndices, writeAccess, writtenIndices);
 
-      restrictPathIndicesBackward(openPath, openPath.size() - 1);
       openPaths.push_back(std::move(openPath));
     }
   }
