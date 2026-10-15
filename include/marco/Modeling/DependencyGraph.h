@@ -971,6 +971,23 @@ private:
     return false;
   }
 
+  /// Check if splitting the given cycles according to the indices of an
+  /// equation would lead to a modification.
+  bool wouldSplit(llvm::ArrayRef<Path> cycles, EquationDescriptor equation,
+                  const IndexSet &equationIndices) const {
+    for (const Path &cycle : cycles) {
+      for (const PathDependency &pathDependency : cycle) {
+        if (pathDependency.equation == equation &&
+            pathDependency.equationIndices.overlaps(equationIndices) &&
+            !equationIndices.contains(pathDependency.equationIndices)) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
   /// Add a cycle to the given list, after having split the existing cycles
   /// and the new one so that each of their equations either exactly match or
   /// do not overlap.
@@ -1058,6 +1075,12 @@ private:
     for (size_t candidate : getCandidates()) {
       for (const PathDependency &pathDependency : cycles[candidate]) {
         if (!llvm::is_contained(newCycleEquations, pathDependency.equation)) {
+          continue;
+        }
+
+        // Skip the indices that would not lead to a split.
+        if (!wouldSplit(newCycles, pathDependency.equation,
+                        pathDependency.equationIndices)) {
           continue;
         }
 
