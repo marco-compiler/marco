@@ -10,3 +10,21 @@ using namespace ::mlir::ida;
 
 #define GET_TYPEDEF_CLASSES
 #include "marco/Dialect/IDA/IR/Types.cpp.inc"
+
+//===---------------------------------------------------------------------===//
+// VariableType
+//===---------------------------------------------------------------------===//
+
+// IDA variables are identified by 64-bit integers.
+
+llvm::TypeSize
+VariableType::getTypeSizeInBits(const mlir::DataLayout &dataLayout,
+                                mlir::DataLayoutEntryListRef params) const {
+  return llvm::TypeSize::getFixed(64);
+}
+
+uint64_t
+VariableType::getABIAlignment(const mlir::DataLayout &dataLayout,
+                              mlir::DataLayoutEntryListRef params) const {
+  return 8;
+}

@@ -627,8 +627,11 @@ def IDAPass : Pass<"ida", "mlir::ModuleOp">
     }];
 
     let dependentDialects = [
+        "mlir::arith::ArithDialect",
         "mlir::bmodelica::BaseModelicaDialect",
+        "mlir::func::FuncDialect",
         "mlir::ida::IDADialect",
+        "mlir::memref::MemRefDialect",
         "mlir::runtime::RuntimeDialect"
     ];
 
@@ -640,7 +643,13 @@ def IDAPass : Pass<"ida", "mlir::ModuleOp">
         Option<"jacobianOneSweep", "jacobian-one-sweep", "bool", "true",
                "Enable one-sweep computation of derivatives with respect to state and derivative variables">,
         Option<"debugInformation", "debug-information", "bool", "false",
-               "Insert the information for runtime debugging">
+               "Insert the information for runtime debugging">,
+        Option<"variablesPerFunction", "variables-per-function", "int64_t",
+               "512",
+               "Maximum number of variables registered by each of the functions configuring the IDA instance">,
+        Option<"equationsPerFunction", "equations-per-function", "int64_t",
+               "128",
+               "Maximum number of equations registered by each of the functions configuring the IDA instance">
     ];
 
     let constructor = "mlir::bmodelica::createIDAPass()";
