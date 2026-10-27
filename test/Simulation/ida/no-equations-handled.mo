@@ -5,7 +5,7 @@
 // CHECK-EQUIDISTANT: 0.0000,2.0000
 // CHECK-EQUIDISTANT: 1.0000,2.0000
 
-// RUN: marco %s --omc-bypass --model=NoEquationsForIDA --solver=ida -o %basename_t -L %runtime_lib_dir -Wl,-rpath %runtime_lib_dir
+// RUN: marco %s --omc-bypass --model=NoEquationsForIDA --solver=ida -o %basename_t %link_flags -L %runtime_lib_dir -Wl,-rpath %runtime_lib_dir
 // RUN: ./%basename_t --end-time=1 --precision=6 | FileCheck %s --check-prefix="CHECK-NO-EQUIDISTANT"
 
 // CHECK-NO-EQUIDISTANT: "time","x"
