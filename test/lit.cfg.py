@@ -23,7 +23,7 @@ config.suffixes = [
 ]
 
 # Test format to use to interpret tests.
-config.test_format = lit.formats.ShTest(not llvm_config.use_lit_shell)
+config.test_format = lit.formats.ShTest(execute_external=False)
 
 # Root path where tests are located.
 config.test_source_root = os.path.dirname(__file__)
