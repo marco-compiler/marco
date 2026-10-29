@@ -889,6 +889,9 @@ void CodeGenAction::buildMLIRModelCanonicalizationPipeline(
   // Fold accesses operating on views.
   pm.addPass(mlir::bmodelica::createViewAccessFoldingPass());
 
+  // Flatten if_equation ops into plain equations with bmodelica.select.
+  pm.addPass(mlir::bmodelica::createIfEquationConversionPass());
+
   // Lift the equations.
   pm.addPass(mlir::bmodelica::createEquationTemplatesCreationPass());
 
