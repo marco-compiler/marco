@@ -7,6 +7,8 @@
 #include "marco/Dialect/IDA/IR/Dialect.h"
 #include "marco/Dialect/Runtime/IR/Dialect.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include "llvm/ADT/ScopeExit.h"
 #include "llvm/Support/Debug.h"
@@ -25,7 +27,8 @@ public:
               mlir::SymbolTableCollection &symbolTableCollection,
               const DerivativesMap *derivativesMap, bool reducedSystem,
               bool reducedDerivatives, bool jacobianOneSweep,
-              bool debugInformation);
+              bool debugInformation, int64_t variablesPerFunction,
+              int64_t equationsPerFunction);
 
   bool hasVariable(VariableOp variable) const;
 
@@ -66,6 +69,34 @@ private:
   bool hasStateVariable(VariableOp variable) const;
 
   bool hasDerivativeVariable(VariableOp variable) const;
+
+  /// Create a function configuring part of the IDA instance, and add a call
+  /// to it at the end of the configuration block. The insertion point of the
+  /// builder is moved inside the body of the new function.
+  void createConfigurationFunction(mlir::OpBuilder &builder, mlir::Location loc,
+                                   mlir::ModuleOp moduleOp,
+                                   llvm::StringRef name);
+
+  /// Check whether a new configuration function must be created before
+  /// registering a new element, given the amount of elements already
+  /// registered and the maximum amount of elements per function.
+  static bool isNewConfigurationFunctionNeeded(size_t numOfRegisteredElements,
+                                               int64_t elementsPerFunction);
+
+  /// Get the position of the IDA variable within the buffer of variables.
+  size_t getAlgebraicVariablePosition(size_t index) const;
+
+  /// Get the position of the IDA variable within the buffer of variables.
+  size_t getStateVariablePosition(size_t index) const;
+
+  /// Store an IDA variable into the buffer of variables.
+  void storeIDAVariable(mlir::OpBuilder &builder, mlir::Location loc,
+                        mlir::Value idaVariable, size_t position);
+
+  /// Load an IDA variable from the buffer of variables. The loaded value is
+  /// reused within the same configuration function.
+  mlir::Value loadIDAVariable(mlir::OpBuilder &builder, mlir::Location loc,
+                              size_t position);
 
   mlir::LogicalResult addVariablesToIDA(mlir::OpBuilder &builder,
                                         mlir::Location loc,
@@ -170,6 +201,11 @@ private:
   bool jacobianOneSweep;
   bool debugInformation;
 
+  /// Maximum amount of variables and equations registered by each function
+  /// configuring the IDA instance. Non-positive values mean no limit.
+  int64_t variablesPerFunction;
+  int64_t equationsPerFunction;
+
   std::optional<double> startTime;
   std::optional<double> endTime;
 
@@ -188,11 +224,26 @@ private:
   /// variable.
   llvm::SmallVector<VariableOp> derivativeVariables;
 
-  /// The SSA values of the IDA variables representing the algebraic ones.
-  llvm::SmallVector<mlir::Value> idaAlgebraicVariables;
+  /// The block where the calls to the functions configuring the IDA instance
+  /// are inserted.
+  mlir::Block *configurationBlock = nullptr;
 
-  /// The SSA values of the IDA variables representing the state ones.
-  llvm::SmallVector<mlir::Value> idaStateVariables;
+  /// The buffer containing the IDA variables, allocated within the
+  /// configuration block. The IDA variables are stored first the algebraic
+  /// ones and then the state ones, according to their order of registration.
+  mlir::Value variablesBuffer;
+
+  /// The buffer of IDA variables, as seen from within the current
+  /// configuration function.
+  mlir::Value currentVariablesBuffer;
+
+  /// The IDA variables already loaded within the current configuration
+  /// function, indexed by their position within the buffer.
+  llvm::DenseMap<size_t, mlir::Value> loadedIDAVariables;
+
+  /// Counters used to generate unique names for the configuration functions,
+  /// indexed by the kind of function.
+  llvm::StringMap<size_t> configurationFunctionsCounters;
 
   /// Map used for a faster lookup of the algebraic variable position.
   llvm::DenseMap<VariableOp, size_t> algebraicVariablesLookup;
@@ -212,13 +263,17 @@ IDAInstance::IDAInstance(llvm::StringRef identifier,
                          mlir::SymbolTableCollection &symbolTableCollection,
                          const DerivativesMap *derivativesMap,
                          bool reducedSystem, bool reducedDerivatives,
-                         bool jacobianOneSweep, bool debugInformation)
+                         bool jacobianOneSweep, bool debugInformation,
+                         int64_t variablesPerFunction,
+                         int64_t equationsPerFunction)
     : identifier(identifier.str()),
       symbolTableCollection(&symbolTableCollection),
       derivativesMap(derivativesMap), reducedSystem(reducedSystem),
       reducedDerivatives(reducedDerivatives),
       jacobianOneSweep(jacobianOneSweep), debugInformation(debugInformation),
-      startTime(std::nullopt), endTime(std::nullopt) {}
+      variablesPerFunction(variablesPerFunction),
+      equationsPerFunction(equationsPerFunction), startTime(std::nullopt),
+      endTime(std::nullopt) {}
 
 bool IDAInstance::hasVariable(VariableOp variable) const {
   assert(variable != nullptr);
@@ -328,6 +383,26 @@ IDAInstance::configure(mlir::IRRewriter &rewriter, mlir::Location loc,
         rewriter.getF64FloatAttr(*endTime));
   }
 
+  size_t numOfIDAVariables = algebraicVariables.size() + stateVariables.size();
+
+  if (numOfIDAVariables == 0) {
+    // Nothing to be registered.
+    return mlir::success();
+  }
+
+  // The variables and equations are registered by multiple functions, in
+  // order to avoid generating a single huge function. The handles of the IDA
+  // variables are shared among such functions by means of a buffer.
+  mlir::OpBuilder::InsertionGuard guard(rewriter);
+  configurationBlock = rewriter.getInsertionBlock();
+
+  auto variablesBufferType = mlir::MemRefType::get(
+      static_cast<int64_t>(numOfIDAVariables),
+      mlir::ida::VariableType::get(rewriter.getContext()));
+
+  variablesBuffer =
+      rewriter.create<mlir::memref::AllocOp>(loc, variablesBufferType);
+
   // Add the variables to IDA.
   if (mlir::failed(
           addVariablesToIDA(rewriter, loc, moduleOp, modelOp, variableOps))) {
@@ -342,6 +417,87 @@ IDAInstance::configure(mlir::IRRewriter &rewriter, mlir::Location loc,
   }
 
   return mlir::success();
+}
+
+void IDAInstance::createConfigurationFunction(mlir::OpBuilder &builder,
+                                              mlir::Location loc,
+                                              mlir::ModuleOp moduleOp,
+                                              llvm::StringRef name) {
+  assert(configurationBlock && "Configuration block not set");
+  assert(variablesBuffer && "Variables buffer not allocated");
+
+  builder.setInsertionPointToEnd(moduleOp.getBody());
+
+  auto functionOp = builder.create<mlir::func::FuncOp>(
+      loc,
+      getIDAFunctionName(
+          name.str() + "_" +
+          std::to_string(configurationFunctionsCounters[name]++)),
+      builder.getFunctionType(variablesBuffer.getType(), {}));
+
+  functionOp.setPrivate();
+  symbolTableCollection->getSymbolTable(moduleOp).insert(functionOp);
+
+  mlir::Block *entryBlock = functionOp.addEntryBlock();
+  builder.setInsertionPointToStart(entryBlock);
+  auto returnOp = builder.create<mlir::func::ReturnOp>(loc);
+
+  // Call the function from the configuration block.
+  builder.setInsertionPointToEnd(configurationBlock);
+  builder.create<mlir::func::CallOp>(loc, functionOp, variablesBuffer);
+
+  // Move the insertion point inside the new function.
+  builder.setInsertionPoint(returnOp);
+  currentVariablesBuffer = entryBlock->getArgument(0);
+  loadedIDAVariables.clear();
+}
+
+bool IDAInstance::isNewConfigurationFunctionNeeded(
+    size_t numOfRegisteredElements, int64_t elementsPerFunction) {
+  if (elementsPerFunction <= 0) {
+    return numOfRegisteredElements == 0;
+  }
+
+  return numOfRegisteredElements % static_cast<size_t>(elementsPerFunction) ==
+         0;
+}
+
+size_t IDAInstance::getAlgebraicVariablePosition(size_t index) const {
+  assert(index < algebraicVariables.size());
+  return index;
+}
+
+size_t IDAInstance::getStateVariablePosition(size_t index) const {
+  assert(index < stateVariables.size());
+  return algebraicVariables.size() + index;
+}
+
+void IDAInstance::storeIDAVariable(mlir::OpBuilder &builder, mlir::Location loc,
+                                   mlir::Value idaVariable, size_t position) {
+  mlir::Value index = builder.create<mlir::arith::ConstantIndexOp>(
+      loc, static_cast<int64_t>(position));
+
+  builder.create<mlir::memref::StoreOp>(loc, idaVariable,
+                                        currentVariablesBuffer, index);
+
+  loadedIDAVariables[position] = idaVariable;
+}
+
+mlir::Value IDAInstance::loadIDAVariable(mlir::OpBuilder &builder,
+                                         mlir::Location loc, size_t position) {
+  if (auto it = loadedIDAVariables.find(position);
+      it != loadedIDAVariables.end()) {
+    return it->getSecond();
+  }
+
+  mlir::Value index = builder.create<mlir::arith::ConstantIndexOp>(
+      loc, static_cast<int64_t>(position));
+
+  mlir::Value idaVariable =
+      builder.create<mlir::memref::LoadOp>(loc, currentVariablesBuffer, index);
+
+  loadedIDAVariables[position] = idaVariable;
+  return idaVariable;
 }
 
 mlir::LogicalResult
@@ -387,8 +543,18 @@ IDAInstance::addVariablesToIDA(mlir::OpBuilder &builder, mlir::Location loc,
     return createSetterFunction(builder, loc, moduleOp, variableOp, setterName);
   };
 
+  size_t numOfRegisteredVariables = 0;
+
+  auto createConfigurationFunctionIfNeeded = [&]() {
+    if (isNewConfigurationFunctionNeeded(numOfRegisteredVariables++,
+                                         variablesPerFunction)) {
+      createConfigurationFunction(builder, loc, moduleOp, "add_variables");
+    }
+  };
+
   // Algebraic variables.
-  for (VariableOp variableOp : algebraicVariables) {
+  for (const auto &[index, variableOp] : llvm::enumerate(algebraicVariables)) {
+    createConfigurationFunctionIfNeeded();
     auto arrayType = variableOp.getType().toArrayType();
 
     std::vector<int64_t> dimensions = getDimensionsFn(arrayType);
@@ -403,11 +569,13 @@ IDAInstance::addVariablesToIDA(mlir::OpBuilder &builder, mlir::Location loc,
       addVariableOp.setNameAttr(variableOp.getSymNameAttr());
     }
 
-    idaAlgebraicVariables.push_back(addVariableOp);
+    storeIDAVariable(builder, loc, addVariableOp,
+                     getAlgebraicVariablePosition(index));
   }
 
   // State variables.
-  for (VariableOp variableOp : stateVariables) {
+  for (const auto &[index, variableOp] : llvm::enumerate(stateVariables)) {
+    createConfigurationFunctionIfNeeded();
     auto arrayType = variableOp.getType().toArrayType();
 
     std::optional<mlir::SymbolRefAttr> derivativeName =
@@ -438,7 +606,8 @@ IDAInstance::addVariablesToIDA(mlir::OpBuilder &builder, mlir::Location loc,
       addVariableOp.setNameAttr(variableOp.getSymNameAttr());
     }
 
-    idaStateVariables.push_back(addVariableOp);
+    storeIDAVariable(builder, loc, addVariableOp,
+                     getStateVariablePosition(index));
   }
 
   return mlir::success();
@@ -737,22 +906,9 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
   size_t residualFunctionsCounter = 0;
   size_t jacobianFunctionsCounter = 0;
 
-  llvm::DenseMap<VariableOp, mlir::Value> variablesMapping;
-
-  for (const auto &[variable, idaVariable] :
-       llvm::zip(algebraicVariables, idaAlgebraicVariables)) {
-    variablesMapping[variable] = idaVariable;
-  }
-
-  for (const auto &[variable, idaVariable] :
-       llvm::zip(stateVariables, idaStateVariables)) {
-    variablesMapping[variable] = idaVariable;
-  }
-
-  for (const auto &[variable, idaVariable] :
-       llvm::zip(derivativeVariables, idaStateVariables)) {
-    variablesMapping[variable] = idaVariable;
-  }
+  // Counter used to distribute the equations among the configuration
+  // functions.
+  size_t numOfRegisteredEquations = 0;
 
   PartialDerivativeTemplatesCollection pderTemplates;
 
@@ -834,6 +990,13 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
         return mlir::failure();
       }
 
+      // All the operations related to an equation are created within the
+      // same configuration function.
+      if (isNewConfigurationFunctionNeeded(numOfRegisteredEquations++,
+                                           equationsPerFunction)) {
+        createConfigurationFunction(rewriter, loc, moduleOp, "add_equations");
+      }
+
       auto idaEquation = rewriter.create<mlir::ida::AddEquationOp>(
           equationOp.getLoc(), identifier,
           mlir::ida::MultidimensionalRangeAttr::get(rewriter.getContext(),
@@ -875,10 +1038,8 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
       // variables. Those are already handled when encountering the state
       // variable through the 'alpha' parameter set into the derivative seed.
 
-      assert(algebraicVariables.size() == idaAlgebraicVariables.size());
-
-      for (auto [variable, idaVariable] :
-           llvm::zip(algebraicVariables, idaAlgebraicVariables)) {
+      for (const auto &[index, variable] :
+           llvm::enumerate(algebraicVariables)) {
         if (reducedDerivatives && !accessedVariables.contains(variable)) {
           // The partial derivative is always zero.
           continue;
@@ -896,15 +1057,15 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
           return mlir::failure();
         }
 
+        mlir::Value idaVariable =
+            loadIDAVariable(rewriter, loc, getAlgebraicVariablePosition(index));
+
         rewriter.create<mlir::ida::AddJacobianOp>(
             loc, identifier, idaEquation, idaVariable, jacobianFunctionName,
             rewriter.getI64ArrayAttr(seedSizes));
       }
 
-      assert(stateVariables.size() == idaStateVariables.size());
-
-      for (auto [variable, idaVariable] :
-           llvm::zip(stateVariables, idaStateVariables)) {
+      for (const auto &[index, variable] : llvm::enumerate(stateVariables)) {
         if (reducedDerivatives && !accessedVariables.contains(variable)) {
           auto derivative = getDerivative(
               mlir::SymbolRefAttr::get(variable.getSymNameAttr()));
@@ -936,6 +1097,9 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
           return mlir::failure();
         }
 
+        mlir::Value idaVariable =
+            loadIDAVariable(rewriter, loc, getStateVariablePosition(index));
+
         rewriter.create<mlir::ida::AddJacobianOp>(
             loc, identifier, idaEquation, idaVariable, jacobianFunctionName,
             rewriter.getI64ArrayAttr(seedSizes));
@@ -961,25 +1125,27 @@ mlir::LogicalResult IDAInstance::addVariableAccessesInfoToIDA(
   auto moduleOp = modelOp->getParentOfType<mlir::ModuleOp>();
   assert(mlir::isa<mlir::ida::EquationType>(idaEquation.getType()));
 
-  auto getIDAVariable = [&](VariableOp variableOp) -> mlir::Value {
+  // Get the position of the IDA variable within the buffer of variables.
+  auto getIDAVariablePosition = [&](VariableOp variableOp) -> size_t {
     if (auto stateVariable = getDerivedVariable(
             mlir::SymbolRefAttr::get(variableOp.getSymNameAttr()))) {
       auto stateVariableOp = symbolTableCollection->lookupSymbolIn<VariableOp>(
           modelOp, *stateVariable);
 
-      return idaStateVariables[stateVariablesLookup[stateVariableOp]];
+      return getStateVariablePosition(stateVariablesLookup[stateVariableOp]);
     }
 
     if (getDerivative(mlir::SymbolRefAttr::get(variableOp.getSymNameAttr()))) {
-      return idaStateVariables[stateVariablesLookup[variableOp]];
+      return getStateVariablePosition(stateVariablesLookup[variableOp]);
     }
 
-    return idaAlgebraicVariables[algebraicVariablesLookup[variableOp]];
+    return getAlgebraicVariablePosition(algebraicVariablesLookup[variableOp]);
   };
 
   // Keep track of the discovered accesses in order to avoid adding the same
-  // access map multiple times for the same variable.
-  llvm::DenseMap<mlir::Value, llvm::DenseSet<mlir::AffineMap>> maps;
+  // access map multiple times for the same variable. The order of discovery
+  // is preserved, so that the generated code is deterministic.
+  llvm::MapVector<size_t, llvm::SetVector<mlir::AffineMap>> maps;
 
   llvm::SmallVector<VariableAccess> accesses;
 
@@ -1001,9 +1167,10 @@ mlir::LogicalResult IDAInstance::addVariableAccessesInfoToIDA(
       continue;
     }
 
-    mlir::Value idaVariable = getIDAVariable(variableOp);
-    assert(idaVariable != nullptr);
-    LLVM_DEBUG(llvm::dbgs() << "    IDA variable: " << idaVariable << "\n");
+    size_t idaVariablePosition = getIDAVariablePosition(variableOp);
+
+    LLVM_DEBUG(llvm::dbgs()
+               << "    IDA variable position: " << idaVariablePosition << "\n");
 
     const AccessFunction &accessFunction = access.getAccessFunction();
 
@@ -1013,7 +1180,7 @@ mlir::LogicalResult IDAInstance::addVariableAccessesInfoToIDA(
                      << "\n";
       });
 
-      maps[idaVariable].insert(accessFunction.getAffineMap());
+      maps[idaVariablePosition].insert(accessFunction.getAffineMap());
     } else {
       IndexSet accessedIndices =
           accessFunction.map(equationOp.getIterationSpace());
@@ -1032,16 +1199,14 @@ mlir::LogicalResult IDAInstance::addVariableAccessesInfoToIDA(
         LLVM_DEBUG(
             { llvm::dbgs() << "    Access function: " << affineMap << "\n"; });
 
-        maps[idaVariable].insert(affineMap);
+        maps[idaVariablePosition].insert(affineMap);
       }
     }
   }
 
   // Inform IDA about the discovered accesses.
-  for (const auto &entry : maps) {
-    mlir::Value idaVariable = entry.getFirst();
-
-    for (mlir::AffineMap map : entry.getSecond()) {
+  for (const auto &[idaVariablePosition, accessMaps] : maps) {
+    for (mlir::AffineMap map : accessMaps) {
       auto accessFunctionOp = getOrCreateAccessFunction(
           builder, loc, moduleOp, map, getIDAFunctionName("access"),
           accessFunctionsMap, accessFunctionsCounter);
@@ -1049,6 +1214,9 @@ mlir::LogicalResult IDAInstance::addVariableAccessesInfoToIDA(
       if (!accessFunctionOp) {
         return mlir::failure();
       }
+
+      mlir::Value idaVariable =
+          loadIDAVariable(builder, loc, idaVariablePosition);
 
       builder.create<mlir::ida::AddVariableAccessOp>(
           loc, identifier, idaEquation, idaVariable,
@@ -1951,7 +2119,8 @@ IDAPass::solveMainModel(mlir::IRRewriter &rewriter,
 
   auto idaInstance = std::make_unique<IDAInstance>(
       "ida_main", symbolTableCollection, &derivativesMap, reducedSystem,
-      reducedDerivatives, jacobianOneSweep, debugInformation);
+      reducedDerivatives, jacobianOneSweep, debugInformation,
+      variablesPerFunction, equationsPerFunction);
 
   // The SCCs that are handled by IDA.
   llvm::DenseSet<SCCOp> externalSCCs;

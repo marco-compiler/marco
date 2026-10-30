@@ -1,7 +1,9 @@
 #ifndef MARCO_DIALECT_IDA_IR_TYPES_H
 #define MARCO_DIALECT_IDA_IR_TYPES_H
 
+#include "mlir/IR/BuiltinTypeInterfaces.h"
 #include "mlir/IR/Types.h"
+#include "mlir/Interfaces/DataLayoutInterfaces.h"
 
 #define GET_TYPEDEF_CLASSES
 #include "marco/Dialect/IDA/IR/Types.h.inc"
