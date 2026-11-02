@@ -28,6 +28,7 @@ add_mlir_dialect_library(MLIRBaseModelicaTransforms
     EquationInductionsExplicitation.cpp
     EquationSidesSplit.cpp
     EquationTemplatesCreation.cpp
+    IfEquationConversion.cpp
     EulerForward.cpp
     ExplicitCastInsertion.cpp
     ExplicitInitialEquationsInsertion.cpp
