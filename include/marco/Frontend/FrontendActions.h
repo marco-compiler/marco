@@ -83,6 +83,7 @@ public:
 enum class CodeGenActionKind {
   GenerateMLIR,
   GenerateMLIRModelica,
+  GenerateMLIRBaseModelica,
   GenerateMLIRLLVM,
   GenerateLLVMIR
 };
@@ -135,9 +136,25 @@ protected:
   /// according to the source file type.
   bool generateMLIR();
 
-  /// Parse MLIR from the source file if in MLIR format (or generate it)
-  /// and obtain the Modelica dialect.
+  /// Parse MLIR from the source file if in MLIR format, or obtain the flat
+  /// model in the Modelica dialect by means of the native frontend.
   bool generateMLIRModelica();
+
+  /// Parse MLIR from the source file if in MLIR format (or generate it)
+  /// and obtain the Base Modelica dialect.
+  bool generateMLIRBaseModelica();
+
+  /// Get whether the Modelica source files are to be processed by the
+  /// native frontend.
+  bool isNativeFrontendInput();
+
+  /// Parse the Modelica source files, and obtain the flat model in the
+  /// Modelica dialect by means of the native frontend.
+  bool generateFlatModel();
+
+  /// Set the target triple and the data layout inside the MLIR module, and
+  /// verify it.
+  bool finalizeMLIRModule();
 
   /// Parse MLIR from the source file if in MLIR format (or generate it)
   /// and obtain the LLVM dialect.
@@ -253,6 +270,13 @@ public:
 class EmitMLIRModelicaAction : public CodeGenAction {
 public:
   EmitMLIRModelicaAction();
+
+  void executeAction() override;
+};
+
+class EmitMLIRBaseModelicaAction : public CodeGenAction {
+public:
+  EmitMLIRBaseModelicaAction();
 
   void executeAction() override;
 };

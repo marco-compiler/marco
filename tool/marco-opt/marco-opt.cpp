@@ -5,6 +5,7 @@
 #include "marco/Dialect/BaseModelica/Transforms/Passes.h"
 #include "marco/Dialect/IDA/IR/Dialect.h"
 #include "marco/Dialect/KINSOL/IR/Dialect.h"
+#include "marco/Dialect/Modelica/IR/Dialect.h"
 #include "marco/Dialect/Modelica/Transforms/Passes.h"
 #include "marco/Dialect/Runtime/IR/Dialect.h"
 #include "marco/Dialect/Runtime/Transforms/AllInterfaces.h"
@@ -27,6 +28,7 @@ int main(int argc, char *argv[]) {
   registry.insert<mlir::ida::IDADialect>();
   registry.insert<mlir::kinsol::KINSOLDialect>();
   registry.insert<mlir::bmodelica::BaseModelicaDialect>();
+  registry.insert<mlir::modelica::ModelicaDialect>();
   registry.insert<mlir::modeling::ModelingDialect>();
   registry.insert<mlir::runtime::RuntimeDialect>();
   registry.insert<mlir::sundials::SUNDIALSDialect>();

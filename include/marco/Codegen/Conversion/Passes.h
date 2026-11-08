@@ -16,6 +16,7 @@
 #include "marco/Codegen/Conversion/IDAToLLVM/IDAToLLVM.h"
 #include "marco/Codegen/Conversion/KINSOLToFunc/KINSOLToFunc.h"
 #include "marco/Codegen/Conversion/KINSOLToLLVM/KINSOLToLLVM.h"
+#include "marco/Codegen/Conversion/ModelicaToBaseModelica/ModelicaToBaseModelica.h"
 #include "marco/Codegen/Conversion/RuntimeModelMetadataConversion/RuntimeModelMetadataConversion.h"
 #include "marco/Codegen/Conversion/RuntimeToFunc/RuntimeToFunc.h"
 #include "marco/Codegen/Conversion/RuntimeToLLVM/RuntimeToLLVM.h"

@@ -26,6 +26,9 @@ createFrontendBaseAction(CompilerInstance &ci) {
   case EmitMLIRModelica:
     return std::make_unique<EmitMLIRModelicaAction>();
 
+  case EmitMLIRBaseModelica:
+    return std::make_unique<EmitMLIRBaseModelicaAction>();
+
   case EmitMLIRLLVM:
     return std::make_unique<EmitMLIRLLVMAction>();
 

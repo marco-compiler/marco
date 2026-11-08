@@ -12,12 +12,14 @@ def Modelica_Dialect : Dialect {
     let summary = "MLIR Modelica dialect.";
 
     let description = [{
-        MLIR Modelica dialect.
+        The dialect represents Modelica models as described by the Modelica
+        Language Specification, before instantiation and flattening.
     }];
 
     let cppNamespace = "::mlir::modelica";
-    let useDefaultAttributePrinterParser = 0;
-    let useDefaultTypePrinterParser = 0;
+    let hasConstantMaterializer = 1;
+    let useDefaultAttributePrinterParser = 1;
+    let useDefaultTypePrinterParser = 1;
 
     let extraClassDeclaration = [{
         void registerTypes();

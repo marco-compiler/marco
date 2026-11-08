@@ -54,3 +54,5 @@ marco_add_library(Lowering
     marco::variableFilter
     marco::Lexer
     ${MLIR_LIBS})
+
+add_subdirectory(Modelica)

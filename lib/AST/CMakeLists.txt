@@ -11,3 +11,4 @@ marco_add_library(AST
     Support)
 
 add_subdirectory(BaseModelica)
+add_subdirectory(Modelica)

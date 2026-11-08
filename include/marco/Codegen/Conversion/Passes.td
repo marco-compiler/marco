@@ -111,6 +111,36 @@ def KINSOLToLLVMConversionPass
 }
 
 //===---------------------------------------------------------------------===//
+// Modelica to Base Modelica
+//===---------------------------------------------------------------------===//
+
+def ModelicaToBaseModelicaConversionPass
+    : Pass<"convert-modelica-to-bmodelica", "mlir::ModuleOp">
+{
+    let summary = "Modelica: conversion of flat models to Base Modelica";
+
+    let description = [{
+        Convert the flat models and the functions of the Modelica dialect,
+        as obtained by the `modelica-flatten` pass, into the corresponding
+        operations of the Base Modelica dialect.
+
+        The 1-based indices of Modelica become 0-based indices, the
+        for-equations iterate over constant ranges, and the if-expressions
+        become selections. The if-equations whose condition can be evaluated
+        at compile time are replaced by the selected branch, while the other
+        ones are converted into equations selecting the sides of the
+        equations of the branches. The constructs that Base Modelica can't
+        represent, such as when-equations, are reported as errors.
+    }];
+
+    let dependentDialects = [
+        "mlir::bmodelica::BaseModelicaDialect"
+    ];
+
+    let constructor = "mlir::createModelicaToBaseModelicaConversionPass()";
+}
+
+//===---------------------------------------------------------------------===//
 // Base Modelica to Arith
 //===---------------------------------------------------------------------===//
 

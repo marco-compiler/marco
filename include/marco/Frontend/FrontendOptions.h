@@ -20,8 +20,11 @@ enum ActionKind {
   // Emit a .mlir file.
   EmitMLIR,
 
-  // Emit a .mo.mlir file.
+  // Emit a .mo.mlir file, containing the flat model in the Modelica dialect.
   EmitMLIRModelica,
+
+  // Emit a .bmo.mlir file, containing the model in the Base Modelica dialect.
+  EmitMLIRBaseModelica,
 
   // Emit a .llvm.mlir file.
   EmitMLIRLLVM,
@@ -39,6 +42,15 @@ enum ActionKind {
   EmitObject
 };
 
+/// The frontend used to flatten the Modelica models.
+enum class ModelicaFrontend {
+  // OpenModelica, producing Base Modelica code.
+  OMC,
+
+  // MARCO's own frontend, based on the Modelica dialect.
+  Native
+};
+
 struct FrontendOptions {
   bool showHelp = false;
 
@@ -52,6 +64,8 @@ struct FrontendOptions {
 
   /// The frontend action to perform.
   frontend::ActionKind programAction = InvalidAction;
+
+  ModelicaFrontend modelicaFrontend = ModelicaFrontend::OMC;
 
   // OMC options
   bool omcBypass = false;

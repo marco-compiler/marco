@@ -406,6 +406,10 @@ static void parseFrontendArgs(marco::frontend::FrontendOptions &options,
       options.programAction = EmitMLIRModelica;
       break;
 
+    case options::OPT_emit_mlir_bmodelica:
+      options.programAction = EmitMLIRBaseModelica;
+      break;
+
     case options::OPT_emit_mlir_llvm:
       options.programAction = EmitMLIRLLVM;
       break;
@@ -489,6 +493,20 @@ static void parseFrontendArgs(marco::frontend::FrontendOptions &options,
   }
 
   options.omcBypass = args.hasArg(options::OPT_omc_bypass);
+
+  if (const llvm::opt::Arg *arg =
+          args.getLastArg(options::OPT_modelica_frontend)) {
+    llvm::StringRef value = arg->getValue();
+
+    if (value == "omc") {
+      options.modelicaFrontend = ModelicaFrontend::OMC;
+    } else if (value == "native") {
+      options.modelicaFrontend = ModelicaFrontend::Native;
+    } else {
+      diagnostics.Report(clang::diag::err_drv_invalid_value)
+          << arg->getAsString(args) << value;
+    }
+  }
 
   if (const llvm::opt::Arg *arg =
           args.getLastArg(options::OPT_variable_filter)) {
