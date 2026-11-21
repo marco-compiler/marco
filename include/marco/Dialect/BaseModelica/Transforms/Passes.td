@@ -92,6 +92,25 @@ def EquationSidesSplitPass : Pass<"split-equation-sides", "mlir::ModuleOp">
     let constructor = "mlir::bmodelica::createEquationSidesSplitPass()";
 }
 
+def IfEquationConversionPass
+    : Pass<"convert-if-equations", "mlir::ModuleOp">
+{
+    let summary = "Convert if-equation ops into plain equations with select.";
+
+    let description = [{
+        Validates that each if_equation has exactly one equation per branch and
+        that all branches write to the same LHS variable, then flattens it into
+        a single equation whose RHS uses a bmodelica.select to choose between
+        the branch values.
+    }];
+
+    let dependentDialects = [
+        "mlir::bmodelica::BaseModelicaDialect",
+    ];
+
+    let constructor = "mlir::bmodelica::createIfEquationConversionPass()";
+}
+
 def EquationTemplatesCreationPass
     : Pass<"create-equation-templates", "mlir::ModuleOp">
 {
