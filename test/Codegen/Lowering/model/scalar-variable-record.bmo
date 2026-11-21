@@ -1,0 +1,18 @@
+// RUN: marco -mc1 %s -emit-mlir-bmodelica -o - | FileCheck %s
+
+// CHECK:       bmodelica.model @M {
+// CHECK-NEXT:      bmodelica.variable @r : !bmodelica.variable<!bmodelica<record @Test::@R>>
+// CHECK-NEXT:  }
+
+// A single top-level package encloses the classes, as in the Base Modelica
+// format, and is removed.
+package Outer
+    package Test
+        record R
+        end R;
+
+        model M
+            R r;
+        end M;
+    end Test;
+end Outer;

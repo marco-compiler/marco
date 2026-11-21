@@ -14,17 +14,14 @@ createFrontendBaseAction(CompilerInstance &ci) {
   case InitOnly:
     return std::make_unique<InitOnlyAction>();
 
-  case EmitBaseModelica:
-    return std::make_unique<EmitBaseModelicaAction>();
-
   case EmitAST:
     return std::make_unique<EmitASTAction>();
 
-  case EmitMLIR:
-    return std::make_unique<EmitMLIRAction>();
-
   case EmitMLIRModelica:
     return std::make_unique<EmitMLIRModelicaAction>();
+
+  case EmitMLIRBaseModelica:
+    return std::make_unique<EmitMLIRBaseModelicaAction>();
 
   case EmitMLIRLLVM:
     return std::make_unique<EmitMLIRLLVMAction>();

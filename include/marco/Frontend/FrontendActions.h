@@ -33,29 +33,12 @@ private:
 };
 
 //===---------------------------------------------------------------------===//
-// Preprocessing actions
-//===---------------------------------------------------------------------===//
-
-class PreprocessingAction : public FrontendAction {
-public:
-  bool beginSourceFilesAction() override;
-
-protected:
-  std::string flattened;
-};
-
-class EmitBaseModelicaAction : public PreprocessingAction {
-public:
-  void executeAction() override;
-};
-
-//===---------------------------------------------------------------------===//
 // AST actions
 //===---------------------------------------------------------------------===//
 
 enum class ASTActionKind { Parse };
 
-class ASTAction : public PreprocessingAction {
+class ASTAction : public FrontendAction {
 protected:
   explicit ASTAction(ASTActionKind action);
 
@@ -81,8 +64,8 @@ public:
 //===---------------------------------------------------------------------===//
 
 enum class CodeGenActionKind {
-  GenerateMLIR,
   GenerateMLIRModelica,
+  GenerateMLIRBaseModelica,
   GenerateMLIRLLVM,
   GenerateLLVMIR
 };
@@ -132,12 +115,21 @@ protected:
   llvm::LLVMContext &getLLVMContext();
 
   /// Parse MLIR from the source file if in MLIR format, or generate it
-  /// according to the source file type.
+  /// according to the source file type. Modelica classes are lowered to the
+  /// Modelica dialect, without flattening the model.
   bool generateMLIR();
 
   /// Parse MLIR from the source file if in MLIR format (or generate it)
-  /// and obtain the Modelica dialect.
-  bool generateMLIRModelica();
+  /// and obtain the Base Modelica dialect.
+  bool generateMLIRBaseModelica();
+
+  /// Parse the Modelica source files, and lower their classes to the
+  /// Modelica dialect.
+  bool generateModelicaClasses();
+
+  /// Set the target triple and the data layout inside the MLIR module, and
+  /// verify it.
+  bool finalizeMLIRModule();
 
   /// Parse MLIR from the source file if in MLIR format (or generate it)
   /// and obtain the LLVM dialect.
@@ -155,6 +147,13 @@ protected:
   /// @name Pipelines.
   /// {
 
+  /// Set up the pass manager according to the frontend options.
+  void configureMLIRPassManager(mlir::PassManager &pm);
+
+  /// Build the pipeline used to flatten the model, starting from the classes
+  /// in the Modelica dialect.
+  void buildMLIRFlatteningPipeline(mlir::PassManager &pm);
+
   /// Build the pipeline used to bring the model into a canonical form.
   void buildMLIRModelCanonicalizationPipeline(mlir::PassManager &pm);
 
@@ -168,10 +167,11 @@ protected:
   /// @name Modelica passes.
   /// {
 
+  std::unique_ptr<mlir::Pass> createMLIRInstantiationPass();
+
   std::unique_ptr<mlir::Pass> createMLIRMatchingPass();
 
   std::unique_ptr<mlir::Pass> createMLIRFunctionScalarizationPass();
-  std::unique_ptr<mlir::Pass> createMLIRReadOnlyVariablesPropagationPass();
 
   std::unique_ptr<mlir::Pass> createMLIRRungeKuttaPass(llvm::StringRef variant);
   std::unique_ptr<mlir::Pass> createMLIREulerForwardPass();
@@ -243,16 +243,16 @@ protected:
   std::unique_ptr<llvm::Module> llvmModule;
 };
 
-class EmitMLIRAction : public CodeGenAction {
+class EmitMLIRModelicaAction : public CodeGenAction {
 public:
-  EmitMLIRAction();
+  EmitMLIRModelicaAction();
 
   void executeAction() override;
 };
 
-class EmitMLIRModelicaAction : public CodeGenAction {
+class EmitMLIRBaseModelicaAction : public CodeGenAction {
 public:
-  EmitMLIRModelicaAction();
+  EmitMLIRBaseModelicaAction();
 
   void executeAction() override;
 };

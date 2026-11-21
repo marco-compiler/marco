@@ -361,7 +361,7 @@ void DenseBooleanElementsAttr::print(mlir::AsmPrinter &printer) const {
     printer << (value.value() ? "true" : "false");
   }
 
-  printer << "]> : " << getType();
+  printer << "]>";
 }
 
 //===----------------------------------------------------------------------===//
@@ -418,7 +418,7 @@ void DenseIntegerElementsAttr::print(mlir::AsmPrinter &printer) const {
     printer << value.value();
   }
 
-  printer << "]> : " << getType();
+  printer << "]>";
 }
 
 //===----------------------------------------------------------------------===//
@@ -475,7 +475,7 @@ void DenseRealElementsAttr::print(mlir::AsmPrinter &printer) const {
     printer << value.value();
   }
 
-  printer << "]> : " << getType();
+  printer << "]>";
 }
 
 //===----------------------------------------------------------------------===//

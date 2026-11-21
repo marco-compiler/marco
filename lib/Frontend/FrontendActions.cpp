@@ -1,12 +1,15 @@
 #include "marco/Frontend/FrontendActions.h"
 #include "marco/Codegen/Conversion/Passes.h"
 #include "marco/Codegen/Lowering/BaseModelica/Bridge.h"
+#include "marco/Codegen/Lowering/Modelica/Lowerer.h"
 #include "marco/Dialect/BaseModelica/IR/Dialect.h"
 #include "marco/Dialect/BaseModelica/Transforms/AllInterfaces.h"
 #include "marco/Dialect/BaseModelica/Transforms/DerivativesMaterialization.h"
 #include "marco/Dialect/BaseModelica/Transforms/Passes.h"
 #include "marco/Dialect/IDA/IR/Dialect.h"
 #include "marco/Dialect/KINSOL/IR/Dialect.h"
+#include "marco/Dialect/Modelica/IR/Dialect.h"
+#include "marco/Dialect/Modelica/Transforms/Passes.h"
 #include "marco/Dialect/Modeling/IR/Dialect.h"
 #include "marco/Dialect/Runtime/IR/Dialect.h"
 #include "marco/Dialect/Runtime/Transforms/AllInterfaces.h"
@@ -14,8 +17,8 @@
 #include "marco/Frontend/CompilerInstance.h"
 #include "marco/Frontend/Instrumentation/VerificationModelEmitter.h"
 #include "marco/Frontend/Passes.h"
-#include "marco/IO/Command.h"
 #include "marco/Parser/BaseModelica/Parser.h"
+#include "marco/Parser/Modelica/Parser.h"
 #include "mlir/Conversion/Passes.h"
 #include "mlir/Dialect/Affine/Passes.h"
 #include "mlir/Dialect/Bufferization/Pipelines/Passes.h"
@@ -84,179 +87,9 @@ mapOptimizationLevelToCodeGenLevel(llvm::OptimizationLevel level, bool debug) {
 }
 
 namespace marco::frontend {
-bool PreprocessingAction::beginSourceFilesAction() {
-  CompilerInstance &ci = getInstance();
-
-  if (ci.getFrontendOptions().omcBypass) {
-    return true;
-  }
-
-  // Use OMC to generate the Base Modelica code.
-  auto omcPath = llvm::sys::findProgramByName("omc");
-
-  if (!omcPath) {
-    auto &diag = ci.getDiagnostics();
-
-    diag.Report(diag.getCustomDiagID(clang::DiagnosticsEngine::Fatal,
-                                     "Can't obtain path to omc executable"));
-
-    return false;
-  }
-
-  Command cmd(*omcPath);
-
-  // Add the input files.
-  for (const InputFile &inputFile : ci.getFrontendOptions().inputs) {
-    if (inputFile.getKind().getLanguage() != Language::Modelica) {
-      auto &diag = ci.getDiagnostics();
-
-      diag.Report(diag.getCustomDiagID(clang::DiagnosticsEngine::Fatal,
-                                       "Invalid input type: flattening can be "
-                                       "performed only on Modelica files"));
-
-      return false;
-    }
-
-    cmd.appendArg(inputFile.getFile().str());
-  }
-
-  // Set the model to be flattened.
-  if (const auto &modelName = ci.getSimulationOptions().modelName;
-      modelName.empty()) {
-    auto &diag = ci.getDiagnostics();
-
-    diag.Report(diag.getCustomDiagID(clang::DiagnosticsEngine::Fatal,
-                                     "Model name not specified"));
-  } else {
-    cmd.appendArg("+i=" + ci.getSimulationOptions().modelName);
-  }
-
-  // Enable the output of base Modelica.
-  cmd.appendArg("-f");
-
-  // Add the extra arguments to OMC.
-  for (const auto &arg : ci.getFrontendOptions().omcCustomArgs) {
-    cmd.appendArg(arg);
-  }
-
-  // Create the file in which OMC will write.
-  llvm::SmallVector<char, 128> tmpPath;
-  llvm::sys::path::system_temp_directory(true, tmpPath);
-  llvm::sys::path::append(tmpPath, "marco_omc_%%%%%%.bmo");
-
-  llvm::Expected<llvm::sys::fs::TempFile> tempFile =
-      llvm::sys::fs::TempFile::create(tmpPath);
-
-  if (!tempFile) {
-    auto &diag = ci.getDiagnostics();
-
-    diag.Report(diag.getCustomDiagID(clang::DiagnosticsEngine::Fatal,
-                                     "Can't create OMC output file"));
-
-    return false;
-  }
-
-  // Redirect stdout of omc.
-  cmd.setStdoutRedirect(tempFile->TmpName);
-
-  // Run the command.
-  int resultCode = cmd.exec();
-
-  if (resultCode == EXIT_SUCCESS) {
-    auto buffer = llvm::errorOrToExpected(
-        ci.getFileManager().getBufferForFile(tempFile->TmpName));
-
-    if (!buffer) {
-      auto &diag = ci.getDiagnostics();
-      auto errorCode = llvm::errorToErrorCode(buffer.takeError());
-
-      diag.Report(diag.getCustomDiagID(clang::DiagnosticsEngine::Fatal,
-                                       "Unable to open '%0'. %1"))
-          << tempFile->TmpName << errorCode.message();
-
-      return false;
-    }
-
-    flattened = buffer->get()->getBuffer().str();
-
-    // Overlay the current file system with an in-memory one containing the
-    // Base Modelica source file.
-    auto &fileManager = ci.getFileManager();
-
-    auto inMemoryFS =
-        llvm::makeIntrusiveRefCnt<llvm::vfs::InMemoryFileSystem>();
-
-    inMemoryFS->addFile(
-        tempFile->TmpName, 0,
-        llvm::MemoryBuffer::getMemBuffer(flattened, tempFile->TmpName, false));
-
-    auto overlayFS = llvm::makeIntrusiveRefCnt<llvm::vfs::OverlayFileSystem>(
-        fileManager.getVirtualFileSystemPtr());
-
-    overlayFS->pushOverlay(inMemoryFS);
-    fileManager.setVirtualFileSystem(overlayFS);
-  }
-
-  setCurrentInputs(
-      io::InputFile(tempFile->TmpName,
-                    InputKind(io::Language::BaseModelica, io::Format::Source)));
-
-  if (auto ec = tempFile->discard()) {
-    auto &diag = ci.getDiagnostics();
-
-    diag.Report(
-        diag.getCustomDiagID(clang::DiagnosticsEngine::Fatal,
-                             "Can't erase the temporary OMC output file"));
-
-    return false;
-  }
-
-  return resultCode == EXIT_SUCCESS;
-}
-
-void EmitBaseModelicaAction::executeAction() {
-  CompilerInstance &ci = getInstance();
-  std::unique_ptr<llvm::raw_pwrite_stream> os;
-
-  // Get the default output stream, if none was specified.
-  if (ci.isOutputStreamNull()) {
-    if (!(os = ci.createDefaultOutputFile(
-              false, ci.getSimulationOptions().modelName, "bmo"))) {
-      return;
-    }
-  }
-
-  auto inputFile = getCurrentInputs()[0].getFile();
-  auto &fileManager = ci.getFileManager();
-
-  auto fileBuffer =
-      llvm::errorOrToExpected(fileManager.getBufferForFile(inputFile));
-
-  if (!fileBuffer) {
-    auto &diags = ci.getDiagnostics();
-    auto errorCode = llvm::errorToErrorCode(fileBuffer.takeError());
-
-    if (inputFile != "-") {
-      diags.Report(clang::diag::err_fe_error_reading)
-          << inputFile << errorCode.message();
-    } else {
-      diags.Report(clang::diag::err_fe_error_reading_stdin)
-          << errorCode.message();
-    }
-
-    return;
-  }
-
-  *os << fileBuffer->get()->getBuffer().str();
-}
-
 ASTAction::ASTAction(ASTActionKind action) : action(action) {}
 
 bool ASTAction::beginSourceFilesAction() {
-  if (!PreprocessingAction::beginSourceFilesAction()) {
-    return false;
-  }
-
   CompilerInstance &ci = getInstance();
   auto &diags = ci.getDiagnostics();
 
@@ -315,11 +148,12 @@ bool ASTAction::beginSourceFilesAction() {
 
   ast = std::move(*cls);
 
-  if (!ci.getFrontendOptions().omcBypass) {
-    // Remove the outer package.
-    auto *root = ast->cast<ast::bmodelica::Root>();
-    assert(root->getInnerClasses().size() == 1);
-    assert(root->getInnerClasses()[0]->isa<ast::bmodelica::Package>());
+  // Base Modelica code encloses the classes in a single top-level package,
+  // which is removed.
+  auto *root = ast->cast<ast::bmodelica::Root>();
+
+  if (root->getInnerClasses().size() == 1 &&
+      root->getInnerClasses()[0]->isa<ast::bmodelica::Package>()) {
     auto *package = root->getInnerClasses()[0]->cast<ast::bmodelica::Package>();
     auto newRoot = std::make_unique<ast::bmodelica::Root>(root->getLocation());
     newRoot->setInnerClasses(package->getInnerClasses());
@@ -435,12 +269,12 @@ bool CodeGenAction::beginSourceFilesAction() {
     return false;
   }
 
-  if (action == CodeGenActionKind::GenerateMLIR) {
+  if (action == CodeGenActionKind::GenerateMLIRModelica) {
     return generateMLIR();
   }
 
-  if (action == CodeGenActionKind::GenerateMLIRModelica) {
-    return generateMLIRModelica();
+  if (action == CodeGenActionKind::GenerateMLIRBaseModelica) {
+    return generateMLIRBaseModelica();
   }
 
   if (action == CodeGenActionKind::GenerateMLIRLLVM) {
@@ -527,7 +361,7 @@ void CodeGenAction::registerMLIRDialects() {
 
   // Register the custom dialects.
   mlirDialectRegistry
-      .insert<mlir::modeling::ModelingDialect,
+      .insert<mlir::modeling::ModelingDialect, mlir::modelica::ModelicaDialect,
               mlir::bmodelica::BaseModelicaDialect, mlir::ida::IDADialect,
               mlir::kinsol::KINSOLDialect, mlir::runtime::RuntimeDialect>();
 }
@@ -648,6 +482,12 @@ bool CodeGenAction::generateMLIR() {
     }
 
     mlirModule = std::make_unique<mlir::ModuleOp>(module.release());
+  } else if (getCurrentInputs()[0].getKind().getLanguage() ==
+             Language::Modelica) {
+    // The classes are lowered to the Modelica dialect.
+    if (!generateModelicaClasses()) {
+      return false;
+    }
   } else {
     // If the input is not an MLIR file, then the MLIR module will be
     // obtained starting from the AST.
@@ -664,6 +504,12 @@ bool CodeGenAction::generateMLIR() {
 
     mlirModule = std::move(bridge.getMLIRModule());
   }
+
+  return finalizeMLIRModule();
+}
+
+bool CodeGenAction::finalizeMLIRModule() {
+  CompilerInstance &ci = getInstance();
 
   // Set target triple and data layout inside the MLIR module.
   setMLIRModuleTargetTriple();
@@ -685,7 +531,122 @@ bool CodeGenAction::generateMLIR() {
   return true;
 }
 
-bool CodeGenAction::generateMLIRModelica() { return generateMLIR(); }
+bool CodeGenAction::generateMLIRBaseModelica() {
+  if (!generateMLIR()) {
+    return false;
+  }
+
+  if (getCurrentInputs()[0].getKind().getLanguage() != Language::Modelica) {
+    return true;
+  }
+
+  mlir::PassManager pm(&getMLIRContext());
+  configureMLIRPassManager(pm);
+  buildMLIRFlatteningPipeline(pm);
+  pm.addPass(mlir::createModelicaToBaseModelicaConversionPass());
+
+  return mlir::succeeded(pm.run(*mlirModule));
+}
+
+bool CodeGenAction::generateModelicaClasses() {
+  CompilerInstance &ci = getInstance();
+  auto &diags = ci.getDiagnostics();
+  auto &fileManager = ci.getFileManager();
+
+  // Parse all the input files. The buffers must outlive the AST.
+  llvm::SmallVector<std::unique_ptr<llvm::MemoryBuffer>> buffers;
+  llvm::SmallVector<std::unique_ptr<ast::modelica::StoredDefinition>> files;
+
+  for (const InputFile &input : ci.getFrontendOptions().inputs) {
+    llvm::StringRef inputFile = input.getFile();
+
+    if (input.getKind().getLanguage() != Language::Modelica) {
+      diags.Report(diags.getCustomDiagID(
+          clang::DiagnosticsEngine::Fatal,
+          "Invalid input type: the native frontend accepts only Modelica "
+          "files"));
+
+      return false;
+    }
+
+    auto fileRef = inputFile == "-" ? fileManager.getSTDIN()
+                                    : fileManager.getFileRef(inputFile, true);
+
+    if (!fileRef) {
+      auto errorCode = llvm::errorToErrorCode(fileRef.takeError());
+
+      if (inputFile != "-") {
+        diags.Report(clang::diag::err_fe_error_reading)
+            << inputFile << errorCode.message();
+      } else {
+        diags.Report(clang::diag::err_fe_error_reading_stdin)
+            << errorCode.message();
+      }
+
+      return false;
+    }
+
+    ci.getSourceManager().createFileID(*fileRef, clang::SourceLocation(),
+                                       clang::SrcMgr::C_User);
+
+    auto fileBuffer = fileManager.getBufferForFile(*fileRef);
+
+    if (!fileBuffer) {
+      diags.Report(clang::diag::err_fe_error_reading)
+          << inputFile << fileBuffer.getError().message();
+
+      return false;
+    }
+
+    auto sourceFile = std::make_shared<SourceFile>(inputFile);
+    sourceFile->setMemoryBuffer(fileBuffer->get());
+    buffers.push_back(std::move(*fileBuffer));
+
+    parser::modelica::Parser parser(diags, ci.getSourceManager(), sourceFile);
+    auto file = parser.parseStoredDefinition();
+
+    if (!file) {
+      diags.Report(diags.getCustomDiagID(clang::DiagnosticsEngine::Fatal,
+                                         "AST generation failed"));
+
+      return false;
+    }
+
+    files.push_back(std::move(file));
+  }
+
+  // The files with a within-clause must be added after the ones defining the
+  // enclosing packages.
+  llvm::stable_sort(files, [](const auto &first, const auto &second) {
+    auto depth = [](const ast::modelica::StoredDefinition &file) {
+      const auto &within = file.getWithin();
+      return within ? within->parts.size() : 0;
+    };
+
+    return depth(*first) < depth(*second);
+  });
+
+  // Lower the classes.
+  mlirModule = std::make_unique<mlir::ModuleOp>(
+      mlir::ModuleOp::create(mlir::UnknownLoc::get(&getMLIRContext())));
+
+  codegen::lowering::modelica::Lowerer lowerer(getMLIRContext());
+
+  for (const auto &file : files) {
+    if (mlir::failed(lowerer.addFile(*file))) {
+      return false;
+    }
+  }
+
+  if (mlir::failed(lowerer.lower(*mlirModule))) {
+    diags.Report(diags.getCustomDiagID(clang::DiagnosticsEngine::Fatal,
+                                       "Lowering of the classes failed"));
+
+    return false;
+  }
+
+  return true;
+}
 
 bool CodeGenAction::generateMLIRLLVM() {
   if (!generateMLIR()) {
@@ -693,6 +654,35 @@ bool CodeGenAction::generateMLIRLLVM() {
   }
 
   mlir::PassManager pm(&getMLIRContext());
+  configureMLIRPassManager(pm);
+  CompilerInstance &ci = getInstance();
+
+  auto onFailureFn = llvm::make_scope_exit([&] {
+    if (ci.getFrontendOptions().printIROnFailure) {
+      llvm::errs() << *mlirModule << "\n";
+    }
+  });
+
+  // Build the pipeline.
+  if (getCurrentInputs()[0].getKind().getLanguage() == Language::Modelica) {
+    buildMLIRFlatteningPipeline(pm);
+    pm.addPass(mlir::createModelicaToBaseModelicaConversionPass());
+  }
+
+  buildMLIRModelCanonicalizationPipeline(pm);
+  buildMLIRModelSolvingPipeline(pm);
+  buildMLIRLoweringPipeline(pm);
+
+  // Run the passes.
+  if (mlir::failed(pm.run(*mlirModule))) {
+    return false;
+  }
+
+  onFailureFn.release();
+  return true;
+}
+
+void CodeGenAction::configureMLIRPassManager(mlir::PassManager &pm) {
   CompilerInstance &ci = getInstance();
 
   // Enable verification in case of a debug build.
@@ -725,25 +715,6 @@ bool CodeGenAction::generateMLIRLLVM() {
     pm.enableIRPrinting(shouldPrintBeforePass, shouldPrintAfterPass, true,
                         false, false, llvm::errs());
   }
-
-  auto onFailureFn = llvm::make_scope_exit([&] {
-    if (ci.getFrontendOptions().printIROnFailure) {
-      llvm::errs() << *mlirModule << "\n";
-    }
-  });
-
-  // Build the pipeline.
-  buildMLIRModelCanonicalizationPipeline(pm);
-  buildMLIRModelSolvingPipeline(pm);
-  buildMLIRLoweringPipeline(pm);
-
-  // Run the passes.
-  if (mlir::failed(pm.run(*mlirModule))) {
-    return false;
-  }
-
-  onFailureFn.release();
-  return true;
 }
 
 void CodeGenAction::setMLIRModuleTargetTriple() {
@@ -841,6 +812,12 @@ mlir::DataLayoutSpecInterface CodeGenAction::buildBaseModelicaDataLayoutSpec() {
   return mlir::DataLayoutSpecAttr::get(&getMLIRContext(), entries);
 }
 
+void CodeGenAction::buildMLIRFlatteningPipeline(mlir::PassManager &pm) {
+  pm.addPass(createMLIRInstantiationPass());
+  pm.addPass(mlir::modelica::createConnectionExpansionPass());
+  pm.addPass(mlir::modelica::createFlatteningPass());
+}
+
 void CodeGenAction::buildMLIRModelCanonicalizationPipeline(
     mlir::PassManager &pm) {
   CompilerInstance &ci = getInstance();
@@ -859,7 +836,7 @@ void CodeGenAction::buildMLIRModelCanonicalizationPipeline(
   if (ci.getCodeGenOptions().readOnlyVariablesPropagation) {
     // Propagate the read-only variables and try to fold the constants right
     // after.
-    pm.addPass(createMLIRReadOnlyVariablesPropagationPass());
+    pm.addPass(mlir::bmodelica::createReadOnlyVariablesPropagationPass());
     pm.addPass(mlir::createCanonicalizerPass());
   }
 
@@ -1148,6 +1125,12 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
       mlir::LLVM::createLLVMLegalizeForExportPass());
 }
 
+std::unique_ptr<mlir::Pass> CodeGenAction::createMLIRInstantiationPass() {
+  mlir::modelica::InstantiationPassOptions options;
+  options.modelName = getInstance().getSimulationOptions().modelName;
+  return mlir::modelica::createInstantiationPass(options);
+}
+
 std::unique_ptr<mlir::Pass> CodeGenAction::createMLIRMatchingPass() {
   CompilerInstance &ci = getInstance();
   mlir::bmodelica::MatchingPassOptions options;
@@ -1169,25 +1152,6 @@ CodeGenAction::createMLIRFunctionScalarizationPass() {
   options.assertions = ci.getCodeGenOptions().assertions;
 
   return mlir::bmodelica::createFunctionScalarizationPass(options);
-}
-
-std::unique_ptr<mlir::Pass>
-CodeGenAction::createMLIRReadOnlyVariablesPropagationPass() {
-  CompilerInstance &ci = getInstance();
-
-  mlir::bmodelica::ReadOnlyVariablesPropagationPassOptions options;
-  std::string modelName = ci.getSimulationOptions().modelName;
-
-  if (!ci.getFrontendOptions().omcBypass) {
-    auto pos = modelName.find_last_of('.');
-
-    if (pos != std::string::npos) {
-      modelName = llvm::StringRef(modelName).drop_front(pos).str();
-    }
-  }
-
-  options.modelName = modelName;
-  return mlir::bmodelica::createReadOnlyVariablesPropagationPass(options);
 }
 
 std::unique_ptr<mlir::Pass>
@@ -1569,27 +1533,6 @@ void CodeGenAction::emitBackendOutput(clang::BackendAction backendAction,
   delete tlii;
 }
 
-EmitMLIRAction::EmitMLIRAction()
-    : CodeGenAction(CodeGenActionKind::GenerateMLIR) {}
-
-void EmitMLIRAction::executeAction() {
-  CompilerInstance &ci = getInstance();
-  std::unique_ptr<llvm::raw_pwrite_stream> os;
-
-  // Get the default output stream, if none was specified.
-  if (ci.isOutputStreamNull()) {
-    auto fileOrBufferNames = getCurrentFilesOrBufferNames();
-
-    if (!(os = ci.createDefaultOutputFile(
-              false, ci.getSimulationOptions().modelName, "mlir"))) {
-      return;
-    }
-  }
-
-  // Emit MLIR.
-  mlirModule->print(ci.isOutputStreamNull() ? *os : ci.getOutputStream());
-}
-
 EmitMLIRModelicaAction::EmitMLIRModelicaAction()
     : CodeGenAction(CodeGenActionKind::GenerateMLIRModelica) {}
 
@@ -1603,6 +1546,25 @@ void EmitMLIRModelicaAction::executeAction() {
 
     if (!(os = ci.createDefaultOutputFile(
               false, ci.getSimulationOptions().modelName, "mo.mlir"))) {
+      return;
+    }
+  }
+
+  // Emit MLIR.
+  mlirModule->print(ci.isOutputStreamNull() ? *os : ci.getOutputStream());
+}
+
+EmitMLIRBaseModelicaAction::EmitMLIRBaseModelicaAction()
+    : CodeGenAction(CodeGenActionKind::GenerateMLIRBaseModelica) {}
+
+void EmitMLIRBaseModelicaAction::executeAction() {
+  CompilerInstance &ci = getInstance();
+  std::unique_ptr<llvm::raw_pwrite_stream> os;
+
+  // Get the default output stream, if none was specified.
+  if (ci.isOutputStreamNull()) {
+    if (!(os = ci.createDefaultOutputFile(
+              false, ci.getSimulationOptions().modelName, "bmo.mlir"))) {
       return;
     }
   }

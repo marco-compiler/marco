@@ -16,6 +16,7 @@ config.name = 'MARCO'
 
 # List of file extensions to treat as test files.
 config.suffixes = [
+    ".bmo",
     ".cpp",
     ".mo",
     ".mlir",
@@ -79,10 +80,6 @@ tools = [
     "marco",
     "marco-opt"
 ]
-
-# Search for OMC.
-if lit.util.which("omc") != None:
-    config.available_features.add("omc")
 
 llvm_config.add_tool_substitutions(tools, tool_dirs)
 

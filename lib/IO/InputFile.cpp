@@ -25,6 +25,10 @@ InputKind InputKind::getFromExtension(llvm::StringRef extension) {
     return {Language::Modelica, Format::Source};
   }
 
+  if (extension == "bmo") {
+    return {Language::BaseModelica, Format::Source};
+  }
+
   if (extension == "mlir") {
     return {Language::MLIR, Format::Source};
   }

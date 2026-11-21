@@ -1,0 +1,6 @@
+// RUN: marco -S -o - %s | FileCheck %s
+
+// CHECK: text
+
+model M
+end M;

@@ -2,6 +2,7 @@
 #define MARCO_DIALECT_MODELICA_IR_OPINTERFACES_H
 
 #include "marco/Dialect/Modelica/IR/Attributes.h"
+#include "mlir/IR/OpDefinition.h"
 
 namespace mlir::modelica {} // namespace mlir::modelica
 

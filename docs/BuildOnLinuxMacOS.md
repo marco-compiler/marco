@@ -39,15 +39,6 @@ cmake \
 cmake --build . --target install
 ```
 
-### OpenModelica
-In order to relieve MARCO from the object-oriented features of Modelica, the frontend leverages the OpenModelica frontend to obtain a flattened version of the Modelica sources.
-
-The details on how to install OpenModelica are available on its dedicated [website](https://openmodelica.org/).
-It is recommended installing the nightly version, because some features leveraged by MARCO may not be present in the
-stable branch yet.
-
-For macOS users, OpenModelica is available through Homebrew.
-
 ### LIT
 LLVM's LIT is used to run the regression tests.
 It is available through `pip`, the Python's package manager.

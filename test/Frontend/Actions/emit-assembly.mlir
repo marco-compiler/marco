@@ -1,4 +1,4 @@
-// RUN: marco -mc1 -S --omc-bypass -o - %s | FileCheck %s
+// RUN: marco -mc1 -S -o - %s | FileCheck %s
 
 // CHECK: text
 

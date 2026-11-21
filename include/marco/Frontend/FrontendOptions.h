@@ -11,17 +11,14 @@ enum ActionKind {
 
   InitOnly,
 
-  // Emit a .bmo file.
-  EmitBaseModelica,
-
   // Emit a .ast file.
   EmitAST,
 
-  // Emit a .mlir file.
-  EmitMLIR,
-
-  // Emit a .mo.mlir file.
+  // Emit a .mo.mlir file, containing the classes in the Modelica dialect.
   EmitMLIRModelica,
+
+  // Emit a .bmo.mlir file, containing the model in the Base Modelica dialect.
+  EmitMLIRBaseModelica,
 
   // Emit a .llvm.mlir file.
   EmitMLIRLLVM,
@@ -52,11 +49,6 @@ struct FrontendOptions {
 
   /// The frontend action to perform.
   frontend::ActionKind programAction = InvalidAction;
-
-  // OMC options
-  bool omcBypass = false;
-  std::string omcPath = "";
-  std::vector<std::string> omcCustomArgs;
 
   std::string variableFilter;
 

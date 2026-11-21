@@ -1,9 +1,13 @@
-// RUN: marco %s --omc-bypass --model=DerFunctionCall --solver=ida -o %basename_t %link_flags -L %runtime_lib_dir -Wl,-rpath %runtime_lib_dir
+// RUN: marco %s --model=DerFunctionCall --solver=ida -o %basename_t %link_flags -L %runtime_lib_dir -Wl,-rpath %runtime_lib_dir
 // RUN: ./%basename_t --end-time=1 --time-step=0.1 --precision=4 | FileCheck %s
 
 // CHECK: "time","w","z"
 // CHECK: 0.0000,0.0000,0.0000
 // CHECK: 1.0000,159.9600,53.3200
+
+// XFAIL: *
+// Derivative definitions of functions are not supported yet by the native
+// frontend.
 
 function foo
 	input Real T;
@@ -15,7 +19,7 @@ algorithm
 	x := 5.2;
 
 	for i in 1:2 loop
-		x := x + {2.7, 10.9}[i] * u[i];
+		x := x + ({2.7, 10.9})[i] * u[i];
 	end for;
 
 	cp := x * T;

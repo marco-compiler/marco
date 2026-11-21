@@ -1,4 +1,4 @@
-// RUN: marco -emit-mlir-llvm --omc-bypass -o - %s | FileCheck %s
+// RUN: marco -emit-mlir-llvm -o - %s | FileCheck %s
 
 // CHECK: llvm.mlir.global internal constant @modelName
 

@@ -1,0 +1,7 @@
+// RUN: marco -mc1 %s -emit-mlir-bmodelica -o - | FileCheck %s
+
+// CHECK:       bmodelica.model @Test {
+// CHECK-NEXT:  }
+
+model Test
+end Test;

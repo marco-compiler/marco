@@ -1,0 +1,6 @@
+// RUN: marco -mc1 -emit-ast -o - %s | FileCheck %s
+
+// CHECK: "kind": "root"
+
+model M
+end M;

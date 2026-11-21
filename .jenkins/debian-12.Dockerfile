@@ -58,18 +58,6 @@ RUN chmod +x /tmp/install_marco_runtime.sh && \
     MARCO_RUNTIME_COMMIT=$(cat /tmp/version_marco_runtime.txt) \
     /tmp/install_marco_runtime.sh
 
-# Install OpenModelica.
-RUN apt update -y && \
-    apt install -y autoconf automake libboost-all-dev expat default-jre uuid-dev
-
-COPY ./version_openmodelica.txt /tmp/
-COPY ./install_openmodelica.sh /tmp/
-
-RUN chmod +x /tmp/install_openmodelica.sh && \
-    cd /root && \
-    OPENMODELICA_COMMIT=$(cat /tmp/version_openmodelica.txt) \
-    /tmp/install_openmodelica.sh
-
 # Install packaging tools.
 RUN apt update -y && \
     apt install -y gettext-base

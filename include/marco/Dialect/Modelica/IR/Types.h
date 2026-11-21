@@ -2,6 +2,7 @@
 #define MARCO_DIALECT_MODELICA_IR_TYPES_H
 
 #include "marco/Dialect/Modelica/IR/TypeInterfaces.h"
+#include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/Types.h"
 

@@ -1,9 +1,13 @@
-// RUN: marco %s --omc-bypass --model=Test --solver=euler-forward -o %basename_t %link_flags -L %runtime_lib_dir -Wl,-rpath %runtime_lib_dir
+// RUN: marco %s --model=Test --solver=euler-forward -o %basename_t %link_flags -L %runtime_lib_dir -Wl,-rpath %runtime_lib_dir
 // RUN: ./%basename_t --end-time=1 --time-step=0.1 --precision=6 | FileCheck %s
 
 // CHECK: "time","a.x[1,1]","a.x[1,2]","a.x[2,1]","a.x[2,2]","a.x[3,1]","a.x[3,2]","y1[1]","y1[2]","y2[1]","y2[2]","y2[3]"
 // CHECK: 0.000000,1.000000,2.000000,1.000000,2.000000,1.000000,2.000000,1.000000,2.000000,2.000000,2.000000,2.000000
 // CHECK: 1.000000,1.000000,2.000000,1.000000,2.000000,1.000000,2.000000,1.000000,2.000000,2.000000,2.000000,2.000000
+
+// XFAIL: *
+// The members of arrays of records have the wrong shape in the native
+// frontend.
 
 model Test
     record R

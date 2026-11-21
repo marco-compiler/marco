@@ -1,0 +1,14 @@
+// RUN: marco -mc1 %s -emit-mlir-bmodelica -o - | FileCheck %s
+
+// CHECK-LABEL: @implicitCall
+// CHECK:   bmodelica.algorithm {
+// CHECK:       %[[x:.*]] = bmodelica.variable.get @x
+// CHECK:       %[[call:.*]] = bmodelica.external_call @implicitCall(%[[x]]) : (!bmodelica.int) -> !bmodelica.int
+// CHECK:       bmodelica.variable.set @y, %[[call]]
+// CHECK:   }
+
+function implicitCall
+    input Integer x;
+    output Integer y;
+external "C";
+end implicitCall;

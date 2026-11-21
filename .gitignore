@@ -88,7 +88,11 @@ fabric.properties
 # Other IDEs / Editors
 
 # VS Code
-.vscode
+.vscode/*
+!.vscode/
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
 dist
 /build*
 .cache

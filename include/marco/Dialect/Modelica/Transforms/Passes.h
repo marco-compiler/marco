@@ -1,6 +1,10 @@
 #ifndef MARCO_DIALECT_MODELICA_TRANSFORMS_PASSES_H
 #define MARCO_DIALECT_MODELICA_TRANSFORMS_PASSES_H
 
+#include "marco/Dialect/Modelica/Transforms/ConnectionExpansion.h"
+#include "marco/Dialect/Modelica/Transforms/Flattening.h"
+#include "marco/Dialect/Modelica/Transforms/Instantiation.h"
+
 namespace mlir::modelica {
 /// Generate the code for registering passes.
 #define GEN_PASS_REGISTRATION

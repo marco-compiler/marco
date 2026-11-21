@@ -1,3 +1,4 @@
+add_subdirectory(ModelicaToBaseModelica)
 add_subdirectory(RuntimeCommon)
 add_subdirectory(RuntimeToFunc)
 add_subdirectory(RuntimeToLLVM)

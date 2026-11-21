@@ -394,16 +394,12 @@ static void parseFrontendArgs(marco::frontend::FrontendOptions &options,
       options.programAction = InitOnly;
       break;
 
-    case options::OPT_emit_base_modelica:
-      options.programAction = EmitBaseModelica;
-      break;
-
-    case options::OPT_emit_mlir:
-      options.programAction = EmitMLIR;
-      break;
-
     case options::OPT_emit_mlir_modelica:
       options.programAction = EmitMLIRModelica;
+      break;
+
+    case options::OPT_emit_mlir_bmodelica:
+      options.programAction = EmitMLIRBaseModelica;
       break;
 
     case options::OPT_emit_mlir_llvm:
@@ -478,17 +474,6 @@ static void parseFrontendArgs(marco::frontend::FrontendOptions &options,
   }
 
   setUpFrontendBasedOnAction(options);
-
-  if (const llvm::opt::Arg *arg = args.getLastArg(options::OPT_omc_path)) {
-    llvm::StringRef value = arg->getValue();
-    options.omcPath = value.str();
-  }
-
-  for (const auto &omcArg : args.getAllArgValues(options::OPT_Xomc)) {
-    options.omcCustomArgs.push_back(omcArg);
-  }
-
-  options.omcBypass = args.hasArg(options::OPT_omc_bypass);
 
   if (const llvm::opt::Arg *arg =
           args.getLastArg(options::OPT_variable_filter)) {

@@ -1,0 +1,8 @@
+// RUN: marco -mc1 %s -emit-mlir-bmodelica -o - | FileCheck %s
+
+// CHECK-LABEL: @Test
+// CHECK: bmodelica.variable @n : !bmodelica.variable<!bmodelica.int, parameter>
+
+model Test
+    parameter Integer n;
+end Test;

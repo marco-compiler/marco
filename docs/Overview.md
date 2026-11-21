@@ -3,8 +3,7 @@ The MARCO compiler transforms Modelica / Base Modelica source code into an execu
 
 ## Translation process
 The generation of the executable file is performed in five high-level phases:
-- The frontend of the OpenModelica compiler (OMC) is used to instantiate the Modelica model of interest and obtain Base Modelica code.
-- The abstract syntax tree (AST) is built and immediately converted to MLIR dialects.
+- The abstract syntax tree (AST) is built and immediately converted to MLIR dialects. Modelica models are then instantiated and flattened within the Modelica dialect, and converted to the Base Modelica one.
 - Language-specific transformations are performed to move from the descriptive nature of the model to the algorithmic one of the simulation. This process can be divided in two sequential high-level steps: the first implements normalization procedures, aiming to simplify the code received by later stages, while the second implements the model solving techniques needed to shift from one paradigm to the other. 
 - The mix of MLIR dialects is lowered to the intermediate representation of LLVM (LLVM-IR).
 - The already existing infrastructure of LLVM is invoked to generate first the object files, and then link them to appropriate runtime libraries to generate the executable file implementing the simulation. To make this step feasible, modifications to the Clang project have been performed to enable a tight integration of the MARCO frontend with the Clang driver.

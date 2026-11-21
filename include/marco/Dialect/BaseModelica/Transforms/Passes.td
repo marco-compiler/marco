@@ -355,8 +355,6 @@ def ReadOnlyVariablesPropagationPass
     ];
 
     let options = [
-        Option<"modelName", "model-name", "std::string", "",
-               "Set the model onto which perform the transformation">,
         Option<"ignoredVariables", "ignored-variables", "std::string", "",
                "List of comma-separated variables that must not be propagated">
     ];

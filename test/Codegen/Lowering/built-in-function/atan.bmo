@@ -1,0 +1,12 @@
+// RUN: marco -mc1 %s -emit-mlir-bmodelica -o - | FileCheck %s
+
+// CHECK-LABEL: @foo
+// CHECK: bmodelica.atan
+// CHECK-SAME: !bmodelica.real -> !bmodelica.real
+
+function foo
+    input Real x;
+    output Real y;
+algorithm
+    y := atan(x);
+end foo;

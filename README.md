@@ -52,10 +52,10 @@ Two development Docker images, `marco-dev-debug-debian-12` and `marco-dev-releas
 Both the images provide all the dependencies that are needed to compile MARCO, but do not contain the compiler itself.
 The images different in the build characteristics of the installed software:
 
-|                               | LLVM                 | Runtime libraries | OpenModelica  |
-|:------------------------------|:---------------------|:------------------|:--------------|
-| `marco-dev-debug-debian-12`   | Release + assertions | Debug             | Release       |
-| `marco-dev-release-debian-12` | Release              | Release           | Release       |
+|                               | LLVM                 | Runtime libraries |
+|:------------------------------|:---------------------|:------------------|
+| `marco-dev-debug-debian-12`   | Release + assertions | Debug             |
+| `marco-dev-release-debian-12` | Release              | Release           |
 
 A Visual Studio Code Dev Container can be set up using the [`docs/devcontainer.json`](docs/devcontainer.json) file.
 
